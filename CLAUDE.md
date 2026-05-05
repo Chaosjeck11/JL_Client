@@ -51,3 +51,42 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `TransactionForm` — richer create form with segmented-control type selector and conditional `relatedTransactionId` field for `RUECKBUCHUNG`; not yet wired into `Finance.tsx` (replaces `TransactionCreate` when integrated).
 - `CategoryManager` — admin panel: lists categories with per-row delete, inline create form at the bottom; calls `onCategoriesChanged` after mutations so the parent keeps its category list in sync.
 - `BusinessYearForm` — simple form to create a new business year; default year is current year + 1; shows hint that carry-over is calculated automatically.
+
+
+## Backend reference
+
+Full backend docs (data model, all routes, business logic):
+@../JL_Backend/CLAUDE.md   ← Claude Code löst diesen Pfad automatisch auf
+
+### Quick-reference: API base URL
+`http://100.91.210.125:3000`  (hardcoded in `src/api/client.ts`)
+
+### Available endpoints (summary)
+
+| Resource | Base path |
+|---|---|
+| Auth | `POST /auth/login` |
+| Members | `/members` |
+| Business Years | `/finance/business-years` |
+| Categories | `/finance/categories` |
+| Transactions | `/finance/transactions` |
+| Running balance | `GET /finance/transactions/balance/:businessYearId` |
+| Mitgliedsbeiträge | `/finance/mitgliedsbeitraege` |
+
+### Key constraints Claude Code must respect
+- Access level `0` = any authenticated user (GET routes)
+- Access level `5` = admin (POST / PATCH / DELETE)
+- `type` and `amount` on Transactions are **immutable** after creation
+- `RUECKBUCHUNG` requires `relatedTransactionId`; the related tx must not itself be a `RUECKBUCHUNG`
+- Deleting a Transaction fails if reversals exist
+- Deleting a BusinessYear fails if transactions exist
+- Deleting a Category fails if transactions are assigned
+
+### TypeScript types live in
+- `src/types/member.ts` → `Member`
+- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`
+
+### API client pattern
+All requests go through `src/api/client.ts → apiFetch()`.
+New endpoints → add a function to `src/api/members.ts` or `src/api/finance.ts`.
+Never call `fetch()` directly from components.
