@@ -5,9 +5,13 @@ export async function fetchMembers(): Promise<Member[]> {
   return apiFetch("/members");
 }
 
+export async function fetchMember(id: number): Promise<Member> {
+  return apiFetch(`/members/${id}`);
+}
+
 export async function updateMember(
   id: number,
-  data: Partial<Member>
+  data: Record<string, unknown>,
 ): Promise<Member> {
   return apiFetch(`/members/${id}`, {
     method: "PATCH",
@@ -15,13 +19,19 @@ export async function updateMember(
   });
 }
 
-
 export async function createMember(data: {
   firstname: string;
   lastname: string;
   email: string;
   password: string;
   roleId: number;
+  address?: string | null;
+  phone?: string | null;
+  birthday?: string | null;
+  u18?: boolean;
+  bereitsMitglied?: boolean;
+  schuelerStudentAzubi?: boolean;
+  berufstaetig?: boolean;
 }): Promise<Member> {
   return apiFetch("/members", {
     method: "POST",

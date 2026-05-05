@@ -2,6 +2,7 @@ import { apiFetch } from "./client";
 import type {
   BusinessYear,
   Category,
+  Mitgliedsbeitrag,
   RunningBalanceEntry,
   Transaction,
   TransactionType,
@@ -33,9 +34,7 @@ export function fetchBusinessYear(id: number): Promise<BusinessYear> {
   return apiFetch(`/finance/business-years/${id}`);
 }
 
-export function createBusinessYear(data: {
-  year: number;
-}): Promise<BusinessYear> {
+export function createBusinessYear(data: { year: number }): Promise<BusinessYear> {
   return apiFetch("/finance/business-years", {
     method: "POST",
     body: JSON.stringify(data),
@@ -75,6 +74,7 @@ export function createTransaction(data: {
   categoryId: number;
   businessYearId: number;
   relatedTransactionId?: number;
+  memberId?: number | null;
 }): Promise<Transaction> {
   return apiFetch("/finance/transactions", {
     method: "POST",
@@ -84,7 +84,7 @@ export function createTransaction(data: {
 
 export function updateTransaction(
   id: number,
-  data: { date?: string; description?: string; categoryId?: number },
+  data: { date?: string; description?: string; categoryId?: number; memberId?: number | null },
 ): Promise<Transaction> {
   return apiFetch(`/finance/transactions/${id}`, {
     method: "PATCH",
@@ -94,4 +94,19 @@ export function updateTransaction(
 
 export function deleteTransaction(id: number): Promise<void> {
   return apiFetch(`/finance/transactions/${id}`, { method: "DELETE" });
+}
+
+export function fetchMitgliedsbeitraege(filters?: {
+  businessYearId?: number;
+  memberId?: number;
+  status?: string;
+}): Promise<Mitgliedsbeitrag[]> {
+  const params = new URLSearchParams();
+  if (filters?.businessYearId !== undefined)
+    params.set("businessYearId", String(filters.businessYearId));
+  if (filters?.memberId !== undefined)
+    params.set("memberId", String(filters.memberId));
+  if (filters?.status) params.set("status", filters.status);
+  const query = params.size > 0 ? `?${params}` : "";
+  return apiFetch(`/finance/mitgliedsbeitraege${query}`);
 }

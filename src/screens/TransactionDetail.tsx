@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { deleteTransaction, updateTransaction } from "../api/finance";
+import { createTransaction, updateTransaction } from "../api/finance";
 import type { Category, Transaction } from "../types/finance";
+import { canManageFinance } from "../auth/permissions";
 
 type Props = {
   transaction: Transaction;
@@ -9,16 +10,53 @@ type Props = {
   onDeleted: () => void;
 };
 
-function typeLabel(type: Transaction["type"]) {
-  if (type === "EINZAHLUNG") return "Einzahlung";
-  if (type === "AUSZAHLUNG") return "Auszahlung";
-  return "Rückbuchung";
+function fmtDate(d: string): string {
+  if (!d) return "–";
+  const [y, m, day] = d.substring(0, 10).split("-");
+  return `${day}.${m}.${y}`;
 }
 
-function typeColor(type: Transaction["type"]) {
-  if (type === "EINZAHLUNG") return "green";
-  if (type === "AUSZAHLUNG") return "red";
-  return "gray";
+function TypePill({ type }: { type: Transaction["type"] }) {
+  const map: Record<string, { label: string; color: string; bg: string }> = {
+    EINZAHLUNG:  { label: "Einzahlung",  color: "#16a34a", bg: "#f0fdf4" },
+    AUSZAHLUNG:  { label: "Auszahlung",  color: "#dc2626", bg: "#fef2f2" },
+    RUECKBUCHUNG: { label: "Rückbuchung", color: "#d97706", bg: "#fffbeb" },
+  };
+  const s = map[type] ?? { label: type, color: "#64748b", bg: "#f1f5f9" };
+  return (
+    <span style={{
+      display: "inline-block", padding: "2px 10px", borderRadius: 12,
+      fontSize: 12, fontWeight: 600, background: s.bg, color: s.color,
+      border: `1px solid ${s.color}33`,
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db",
+  fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
+      <span style={{ fontSize: 13, color: "#64748b" }}>{label}</span>
+      <span style={{ fontSize: 13, color: "#1e293b" }}>{children}</span>
+    </div>
+  );
 }
 
 export default function TransactionDetail({
@@ -28,22 +66,20 @@ export default function TransactionDetail({
   onDeleted,
 }: Props) {
   const [edit, setEdit] = useState(false);
-  const [date, setDate] = useState(transaction.date);
+  const [date, setDate] = useState(transaction.date.substring(0, 10));
   const [description, setDescription] = useState(transaction.description);
   const [categoryId, setCategoryId] = useState(transaction.categoryId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const sign = transaction.type === "EINZAHLUNG" ? "+" : "-";
+  const amountColor = transaction.type === "EINZAHLUNG" ? "#16a34a" : transaction.type === "AUSZAHLUNG" ? "#dc2626" : "#d97706";
+  const isAdmin = canManageFinance();
 
   async function save() {
     try {
       setSaving(true);
-      const updated = await updateTransaction(transaction.id, {
-        date,
-        description,
-        categoryId,
-      });
+      const updated = await updateTransaction(transaction.id, { date, description, categoryId });
       onUpdated(updated);
       setEdit(false);
     } catch {
@@ -53,14 +89,22 @@ export default function TransactionDetail({
     }
   }
 
-  async function handleDelete() {
-    if (!confirm("Buchung wirklich löschen?")) return;
+  async function handleStornieren() {
+    if (!confirm("Buchung wirklich stornieren? Es wird automatisch eine Gegenbuchung erstellt.")) return;
     try {
       setSaving(true);
-      await deleteTransaction(transaction.id);
+      await createTransaction({
+        date: new Date().toISOString().slice(0, 10),
+        description: `Stornierung: ${transaction.description}`,
+        type: "RUECKBUCHUNG",
+        amount: transaction.amount,
+        categoryId: transaction.categoryId,
+        businessYearId: transaction.businessYearId,
+        relatedTransactionId: transaction.id,
+      });
       onDeleted();
     } catch {
-      setError("Löschen fehlgeschlagen");
+      setError("Stornierung fehlgeschlagen");
     } finally {
       setSaving(false);
     }
@@ -69,104 +113,109 @@ export default function TransactionDetail({
   if (!edit) {
     return (
       <div>
-        <h3>Buchung</h3>
-
-        {error && <p style={{ color: "red" }}>{error}</p>}
-
-        <p>
-          <b>Datum:</b> {transaction.date}
-        </p>
-        <p>
-          <b>Beschreibung:</b> {transaction.description}
-        </p>
-        <p>
-          <b>Kategorie:</b> {transaction.category.name}
-        </p>
-        <p>
-          <b>Typ:</b>{" "}
-          <span style={{ color: typeColor(transaction.type) }}>
-            {typeLabel(transaction.type)}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: "#1e293b" }}>Buchungsdetail</h3>
+          <span style={{ fontSize: 18, fontWeight: 700, color: amountColor }}>
+            {sign}{transaction.amount.toFixed(2)} €
           </span>
-        </p>
-        <p>
-          <b>Betrag:</b>{" "}
-          <span style={{ color: typeColor(transaction.type) }}>
-            {sign}
-            {transaction.amount.toFixed(2)} €
-          </span>
-        </p>
-        {transaction.relatedTransactionId && (
-          <p>
-            <b>Verknüpfte Buchung:</b> #{transaction.relatedTransactionId}
-          </p>
+        </div>
+
+        {error && (
+          <div style={{ padding: "8px 12px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 13, marginBottom: 14 }}>
+            {error}
+          </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button onClick={() => setEdit(true)}>Bearbeiten</button>
-          <button
-            onClick={handleDelete}
-            disabled={saving}
-            style={{ color: "red" }}
-          >
-            Löschen
-          </button>
+        <div style={{ marginBottom: 20 }}>
+          <InfoRow label="Datum">{fmtDate(transaction.date)}</InfoRow>
+          <InfoRow label="Beschreibung">{transaction.description}</InfoRow>
+          <InfoRow label="Kategorie">{transaction.category.name}</InfoRow>
+          <InfoRow label="Typ"><TypePill type={transaction.type} /></InfoRow>
+          <InfoRow label="Betrag">
+            <span style={{ fontWeight: 600, color: amountColor }}>
+              {sign}{transaction.amount.toFixed(2)} €
+            </span>
+          </InfoRow>
+          {transaction.relatedTransactionId && (
+            <InfoRow label="Verknüpfte Buchung">#{transaction.relatedTransactionId}</InfoRow>
+          )}
         </div>
+
+        {isAdmin && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setEdit(true)}
+              style={{
+                padding: "7px 16px", borderRadius: 6, border: "1px solid #d1d5db",
+                background: "#fff", fontSize: 13, cursor: "pointer",
+              }}
+            >
+              Bearbeiten
+            </button>
+            {transaction.type !== "RUECKBUCHUNG" && (
+              <button
+                onClick={handleStornieren}
+                disabled={saving}
+                style={{
+                  padding: "7px 16px", borderRadius: 6, border: "1px solid #fca5a5",
+                  background: "#fef2f2", fontSize: 13, color: "#dc2626", cursor: "pointer",
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                Stornieren
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div>
-      <h3>Buchung bearbeiten</h3>
+      <h3 style={{ margin: "0 0 20px", fontSize: 16, color: "#1e293b" }}>Buchung bearbeiten</h3>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && (
+        <div style={{ padding: "8px 12px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 13, marginBottom: 14 }}>
+          {error}
+        </div>
+      )}
 
-      <label>
-        Datum
-        <br />
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
-      </label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Field label="Datum">
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
+        </Field>
 
-      <br />
-      <br />
+        <Field label="Beschreibung">
+          <input value={description} onChange={e => setDescription(e.target.value)} style={inputStyle} />
+        </Field>
 
-      <label>
-        Beschreibung
-        <br />
-        <input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          style={{ width: "100%" }}
-        />
-      </label>
+        <Field label="Kategorie">
+          <select value={categoryId} onChange={e => setCategoryId(Number(e.target.value))} style={inputStyle}>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
 
-      <br />
-      <br />
-
-      <label>
-        Kategorie
-        <br />
-        <select
-          value={categoryId}
-          onChange={(e) => setCategoryId(Number(e.target.value))}
+      <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+        <button
+          onClick={save}
+          disabled={saving}
+          style={{
+            flex: 1, padding: "8px 0", borderRadius: 6, border: "none",
+            background: "#1e293b", color: "#fff", fontSize: 14, fontWeight: 600,
+            cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1,
+          }}
         >
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-        <button onClick={save} disabled={saving}>
-          Speichern
+          {saving ? "Speichern…" : "Speichern"}
         </button>
-        <button onClick={() => setEdit(false)} disabled={saving}>
+        <button
+          onClick={() => { setEdit(false); setError(""); }}
+          disabled={saving}
+          style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", fontSize: 14, cursor: "pointer" }}
+        >
           Abbrechen
         </button>
       </div>
