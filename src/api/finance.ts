@@ -64,7 +64,7 @@ export function fetchTransactions(filters?: {
 export function fetchRunningBalance(
   businessYearId: number,
 ): Promise<RunningBalanceEntry[]> {
-  return apiFetch(`/finance/transactions/running-balance/${businessYearId}`);
+  return apiFetch(`/finance/transactions/balance/${businessYearId}`);
 }
 
 export function createTransaction(data: {
