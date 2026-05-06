@@ -1,8 +1,12 @@
 import { apiFetch } from "./client";
-import type { Member } from "../types/member";
+import type { Member, Role } from "../types/member";
 
 export async function fetchMembers(): Promise<Member[]> {
   return apiFetch("/members");
+}
+
+export async function fetchRoles(): Promise<Role[]> {
+  return apiFetch("/members/roles");
 }
 
 export async function fetchMember(id: number): Promise<Member> {

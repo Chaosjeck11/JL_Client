@@ -28,6 +28,16 @@ const inputStyle: React.CSSProperties = {
   fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
 };
 
+function businessYearForDate(dateStr: string, years: BusinessYear[]): number | null {
+  const parts = dateStr.split("-");
+  if (parts.length < 2) return null;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  // GJ Y läuft Feb Y – Jan Y+1; Januar gehört also noch zu GJ des Vorjahres
+  const gjYear = m === 1 ? y - 1 : y;
+  return years.find(by => by.year === gjYear)?.id ?? null;
+}
+
 export default function TransactionCreate({
   businessYears,
   defaultBusinessYearId,
@@ -45,7 +55,16 @@ export default function TransactionCreate({
   const [businessYearId, setBusinessYearId] = useState<number>(
     defaultBusinessYearId ?? businessYears[0]?.id ?? 0,
   );
+
+  function handleDateChange(newDate: string) {
+    setDate(newDate);
+    if (newDate) {
+      const matched = businessYearForDate(newDate, businessYears);
+      if (matched !== null) setBusinessYearId(matched);
+    }
+  }
   const [memberId, setMemberId] = useState<number | null>(null);
+  const [tag, setTag] = useState<"ONLINE" | "BAR">("ONLINE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -57,6 +76,7 @@ export default function TransactionCreate({
     if (!amount || parseFloat(amount) <= 0) { setError("Bitte einen gültigen Betrag eingeben"); return; }
     if (!categoryId) { setError("Bitte eine Kategorie wählen"); return; }
     if (!businessYearId) { setError("Bitte ein Geschäftsjahr wählen"); return; }
+    if (!tag) { setError("Bitte eine Zahlungsart wählen"); return; }
     try {
       setSaving(true);
       setError("");
@@ -68,6 +88,7 @@ export default function TransactionCreate({
         categoryId,
         businessYearId,
         memberId: showMemberSelector ? memberId : null,
+        tag,
       });
       onCreated(t);
     } catch {
@@ -88,6 +109,15 @@ export default function TransactionCreate({
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Field label="Datum">
+          <input
+            type="date"
+            value={date}
+            onChange={e => handleDateChange(e.target.value)}
+            style={inputStyle}
+          />
+        </Field>
+
         <Field label="Geschäftsjahr">
           <select
             value={businessYearId}
@@ -98,15 +128,6 @@ export default function TransactionCreate({
               <option key={y.id} value={y.id}>{y.year}</option>
             ))}
           </select>
-        </Field>
-
-        <Field label="Datum">
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            style={inputStyle}
-          />
         </Field>
 
         <Field label="Beschreibung">
@@ -181,6 +202,26 @@ export default function TransactionCreate({
             </select>
           </Field>
         )}
+
+        <Field label="Zahlungsart">
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["ONLINE", "BAR"] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTag(t)}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: 6, border: "1px solid",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  borderColor: tag === t ? "#3b82f6" : "#d1d5db",
+                  background: tag === t ? "#eff6ff" : "#fff",
+                  color: tag === t ? "#1d4ed8" : "#374151",
+                }}
+              >
+                {t === "ONLINE" ? "Online" : "Bar"}
+              </button>
+            ))}
+          </div>
+        </Field>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 20 }}>

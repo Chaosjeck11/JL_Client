@@ -7,7 +7,7 @@ import {
 } from "../api/finance";
 import { fetchMembers } from "../api/members";
 import { canManageFinance } from "../auth/permissions";
-import type { BusinessYear, Category, RunningBalanceEntry, Transaction } from "../types/finance";
+import type { BusinessYear, Category, PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
 import type { Member } from "../types/member";
 import BusinessYearForm from "./finance/BusinessYearForm";
 import CategoryManager from "./finance/CategoryManager";
@@ -38,6 +38,24 @@ function TypePill({ type }: { type: Transaction["type"] }) {
   );
 }
 
+function TagPill({ tag }: { tag: PaymentTag | null | undefined }) {
+  if (!tag) return null;
+  const map: Record<PaymentTag, { label: string; color: string; bg: string }> = {
+    ONLINE: { label: "Online", color: "#1d4ed8", bg: "#eff6ff" },
+    BAR:    { label: "Bar",    color: "#374151", bg: "#f1f5f9" },
+  };
+  const s = map[tag];
+  return (
+    <span style={{
+      display: "inline-block", padding: "1px 8px", borderRadius: 10,
+      fontSize: 11, fontWeight: 600, background: s.bg, color: s.color,
+      whiteSpace: "nowrap",
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{
@@ -53,7 +71,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   );
 }
 
-type ActiveFilter = "date" | "desc" | "cat" | null;
+type ActiveFilter = "date" | "desc" | "cat" | "tag" | null;
 
 export default function Finance() {
   const [businessYears, setBusinessYears] = useState<BusinessYear[]>([]);
@@ -76,6 +94,7 @@ export default function Finance() {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterKeywords, setFilterKeywords] = useState("");
   const [filterCatIds, setFilterCatIds] = useState<number[]>([]);
+  const [filterTags, setFilterTags] = useState<Array<PaymentTag | null>>([]);
 
   const filterRef = useRef<HTMLTableSectionElement>(null);
 
@@ -145,6 +164,7 @@ export default function Finance() {
       if (!kws.every(k => t.description.toLowerCase().includes(k))) return false;
     }
     if (filterCatIds.length > 0 && !filterCatIds.includes(t.categoryId)) return false;
+    if (filterTags.length > 0 && !filterTags.includes(t.tag ?? null)) return false;
     return true;
   });
 
@@ -158,7 +178,8 @@ export default function Finance() {
   const hasDateFilter = !!(filterDateFrom || filterDateTo);
   const hasDescFilter = !!filterKeywords;
   const hasCatFilter  = filterCatIds.length > 0;
-  const hasAnyFilter  = hasDateFilter || hasDescFilter || hasCatFilter;
+  const hasTagFilter  = filterTags.length > 0;
+  const hasAnyFilter  = hasDateFilter || hasDescFilter || hasCatFilter || hasTagFilter;
 
   const showPanel = creating || creatingYear || !!selected;
 
@@ -305,8 +326,14 @@ export default function Finance() {
                 <button onClick={() => setFilterCatIds([])} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#1d4ed8", fontSize: 13 }}>×</button>
               </span>
             )}
+            {hasTagFilter && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe", fontSize: 12, color: "#1d4ed8" }}>
+                {filterTags.map(t => t === null ? "Kein Tag" : t === "ONLINE" ? "Online" : "Bar").join(", ")}
+                <button onClick={() => setFilterTags([])} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#1d4ed8", fontSize: 13 }}>×</button>
+              </span>
+            )}
             <button
-              onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); setFilterKeywords(""); setFilterCatIds([]); }}
+              onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); setFilterKeywords(""); setFilterCatIds([]); setFilterTags([]); }}
               style={{ padding: "2px 8px", borderRadius: 12, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
             >
               Alle zurücksetzen
@@ -448,6 +475,62 @@ export default function Finance() {
                   )}
                 </th>
 
+                {/* ── Tag ── */}
+                <th
+                  align="left"
+                  style={thClickable}
+                  onClick={() => setActiveFilter(activeFilter === "tag" ? null : "tag")}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    Zahlung
+                    {hasTagFilter && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        width: 16, height: 16, borderRadius: "50%", background: "#3b82f6",
+                        color: "#fff", fontSize: 9, fontWeight: 700, marginLeft: 2,
+                      }}>
+                        {filterTags.length}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 9, color: "#94a3b8" }}>▼</span>
+                  </span>
+                  {activeFilter === "tag" && (
+                    <div style={{ ...dropdownBox, minWidth: 160 }} onClick={e => e.stopPropagation()}>
+                      {([["ONLINE", "Online"], ["BAR", "Bar"], [null, "Kein Tag"]] as const).map(([val, label]) => (
+                        <label
+                          key={val ?? "none"}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            padding: "4px 2px", cursor: "pointer",
+                            fontSize: 13, fontWeight: 400, color: "#1e293b",
+                            textTransform: "none", letterSpacing: 0,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterTags.includes(val)}
+                            onChange={() =>
+                              setFilterTags(prev =>
+                                prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]
+                              )
+                            }
+                            style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#3b82f6" }}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                      {hasTagFilter && (
+                        <button
+                          onClick={() => setFilterTags([])}
+                          style={{ marginTop: 4, padding: "5px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                        >
+                          Auswahl aufheben
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </th>
+
                 {/* Typ, Betrag, Kontostand — not filterable */}
                 {["Typ", "Betrag", "Kontostand"].map((h, i) => (
                   <th
@@ -463,7 +546,7 @@ export default function Finance() {
             <tbody>
               {visibleEntries.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  <td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
                     {baseEntries.length === 0 ? "Keine Buchungen für dieses Jahr" : "Keine Ergebnisse für die aktuellen Filter"}
                   </td>
                 </tr>
@@ -498,6 +581,7 @@ export default function Finance() {
                     <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtDate(t.date)}</td>
                     <td style={{ padding: "9px 14px", fontSize: 13, color: "#1e293b" }}>{t.description}</td>
                     <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b" }}>{t.category.name}</td>
+                    <td style={{ padding: "9px 14px" }}><TagPill tag={t.tag} /></td>
                     <td style={{ padding: "9px 14px" }}><TypePill type={t.type} /></td>
                     <td align="right" style={{ padding: "9px 14px", fontSize: 13, fontWeight: 600, color: amtColor, whiteSpace: "nowrap" }}>
                       {t.type === "EINZAHLUNG" ? "+" : "-"}{t.amount.toFixed(2)} €
@@ -512,7 +596,7 @@ export default function Finance() {
             {visibleEntries.length > 0 && (
               <tfoot>
                 <tr style={{ background: "#f8fafc", borderTop: "2px solid #e2e8f0" }}>
-                  <td colSpan={4} style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Gesamt</td>
+                  <td colSpan={5} style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Gesamt</td>
                   <td align="right" style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                     <span style={{ color: "#16a34a" }}>+{totalIncome.toFixed(2)} €</span>
                     {" / "}

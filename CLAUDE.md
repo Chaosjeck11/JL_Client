@@ -32,7 +32,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 **Types:**
 - `src/types/member.ts` — `Member`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
-- `src/types/finance.ts` — `TransactionType`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`.
+- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`.
 
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
@@ -40,12 +40,12 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right).
-  - Left: year dropdown (descending), three summary badges (Übertrag/Einnahmen/Kontostand from `fetchBusinessYear`), running-balance table, summary footer row.
+  - Left: year dropdown (descending), three summary badges (Übertrag/Einnahmen/Kontostand from `fetchBusinessYear`), running-balance table with a „Zahlung" column (tag: Online/Bar) that is filterable via dropdown, summary footer row.
   - Right panel switches between: `BusinessYearForm`, `TransactionCreate`, `TransactionDetail`, or placeholder text.
   - "Kategorien verwalten" toggle (admin only) opens `CategoryManager` inline below the header.
   - "+ Jahr" button (admin only) next to the year dropdown opens `BusinessYearForm` in the right panel.
-- `TransactionCreate` — create form for a new transaction (used by `Finance`).
-- `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category and deleting.
+- `TransactionCreate` — create form for a new transaction (used by `Finance`). `tag` (`ONLINE` | `BAR`) is required; defaults to `ONLINE`.
+- `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form.
 
 **Finance sub-screens (`src/screens/finance/`):**
 - `TransactionForm` — richer create form with segmented-control type selector and conditional `relatedTransactionId` field for `RUECKBUCHUNG`; not yet wired into `Finance.tsx` (replaces `TransactionCreate` when integrated).
@@ -77,6 +77,7 @@ Full backend docs (data model, all routes, business logic):
 - Access level `0` = any authenticated user (GET routes)
 - Access level `5` = admin (POST / PATCH / DELETE)
 - `type` and `amount` on Transactions are **immutable** after creation
+- `tag` (`ONLINE` | `BAR`) is required on every Transaction; the frontend enforces this on create and defaults to `ONLINE` in the edit form
 - `RUECKBUCHUNG` requires `relatedTransactionId`; the related tx must not itself be a `RUECKBUCHUNG`
 - Deleting a Transaction fails if reversals exist
 - Deleting a BusinessYear fails if transactions exist
@@ -84,7 +85,7 @@ Full backend docs (data model, all routes, business logic):
 
 ### TypeScript types live in
 - `src/types/member.ts` → `Member`
-- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`
+- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`
 
 ### API client pattern
 All requests go through `src/api/client.ts → apiFetch()`.

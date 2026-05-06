@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createTransaction, updateTransaction } from "../api/finance";
-import type { Category, Transaction } from "../types/finance";
+import type { Category, PaymentTag, Transaction } from "../types/finance";
 import { canManageFinance } from "../auth/permissions";
 
 type Props = {
@@ -59,6 +59,24 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+function TagPill({ tag }: { tag: PaymentTag | null | undefined }) {
+  if (!tag) return <span style={{ fontSize: 13, color: "#94a3b8" }}>—</span>;
+  const map: Record<PaymentTag, { label: string; color: string; bg: string }> = {
+    ONLINE: { label: "Online", color: "#1d4ed8", bg: "#eff6ff" },
+    BAR:    { label: "Bar",    color: "#374151", bg: "#f1f5f9" },
+  };
+  const s = map[tag];
+  return (
+    <span style={{
+      display: "inline-block", padding: "2px 10px", borderRadius: 12,
+      fontSize: 12, fontWeight: 600, background: s.bg, color: s.color,
+      border: `1px solid ${s.color}33`,
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
 export default function TransactionDetail({
   transaction,
   categories,
@@ -69,6 +87,7 @@ export default function TransactionDetail({
   const [date, setDate] = useState(transaction.date.substring(0, 10));
   const [description, setDescription] = useState(transaction.description);
   const [categoryId, setCategoryId] = useState(transaction.categoryId);
+  const [tag, setTag] = useState<PaymentTag>(transaction.tag ?? "ONLINE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -79,7 +98,7 @@ export default function TransactionDetail({
   async function save() {
     try {
       setSaving(true);
-      const updated = await updateTransaction(transaction.id, { date, description, categoryId });
+      const updated = await updateTransaction(transaction.id, { date, description, categoryId, tag });
       onUpdated(updated);
       setEdit(false);
     } catch {
@@ -136,6 +155,7 @@ export default function TransactionDetail({
               {sign}{transaction.amount.toFixed(2)} €
             </span>
           </InfoRow>
+          <InfoRow label="Zahlungsart"><TagPill tag={transaction.tag} /></InfoRow>
           {transaction.relatedTransactionId && (
             <InfoRow label="Verknüpfte Buchung">#{transaction.relatedTransactionId}</InfoRow>
           )}
@@ -196,6 +216,26 @@ export default function TransactionDetail({
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
+        </Field>
+
+        <Field label="Zahlungsart">
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["ONLINE", "BAR"] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTag(t)}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: 6, border: "1px solid",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  borderColor: tag === t ? "#3b82f6" : "#d1d5db",
+                  background: tag === t ? "#eff6ff" : "#fff",
+                  color: tag === t ? "#1d4ed8" : "#374151",
+                }}
+              >
+                {t === "ONLINE" ? "Online" : "Bar"}
+              </button>
+            ))}
+          </div>
         </Field>
       </div>
 

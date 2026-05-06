@@ -18,6 +18,8 @@ export type BusinessYear = {
   endDate?: string;
 };
 
+export type PaymentTag = "ONLINE" | "BAR";
+
 export type Transaction = {
   id: number;
   date: string;
@@ -29,6 +31,7 @@ export type Transaction = {
   businessYearId: number;
   relatedTransactionId?: number;
   memberId?: number | null;
+  tag?: PaymentTag | null;
 };
 
 export type RunningBalanceEntry = {

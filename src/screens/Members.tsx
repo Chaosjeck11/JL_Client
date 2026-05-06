@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchMembers } from "../api/members";
+import { fetchMembers, fetchRoles } from "../api/members";
 import type { Member, Role } from "../types/member";
 import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
@@ -20,6 +20,7 @@ const thStyle: React.CSSProperties = {
 
 export default function Members({ onLogout: _onLogout }: MembersProps) {
   const [members, setMembers] = useState<Member[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [selected, setSelected] = useState<Member | null>(null);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
@@ -28,13 +29,10 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
     fetchMembers()
       .then(setMembers)
       .catch(() => setError("Fehler beim Laden der Mitglieder"));
+    fetchRoles()
+      .then(setRoles)
+      .catch(() => {});
   }, []);
-
-  const roles: Role[] = Array.from(
-    new Map(
-      members.filter(m => m.role).map(m => [m.role!.id, m.role!]),
-    ).values(),
-  );
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 45px)" }}>

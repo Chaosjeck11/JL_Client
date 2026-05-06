@@ -49,7 +49,6 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
     firstname: "",
     lastname: "",
     email: "",
-    password: "",
     address: "",
     phone: "",
     birthday: "",
@@ -63,13 +62,15 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const generatedPassword = `${form.firstname}.${form.lastname}`.toLowerCase();
+
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm(f => ({ ...f, [key]: value }));
   }
 
   async function submit() {
-    if (!form.firstname || !form.lastname || !form.email || !form.password) {
-      setError("Vorname, Nachname, E-Mail und Passwort sind Pflichtfelder");
+    if (!form.firstname || !form.lastname || !form.email) {
+      setError("Vorname, Nachname und E-Mail sind Pflichtfelder");
       return;
     }
     try {
@@ -78,7 +79,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
         firstname: form.firstname,
         lastname: form.lastname,
         email: form.email,
-        password: form.password,
+        password: generatedPassword,
         roleId: form.roleId,
         address: form.address || null,
         phone: form.phone || null,
@@ -113,8 +114,13 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
         <FormField label="E-Mail *">
           <input type="email" value={form.email} onChange={e => set("email", e.target.value)} style={inputStyle} />
         </FormField>
-        <FormField label="Initiales Passwort *">
-          <input type="password" value={form.password} onChange={e => set("password", e.target.value)} style={inputStyle} />
+        <FormField label="Initiales Passwort">
+          <input
+            readOnly
+            value={form.firstname && form.lastname ? generatedPassword : ""}
+            placeholder="wird aus Vor- und Nachname generiert"
+            style={{ ...inputStyle, background: "#f8fafc", color: "#64748b", cursor: "default" }}
+          />
         </FormField>
         <FormField label="Adresse">
           <input value={form.address} onChange={e => set("address", e.target.value)} style={inputStyle} />

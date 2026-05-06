@@ -75,6 +75,7 @@ export function createTransaction(data: {
   businessYearId: number;
   relatedTransactionId?: number;
   memberId?: number | null;
+  tag?: "ONLINE" | "BAR" | null;
 }): Promise<Transaction> {
   return apiFetch("/finance/transactions", {
     method: "POST",
@@ -84,7 +85,7 @@ export function createTransaction(data: {
 
 export function updateTransaction(
   id: number,
-  data: { date?: string; description?: string; categoryId?: number; memberId?: number | null },
+  data: { date?: string; description?: string; categoryId?: number; memberId?: number | null; tag?: "ONLINE" | "BAR" | null },
 ): Promise<Transaction> {
   return apiFetch(`/finance/transactions/${id}`, {
     method: "PATCH",
