@@ -53,6 +53,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
     address: "",
     phone: "",
     birthday: "",
+    joinedAt: new Date().toISOString().slice(0, 10),
     roleId: roles.length > 0 ? roles[0].id : 1,
     u18: false,
     bereitsMitglied: false,
@@ -82,6 +83,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
         address: form.address || null,
         phone: form.phone || null,
         birthday: form.birthday || null,
+        joinedAt: form.joinedAt || null,
         u18: form.u18,
         bereitsMitglied: form.bereitsMitglied,
         schuelerStudentAzubi: form.schuelerStudentAzubi,
@@ -127,6 +129,9 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
 
       <SectionHeader label="Mitgliedschaft" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <FormField label="Beitrittsdatum">
+          <input type="date" value={form.joinedAt} onChange={e => set("joinedAt", e.target.value)} style={{ ...inputStyle, flex: "unset" }} />
+        </FormField>
         <FormField label="Rolle">
           {roles.length > 0 ? (
             <select value={form.roleId} onChange={e => set("roleId", Number(e.target.value))} style={{ ...inputStyle }}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchBusinessYear,
   fetchBusinessYears,
@@ -53,6 +53,8 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   );
 }
 
+type ActiveFilter = "date" | "desc" | "cat" | null;
+
 export default function Finance() {
   const [businessYears, setBusinessYears] = useState<BusinessYear[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
@@ -66,6 +68,16 @@ export default function Finance() {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [error, setError] = useState("");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [showStornos, setShowStornos] = useState(false);
+
+  // Filter state
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterKeywords, setFilterKeywords] = useState("");
+  const [filterCatIds, setFilterCatIds] = useState<number[]>([]);
+
+  const filterRef = useRef<HTMLTableSectionElement>(null);
 
   const isAdmin = canManageFinance();
 
@@ -90,10 +102,28 @@ export default function Finance() {
       .catch(() => setError("Fehler beim Laden der Buchungen"));
   }, [selectedYearId]);
 
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    if (!activeFilter) return;
+    function onDown(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setActiveFilter(null);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [activeFilter]);
+
   function reloadYear() {
     if (selectedYearId === null) return;
     Promise.all([fetchRunningBalance(selectedYearId), fetchBusinessYear(selectedYearId)])
       .then(([ents, detail]) => { setEntries(ents); setYearDetail(detail); });
+  }
+
+  function toggleCat(id: number) {
+    setFilterCatIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   }
 
   const stornoIds = new Set(
@@ -101,15 +131,64 @@ export default function Finance() {
       .filter(e => e.transaction.type === "RUECKBUCHUNG" && e.transaction.relatedTransactionId != null)
       .map(e => e.transaction.relatedTransactionId!)
   );
-  const visibleEntries = entries.filter(
+  const baseEntries = showStornos
+    ? entries
+    : entries.filter(e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id));
+
+  const visibleEntries = baseEntries.filter(e => {
+    const t = e.transaction;
+    const txDate = t.date.substring(0, 10);
+    if (filterDateFrom && txDate < filterDateFrom) return false;
+    if (filterDateTo && txDate > filterDateTo) return false;
+    if (filterKeywords) {
+      const kws = filterKeywords.toLowerCase().split(/\s+/).filter(Boolean);
+      if (!kws.every(k => t.description.toLowerCase().includes(k))) return false;
+    }
+    if (filterCatIds.length > 0 && !filterCatIds.includes(t.categoryId)) return false;
+    return true;
+  });
+
+  const statsEntries = entries.filter(
     e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id)
   );
-
-  const totalIncome   = visibleEntries.filter(e => e.transaction.type === "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
-  const totalExpenses = visibleEntries.filter(e => e.transaction.type !== "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
+  const totalIncome   = statsEntries.filter(e => e.transaction.type === "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
+  const totalExpenses = statsEntries.filter(e => e.transaction.type !== "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
   const finalBalance  = entries.length > 0 ? entries[entries.length - 1].runningBalance : (yearDetail?.carryOver ?? 0);
 
+  const hasDateFilter = !!(filterDateFrom || filterDateTo);
+  const hasDescFilter = !!filterKeywords;
+  const hasCatFilter  = filterCatIds.length > 0;
+  const hasAnyFilter  = hasDateFilter || hasDescFilter || hasCatFilter;
+
   const showPanel = creating || creatingYear || !!selected;
+
+  const thBase: React.CSSProperties = {
+    padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b",
+    textTransform: "uppercase", letterSpacing: 0.5, position: "relative",
+    userSelect: "none",
+  };
+  const thClickable: React.CSSProperties = {
+    ...thBase, cursor: "pointer",
+  };
+
+  const dropdownBox: React.CSSProperties = {
+    position: "absolute", top: "100%", left: 0, zIndex: 200,
+    background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: "12px 14px",
+    minWidth: 240, display: "flex", flexDirection: "column", gap: 8,
+  };
+
+  const filterDot = (
+    <span style={{
+      display: "inline-block", width: 6, height: 6, borderRadius: "50%",
+      background: "#3b82f6", marginLeft: 4, verticalAlign: "middle",
+    }} />
+  );
+
+  const inputStyle: React.CSSProperties = {
+    padding: "6px 8px", borderRadius: 5, border: "1px solid #d1d5db",
+    fontSize: 13, width: "100%", boxSizing: "border-box",
+  };
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 44px)", background: "#f8fafc" }}>
@@ -152,6 +231,18 @@ export default function Finance() {
                 Kategorien {showCategoryManager ? "▲" : "▼"}
               </button>
             )}
+            <button
+              onClick={() => setShowStornos(v => !v)}
+              style={{
+                padding: "5px 12px", borderRadius: 6,
+                border: showStornos ? "1px solid #d97706" : "1px solid #d1d5db",
+                background: showStornos ? "#fffbeb" : "#fff",
+                color: showStornos ? "#d97706" : "#374151",
+                fontSize: 13, fontWeight: showStornos ? 600 : 400, cursor: "pointer",
+              }}
+            >
+              Rückbuchungen {showStornos ? "▲" : "▼"}
+            </button>
             {isAdmin && (
               <button
                 onClick={() => { setCreating(true); setSelected(null); setCreatingYear(false); }}
@@ -187,16 +278,182 @@ export default function Finance() {
           </div>
         )}
 
+        {/* Active filter chips */}
+        {hasAnyFilter && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "#64748b" }}>Filter:</span>
+            {hasDateFilter && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe", fontSize: 12, color: "#1d4ed8" }}>
+                {filterDateFrom && filterDateTo
+                  ? `${fmtDate(filterDateFrom)} – ${fmtDate(filterDateTo)}`
+                  : filterDateFrom ? `ab ${fmtDate(filterDateFrom)}`
+                  : `bis ${fmtDate(filterDateTo)}`}
+                <button onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#1d4ed8", fontSize: 13 }}>×</button>
+              </span>
+            )}
+            {hasDescFilter && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe", fontSize: 12, color: "#1d4ed8" }}>
+                „{filterKeywords}"
+                <button onClick={() => setFilterKeywords("")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#1d4ed8", fontSize: 13 }}>×</button>
+              </span>
+            )}
+            {hasCatFilter && (
+              <span style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, background: "#eff6ff", border: "1px solid #bfdbfe", fontSize: 12, color: "#1d4ed8" }}>
+                {filterCatIds.length === 1
+                  ? categories.find(c => c.id === filterCatIds[0])?.name ?? "1 Kategorie"
+                  : `${filterCatIds.length} Kategorien`}
+                <button onClick={() => setFilterCatIds([])} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#1d4ed8", fontSize: 13 }}>×</button>
+              </span>
+            )}
+            <button
+              onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); setFilterKeywords(""); setFilterCatIds([]); }}
+              style={{ padding: "2px 8px", borderRadius: 12, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+            >
+              Alle zurücksetzen
+            </button>
+          </div>
+        )}
+
         {/* Transaction table */}
-        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "visible" }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
+            <thead ref={filterRef}>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                {["Datum", "Beschreibung", "Kategorie", "Typ", "Betrag", "Kontostand"].map((h, i) => (
+
+                {/* ── Datum ── */}
+                <th
+                  align="left"
+                  style={thClickable}
+                  onClick={() => setActiveFilter(activeFilter === "date" ? null : "date")}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    Datum {hasDateFilter && filterDot}
+                    <span style={{ fontSize: 9, color: "#94a3b8" }}>▼</span>
+                  </span>
+                  {activeFilter === "date" && (
+                    <div style={dropdownBox} onClick={e => e.stopPropagation()}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", textTransform: "none", letterSpacing: 0 }}>Von</label>
+                      <input
+                        type="date"
+                        value={filterDateFrom}
+                        onChange={e => setFilterDateFrom(e.target.value)}
+                        style={inputStyle}
+                      />
+                      <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", textTransform: "none", letterSpacing: 0 }}>Bis</label>
+                      <input
+                        type="date"
+                        value={filterDateTo}
+                        onChange={e => setFilterDateTo(e.target.value)}
+                        style={inputStyle}
+                      />
+                      {hasDateFilter && (
+                        <button
+                          onClick={() => { setFilterDateFrom(""); setFilterDateTo(""); }}
+                          style={{ padding: "5px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                        >
+                          Zurücksetzen
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </th>
+
+                {/* ── Beschreibung ── */}
+                <th
+                  align="left"
+                  style={thClickable}
+                  onClick={() => setActiveFilter(activeFilter === "desc" ? null : "desc")}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    Beschreibung {hasDescFilter && filterDot}
+                    <span style={{ fontSize: 9, color: "#94a3b8" }}>▼</span>
+                  </span>
+                  {activeFilter === "desc" && (
+                    <div style={dropdownBox} onClick={e => e.stopPropagation()}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", textTransform: "none", letterSpacing: 0 }}>
+                        Stichwörter (Leerzeichen = UND)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="z.B. Miete Strom"
+                        value={filterKeywords}
+                        onChange={e => setFilterKeywords(e.target.value)}
+                        style={inputStyle}
+                        autoFocus
+                      />
+                      {hasDescFilter && (
+                        <button
+                          onClick={() => setFilterKeywords("")}
+                          style={{ padding: "5px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                        >
+                          Zurücksetzen
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </th>
+
+                {/* ── Kategorie ── */}
+                <th
+                  align="left"
+                  style={thClickable}
+                  onClick={() => setActiveFilter(activeFilter === "cat" ? null : "cat")}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    Kategorie
+                    {hasCatFilter && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        width: 16, height: 16, borderRadius: "50%", background: "#3b82f6",
+                        color: "#fff", fontSize: 9, fontWeight: 700, marginLeft: 2,
+                      }}>
+                        {filterCatIds.length}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 9, color: "#94a3b8" }}>▼</span>
+                  </span>
+                  {activeFilter === "cat" && (
+                    <div style={{ ...dropdownBox, maxHeight: 240, overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+                      {categories.length === 0 && (
+                        <span style={{ fontSize: 13, color: "#94a3b8" }}>Keine Kategorien</span>
+                      )}
+                      {categories.map(c => (
+                        <label
+                          key={c.id}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 8,
+                            padding: "4px 2px", cursor: "pointer",
+                            fontSize: 13, fontWeight: 400, color: "#1e293b",
+                            textTransform: "none", letterSpacing: 0,
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterCatIds.includes(c.id)}
+                            onChange={() => toggleCat(c.id)}
+                            style={{ width: 14, height: 14, cursor: "pointer", accentColor: "#3b82f6" }}
+                          />
+                          {c.name}
+                        </label>
+                      ))}
+                      {hasCatFilter && (
+                        <button
+                          onClick={() => setFilterCatIds([])}
+                          style={{ marginTop: 4, padding: "5px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                        >
+                          Auswahl aufheben
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </th>
+
+                {/* Typ, Betrag, Kontostand — not filterable */}
+                {["Typ", "Betrag", "Kontostand"].map((h, i) => (
                   <th
                     key={h}
-                    align={i >= 4 ? "right" : "left"}
-                    style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}
+                    align={i >= 1 ? "right" : "left"}
+                    style={thBase}
                   >
                     {h}
                   </th>
@@ -207,14 +464,22 @@ export default function Finance() {
               {visibleEntries.length === 0 && (
                 <tr>
                   <td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
-                    Keine Buchungen für dieses Jahr
+                    {baseEntries.length === 0 ? "Keine Buchungen für dieses Jahr" : "Keine Ergebnisse für die aktuellen Filter"}
                   </td>
                 </tr>
               )}
               {visibleEntries.map(({ transaction: t, runningBalance }, idx) => {
-                const isSelected = selected?.id === t.id;
-                const isHovered  = hoveredId === t.id;
-                const amtColor   = t.type === "EINZAHLUNG" ? "#16a34a" : t.type === "AUSZAHLUNG" ? "#dc2626" : "#d97706";
+                const isSelected  = selected?.id === t.id;
+                const isHovered   = hoveredId === t.id;
+                const isRueck     = t.type === "RUECKBUCHUNG";
+                const isStorniert = stornoIds.has(t.id);
+                const amtColor    = t.type === "EINZAHLUNG" ? "#16a34a" : t.type === "AUSZAHLUNG" ? "#dc2626" : "#d97706";
+
+                let rowBg = idx % 2 === 0 ? "#fff" : "#f8fafc";
+                if (isRueck || isStorniert) rowBg = idx % 2 === 0 ? "#fffbeb" : "#fef9ec";
+                if (isHovered) rowBg = "#f1f5f9";
+                if (isSelected) rowBg = "#eff6ff";
+
                 return (
                   <tr
                     key={t.id}
@@ -223,9 +488,10 @@ export default function Finance() {
                     onMouseLeave={() => setHoveredId(null)}
                     style={{
                       cursor: "pointer",
-                      background: isSelected ? "#eff6ff" : isHovered ? "#f1f5f9" : idx % 2 === 0 ? "#fff" : "#f8fafc",
+                      background: rowBg,
                       borderBottom: "1px solid #f1f5f9",
-                      borderLeft: isSelected ? "3px solid #3b82f6" : "3px solid transparent",
+                      borderLeft: isSelected ? "3px solid #3b82f6" : (isRueck || isStorniert) ? "3px solid #d97706" : "3px solid transparent",
+                      opacity: isStorniert ? 0.6 : 1,
                       transition: "background 0.1s",
                     }}
                   >

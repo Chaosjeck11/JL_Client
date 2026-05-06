@@ -28,6 +28,7 @@ export async function createMember(data: {
   address?: string | null;
   phone?: string | null;
   birthday?: string | null;
+  joinedAt?: string | null;
   u18?: boolean;
   bereitsMitglied?: boolean;
   schuelerStudentAzubi?: boolean;
