@@ -23,31 +23,82 @@ function toDateInput(dateStr?: string | null): string {
   return dateStr.substring(0, 10);
 }
 
-function statusLabel(status: string): string {
-  if (status === "BEZAHLT") return "Bezahlt";
-  if (status === "TEILWEISE") return "Teilweise";
-  return "Ausstehend";
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 700, color: "#94a3b8",
+      textTransform: "uppercase" as const, letterSpacing: "0.07em",
+      margin: "18px 0 8px", paddingBottom: 6, borderBottom: "1px solid #e2e8f0",
+    }}>
+      {label}
+    </div>
+  );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <tr>
-      <td style={{ padding: "3px 12px 3px 0", fontWeight: 600, width: 190, fontSize: 13, verticalAlign: "top", color: "#555" }}>
+    <div style={{ display: "flex", padding: "4px 0", gap: 8, alignItems: "flex-start" }}>
+      <span style={{ width: 155, flexShrink: 0, fontSize: 13, color: "#94a3b8", fontWeight: 500, paddingTop: 1 }}>
         {label}
-      </td>
-      <td style={{ padding: "3px 0", fontSize: 13 }}>{value}</td>
-    </tr>
+      </span>
+      <span style={{ fontSize: 13, color: "#1e293b" }}>{children}</span>
+    </div>
+  );
+}
+
+function Chip({ label, active }: { label: string; active: boolean }) {
+  return (
+    <span style={{
+      display: "inline-block", padding: "3px 10px", borderRadius: 20,
+      fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4,
+      background: active ? "#dbeafe" : "#f1f5f9",
+      color: active ? "#1d4ed8" : "#94a3b8",
+    }}>
+      {label}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; bg: string; color: string }> = {
+    BEZAHLT:   { label: "Bezahlt",    bg: "#dcfce7", color: "#166534" },
+    TEILWEISE: { label: "Teilweise",  bg: "#fef9c3", color: "#854d0e" },
+    AUSSTEHEND:{ label: "Ausstehend", bg: "#fee2e2", color: "#991b1b" },
+  };
+  const s = map[status] ?? { label: status, bg: "#f1f5f9", color: "#64748b" };
+  return (
+    <span style={{
+      display: "inline-block", padding: "2px 8px", borderRadius: 20,
+      fontSize: 11, fontWeight: 600, background: s.bg, color: s.color,
+    }}>
+      {s.label}
+    </span>
   );
 }
 
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span style={{ width: 190, flexShrink: 0, fontSize: 13, color: "#555" }}>{label}</span>
+    <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ width: 170, flexShrink: 0, fontSize: 13, color: "#475569" }}>{label}</span>
       {children}
     </label>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  flex: 1, padding: "6px 10px", borderRadius: 6,
+  border: "1px solid #d1d5db", fontSize: 13,
+};
+
+const btnPrimary: React.CSSProperties = {
+  background: "#2563eb", color: "#fff", border: "none",
+  borderRadius: 7, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+};
+
+const btnSecondary: React.CSSProperties = {
+  background: "#fff", color: "#374151", border: "1px solid #d1d5db",
+  borderRadius: 7, padding: "8px 18px", fontSize: 13, cursor: "pointer",
+};
 
 type FormState = {
   firstname: string;
@@ -176,143 +227,186 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
 
   const avatarUrl = member.avatarPath ? `${API_BASE}/${member.avatarPath}` : null;
 
+  // ── VIEW MODE ─────────────────────────────────────────────────────────────
   if (!edit) {
     return (
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
           <div style={{
-            width: 52, height: 52, borderRadius: "50%",
-            background: "#4a90d9", color: "#fff",
+            width: 56, height: 56, borderRadius: "50%", flexShrink: 0,
+            background: member.active ? "#dbeafe" : "#f1f5f9",
+            color: member.active ? "#1d4ed8" : "#94a3b8",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20, fontWeight: "bold", overflow: "hidden", flexShrink: 0,
+            fontSize: 20, fontWeight: 700, overflow: "hidden",
           }}>
             {avatarUrl
               ? <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : member.firstname.charAt(0).toUpperCase()}
+              : `${member.firstname.charAt(0).toUpperCase()}${member.lastname.charAt(0).toUpperCase()}`}
           </div>
-          <h3 style={{ margin: 0 }}>{member.firstname} {member.lastname}</h3>
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+              {member.firstname} {member.lastname}
+            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {member.role && (
+                <span style={{
+                  display: "inline-block", padding: "2px 8px", borderRadius: 20,
+                  fontSize: 11, fontWeight: 600, background: "#f1f5f9", color: "#475569",
+                }}>
+                  {member.role.name}
+                </span>
+              )}
+              <span style={{
+                display: "inline-block", padding: "2px 8px", borderRadius: 20,
+                fontSize: 11, fontWeight: 600,
+                background: member.active ? "#dcfce7" : "#f1f5f9",
+                color: member.active ? "#166534" : "#64748b",
+              }}>
+                {member.active ? "Aktiv" : "Inaktiv"}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <table style={{ borderCollapse: "collapse", width: "100%", marginBottom: 12 }}>
-          <tbody>
-            <Row label="E-Mail" value={member.email} />
-            <Row label="Adresse" value={member.address ?? "–"} />
-            <Row label="Telefon" value={member.phone ?? "–"} />
-            <Row label="Geburtstag" value={fmt(member.birthday)} />
-            <Row label="Rolle" value={member.role?.name ?? "–"} />
-            <Row label="Eingetreten am" value={fmt(member.joinedAt)} />
-            <Row label="Status" value={member.active ? "aktiv" : "inaktiv"} />
-            {!member.active && <Row label="Inaktiv seit" value={fmt(member.inactiveSince)} />}
-            <Row label="Unter 18" value={(member.u18 ?? false) ? "Ja" : "Nein"} />
-            <Row label="Bereits Mitglied (KG)" value={(member.bereitsMitglied ?? false) ? "Ja" : "Nein"} />
-            <Row label="Schüler/Student/Azubi" value={(member.schuelerStudentAzubi ?? false) ? "Ja" : "Nein"} />
-            <Row label="Berufstätig" value={(member.berufstaetig ?? false) ? "Ja" : "Nein"} />
-          </tbody>
-        </table>
+        <SectionHeader label="Kontakt" />
+        <InfoRow label="E-Mail">{member.email}</InfoRow>
+        <InfoRow label="Adresse">{member.address ?? "–"}</InfoRow>
+        <InfoRow label="Telefon">{member.phone ?? "–"}</InfoRow>
+        <InfoRow label="Geburtstag">{fmt(member.birthday)}</InfoRow>
+
+        <SectionHeader label="Mitgliedschaft" />
+        <InfoRow label="Eingetreten am">{fmt(member.joinedAt)}</InfoRow>
+        {!member.active && (
+          <InfoRow label="Inaktiv seit">{fmt(member.inactiveSince)}</InfoRow>
+        )}
+
+        <SectionHeader label="Beitragskategorie" />
+        <div style={{ paddingTop: 2 }}>
+          <Chip label="Unter 18"               active={member.u18 ?? false} />
+          <Chip label="Bereits Mitglied (KG)"  active={member.bereitsMitglied ?? false} />
+          <Chip label="Schüler/Student/Azubi"  active={member.schuelerStudentAzubi ?? false} />
+          <Chip label="Berufstätig"            active={member.berufstaetig ?? false} />
+        </div>
 
         {member.mitgliedsbeitraege && member.mitgliedsbeitraege.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <b style={{ fontSize: 13 }}>Mitgliedsbeiträge</b>
-            <table style={{ borderCollapse: "collapse", width: "100%", marginTop: 6, fontSize: 12 }}>
+          <>
+            <SectionHeader label="Mitgliedsbeiträge" />
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #ccc", color: "#555" }}>
-                  <th align="left" style={{ padding: "2px 8px 2px 0" }}>Jahr</th>
-                  <th align="right" style={{ padding: "2px 4px" }}>JL</th>
-                  <th align="right" style={{ padding: "2px 4px" }}>KG</th>
-                  <th align="right" style={{ padding: "2px 4px" }}>Bez. JL</th>
-                  <th align="right" style={{ padding: "2px 4px" }}>Bez. KG</th>
-                  <th align="left" style={{ padding: "2px 0 2px 8px" }}>Status</th>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <th align="left"  style={{ padding: "5px 8px 5px 0", color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Jahr</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>JL</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>KG</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bez. JL</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bez. KG</th>
+                  <th align="left"  style={{ padding: "5px 0 5px 8px", color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {member.mitgliedsbeitraege.map(b => (
-                  <tr key={b.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                    <td style={{ padding: "2px 8px 2px 0" }}>{b.businessYear?.year ?? b.businessYearId}</td>
-                    <td align="right" style={{ padding: "2px 4px" }}>{b.betragJL} €</td>
-                    <td align="right" style={{ padding: "2px 4px" }}>{b.betragKG} €</td>
-                    <td align="right" style={{ padding: "2px 4px" }}>{b.bezahltJL} €</td>
-                    <td align="right" style={{ padding: "2px 4px" }}>{b.bezahltKG} €</td>
-                    <td style={{ padding: "2px 0 2px 8px" }}>{statusLabel(b.status)}</td>
+                  <tr key={b.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "6px 8px 6px 0", color: "#1e293b", fontWeight: 500 }}>{b.businessYear?.year ?? b.businessYearId}</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.betragJL} €</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.betragKG} €</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.bezahltJL} €</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.bezahltKG} €</td>
+                    <td style={{ padding: "6px 0 6px 8px" }}><StatusBadge status={b.status} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </>
         )}
 
         {canEditMembers() && (
-          <button onClick={() => setEdit(true)}>Bearbeiten</button>
+          <div style={{ marginTop: 20 }}>
+            <button onClick={() => setEdit(true)} style={btnPrimary}>Bearbeiten</button>
+          </div>
         )}
       </div>
     );
   }
 
+  // ── EDIT MODE ─────────────────────────────────────────────────────────────
   return (
     <div>
-      <h3 style={{ marginTop: 0 }}>Mitglied bearbeiten</h3>
-      {error && <p style={{ color: "red", margin: "0 0 8px" }}>{error}</p>}
+      <h3 style={{ marginTop: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Mitglied bearbeiten</h3>
+      {error && <p style={{ color: "#dc2626", margin: "0 0 10px", fontSize: 13 }}>{error}</p>}
 
+      <SectionHeader label="Persönliche Daten" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <FormField label="Vorname">
-          <input value={form.firstname} onChange={e => set("firstname", e.target.value)} style={{ flex: 1 }} />
+          <input value={form.firstname} onChange={e => set("firstname", e.target.value)} style={inputStyle} />
         </FormField>
         <FormField label="Nachname">
-          <input value={form.lastname} onChange={e => set("lastname", e.target.value)} style={{ flex: 1 }} />
+          <input value={form.lastname} onChange={e => set("lastname", e.target.value)} style={inputStyle} />
         </FormField>
         <FormField label="E-Mail">
-          <input type="email" value={form.email} onChange={e => set("email", e.target.value)} style={{ flex: 1 }} />
+          <input type="email" value={form.email} onChange={e => set("email", e.target.value)} style={inputStyle} />
         </FormField>
         <FormField label="Adresse">
-          <input value={form.address} onChange={e => set("address", e.target.value)} style={{ flex: 1 }} />
+          <input value={form.address} onChange={e => set("address", e.target.value)} style={inputStyle} />
         </FormField>
         <FormField label="Telefon">
-          <input value={form.phone} onChange={e => set("phone", e.target.value)} style={{ flex: 1 }} />
+          <input value={form.phone} onChange={e => set("phone", e.target.value)} style={inputStyle} />
         </FormField>
         <FormField label="Geburtstag">
-          <input type="date" value={form.birthday} onChange={e => set("birthday", e.target.value)} />
+          <input type="date" value={form.birthday} onChange={e => set("birthday", e.target.value)} style={{ ...inputStyle, flex: "unset" }} />
         </FormField>
+      </div>
+
+      <SectionHeader label="Mitgliedschaft" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <FormField label="Eingetreten am">
-          <input type="date" value={form.joinedAt} onChange={e => set("joinedAt", e.target.value)} />
+          <input type="date" value={form.joinedAt} onChange={e => set("joinedAt", e.target.value)} style={{ ...inputStyle, flex: "unset" }} />
         </FormField>
         <FormField label="Rolle">
           {roles.length > 0 ? (
-            <select value={form.roleId} onChange={e => set("roleId", Number(e.target.value))}>
+            <select value={form.roleId} onChange={e => set("roleId", Number(e.target.value))} style={{ ...inputStyle }}>
               {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
           ) : (
-            <input type="number" value={form.roleId} onChange={e => set("roleId", Number(e.target.value))} style={{ width: 80 }} />
+            <input type="number" value={form.roleId} onChange={e => set("roleId", Number(e.target.value))} style={{ ...inputStyle, width: 80, flex: "unset" }} />
           )}
         </FormField>
         <FormField label="Aktiv">
-          <input type="checkbox" checked={form.active} onChange={e => set("active", e.target.checked)} />
+          <input type="checkbox" checked={form.active} onChange={e => set("active", e.target.checked)} style={{ cursor: "pointer" }} />
         </FormField>
         {!form.active && (
           <FormField label="Inaktiv seit">
-            <input type="date" value={form.inactiveSince} onChange={e => set("inactiveSince", e.target.value)} />
+            <input type="date" value={form.inactiveSince} onChange={e => set("inactiveSince", e.target.value)} style={{ ...inputStyle, flex: "unset" }} />
           </FormField>
         )}
+      </div>
+
+      <SectionHeader label="Beitragskategorie" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <FormField label="Unter 18">
-          <input type="checkbox" checked={form.u18} onChange={e => set("u18", e.target.checked)} />
+          <input type="checkbox" checked={form.u18} onChange={e => set("u18", e.target.checked)} style={{ cursor: "pointer" }} />
         </FormField>
         <FormField label="Bereits Mitglied (KG)">
-          <input type="checkbox" checked={form.bereitsMitglied} onChange={e => set("bereitsMitglied", e.target.checked)} />
+          <input type="checkbox" checked={form.bereitsMitglied} onChange={e => set("bereitsMitglied", e.target.checked)} style={{ cursor: "pointer" }} />
         </FormField>
         <FormField label="Schüler/Student/Azubi">
-          <input type="checkbox" checked={form.schuelerStudentAzubi} onChange={e => set("schuelerStudentAzubi", e.target.checked)} />
+          <input type="checkbox" checked={form.schuelerStudentAzubi} onChange={e => set("schuelerStudentAzubi", e.target.checked)} style={{ cursor: "pointer" }} />
         </FormField>
         <FormField label="Berufstätig">
-          <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} />
+          <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} style={{ cursor: "pointer" }} />
         </FormField>
       </div>
 
       {yearSelectStep && (
-        <div style={{ marginTop: 16, padding: "12px 14px", background: "#f5f8ff", border: "1px solid #c8d8f0", borderRadius: 6 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
+        <div style={{
+          marginTop: 16, padding: "14px 16px",
+          background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8,
+        }}>
+          <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#1d4ed8" }}>
             Beitragsrelevante Felder geändert – rückwirkend übernehmen für:
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
             {yearSelectStep.years.map(y => (
-              <label key={y.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+              <label key={y.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", color: "#1e293b" }}>
                 <input
                   type="checkbox"
                   checked={yearSelectStep.selected.has(y.id)}
@@ -322,20 +416,28 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
               </label>
             ))}
           </div>
-          <p style={{ margin: "0 0 10px", fontSize: 12, color: "#666" }}>
+          <p style={{ margin: "0 0 12px", fontSize: 12, color: "#475569" }}>
             Nicht ausgewählte Jahre behalten ihren bisherigen Beitragssatz.
           </p>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={save} disabled={saving}>Jetzt speichern</button>
-            <button onClick={() => setYearSelectStep(null)} disabled={saving}>Zurück</button>
+            <button onClick={save} disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }}>
+              Jetzt speichern
+            </button>
+            <button onClick={() => setYearSelectStep(null)} disabled={saving} style={{ ...btnSecondary, opacity: saving ? 0.6 : 1 }}>
+              Zurück
+            </button>
           </div>
         </div>
       )}
 
       {!yearSelectStep && (
-        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button onClick={save} disabled={saving}>Speichern</button>
-          <button onClick={cancelEdit} disabled={saving}>Abbrechen</button>
+        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+          <button onClick={save} disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }}>
+            Speichern
+          </button>
+          <button onClick={cancelEdit} disabled={saving} style={{ ...btnSecondary, opacity: saving ? 0.6 : 1 }}>
+            Abbrechen
+          </button>
         </div>
       )}
     </div>

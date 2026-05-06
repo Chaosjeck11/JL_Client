@@ -96,8 +96,17 @@ export default function Finance() {
       .then(([ents, detail]) => { setEntries(ents); setYearDetail(detail); });
   }
 
-  const totalIncome   = entries.filter(e => e.transaction.type === "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
-  const totalExpenses = entries.filter(e => e.transaction.type !== "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
+  const stornoIds = new Set(
+    entries
+      .filter(e => e.transaction.type === "RUECKBUCHUNG" && e.transaction.relatedTransactionId != null)
+      .map(e => e.transaction.relatedTransactionId!)
+  );
+  const visibleEntries = entries.filter(
+    e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id)
+  );
+
+  const totalIncome   = visibleEntries.filter(e => e.transaction.type === "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
+  const totalExpenses = visibleEntries.filter(e => e.transaction.type !== "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
   const finalBalance  = entries.length > 0 ? entries[entries.length - 1].runningBalance : (yearDetail?.carryOver ?? 0);
 
   const showPanel = creating || creatingYear || !!selected;
@@ -195,14 +204,14 @@ export default function Finance() {
               </tr>
             </thead>
             <tbody>
-              {entries.length === 0 && (
+              {visibleEntries.length === 0 && (
                 <tr>
                   <td colSpan={6} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
                     Keine Buchungen für dieses Jahr
                   </td>
                 </tr>
               )}
-              {entries.map(({ transaction: t, runningBalance }, idx) => {
+              {visibleEntries.map(({ transaction: t, runningBalance }, idx) => {
                 const isSelected = selected?.id === t.id;
                 const isHovered  = hoveredId === t.id;
                 const amtColor   = t.type === "EINZAHLUNG" ? "#16a34a" : t.type === "AUSZAHLUNG" ? "#dc2626" : "#d97706";
@@ -234,7 +243,7 @@ export default function Finance() {
                 );
               })}
             </tbody>
-            {entries.length > 0 && (
+            {visibleEntries.length > 0 && (
               <tfoot>
                 <tr style={{ background: "#f8fafc", borderTop: "2px solid #e2e8f0" }}>
                   <td colSpan={4} style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Gesamt</td>
