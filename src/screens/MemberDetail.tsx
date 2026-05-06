@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Member, Role } from "../types/member";
+import type { BusinessYear } from "../types/finance";
 import { updateMember } from "../api/members";
+import { fetchBusinessYears } from "../api/finance";
 import { canEditMembers } from "../auth/permissions";
 
 const API_BASE = "http://100.91.210.125:3000";
@@ -83,11 +85,19 @@ function memberToForm(m: Member): FormState {
   };
 }
 
+const BEITRAGSRELEVANT: (keyof FormState)[] = ["u18", "bereitsMitglied", "schuelerStudentAzubi"];
+
+type YearSelectStep = {
+  years: BusinessYear[];
+  selected: Set<number>;
+};
+
 export default function MemberDetail({ member, roles, onUpdated }: Props) {
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<FormState>(() => memberToForm(member));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [yearSelectStep, setYearSelectStep] = useState<YearSelectStep | null>(null);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }));
@@ -96,13 +106,36 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
   function cancelEdit() {
     setForm(memberToForm(member));
     setError("");
+    setYearSelectStep(null);
     setEdit(false);
   }
 
+  function beitragsrelevantChanged(): boolean {
+    const orig = memberToForm(member);
+    return BEITRAGSRELEVANT.some(k => form[k] !== orig[k]);
+  }
+
   async function save() {
+    if (beitragsrelevantChanged() && yearSelectStep === null) {
+      setSaving(true);
+      try {
+        const years = await fetchBusinessYears();
+        years.sort((a, b) => b.year - a.year);
+        setYearSelectStep({ years, selected: new Set(years.map(y => y.id)) });
+      } catch {
+        setError("Geschäftsjahre konnten nicht geladen werden");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+    await doSave(yearSelectStep ? [...yearSelectStep.selected] : undefined);
+  }
+
+  async function doSave(retroactiveYearIds?: number[]) {
     try {
       setSaving(true);
-      const updated = await updateMember(member.id, {
+      const body: Record<string, unknown> = {
         firstname: form.firstname,
         lastname: form.lastname,
         email: form.email,
@@ -117,14 +150,28 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         bereitsMitglied: form.bereitsMitglied,
         schuelerStudentAzubi: form.schuelerStudentAzubi,
         berufstaetig: form.berufstaetig,
-      });
+      };
+      if (retroactiveYearIds !== undefined) {
+        body.retroactiveYearIds = retroactiveYearIds;
+      }
+      const updated = await updateMember(member.id, body);
       onUpdated(updated);
+      setYearSelectStep(null);
       setEdit(false);
     } catch {
       setError("Speichern fehlgeschlagen");
     } finally {
       setSaving(false);
     }
+  }
+
+  function toggleYear(id: number) {
+    setYearSelectStep(prev => {
+      if (!prev) return prev;
+      const next = new Set(prev.selected);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return { ...prev, selected: next };
+    });
   }
 
   const avatarUrl = member.avatarPath ? `${API_BASE}/${member.avatarPath}` : null;
@@ -258,10 +305,39 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         </FormField>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-        <button onClick={save} disabled={saving}>Speichern</button>
-        <button onClick={cancelEdit} disabled={saving}>Abbrechen</button>
-      </div>
+      {yearSelectStep && (
+        <div style={{ marginTop: 16, padding: "12px 14px", background: "#f5f8ff", border: "1px solid #c8d8f0", borderRadius: 6 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>
+            Beitragsrelevante Felder geändert – rückwirkend übernehmen für:
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+            {yearSelectStep.years.map(y => (
+              <label key={y.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={yearSelectStep.selected.has(y.id)}
+                  onChange={() => toggleYear(y.id)}
+                />
+                {y.year}
+              </label>
+            ))}
+          </div>
+          <p style={{ margin: "0 0 10px", fontSize: 12, color: "#666" }}>
+            Nicht ausgewählte Jahre behalten ihren bisherigen Beitragssatz.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={save} disabled={saving}>Jetzt speichern</button>
+            <button onClick={() => setYearSelectStep(null)} disabled={saving}>Zurück</button>
+          </div>
+        </div>
+      )}
+
+      {!yearSelectStep && (
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <button onClick={save} disabled={saving}>Speichern</button>
+          <button onClick={cancelEdit} disabled={saving}>Abbrechen</button>
+        </div>
+      )}
     </div>
   );
 }

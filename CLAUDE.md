@@ -37,7 +37,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
 - `Members` — split-pane layout: member table (left) + detail/create panel (right). Manages its own list state and selected member.
-- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`.
+- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right).
   - Left: year dropdown (descending), three summary badges (Übertrag/Einnahmen/Kontostand from `fetchBusinessYear`), running-balance table, summary footer row.
