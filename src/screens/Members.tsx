@@ -10,6 +10,9 @@ type MembersProps = {
   onLogout: () => void;
 };
 
+type SortDir = "asc" | "desc";
+type StatusFilter = "all" | "active" | "inactive";
+
 const thStyle: React.CSSProperties = {
   padding: "9px 12px",
   fontSize: 11,
@@ -26,6 +29,9 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   useEffect(() => {
     fetchMembers()
@@ -36,43 +42,102 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
       .catch(() => {});
   }, []);
 
+  const displayedMembers = members
+    .filter(m => {
+      if (statusFilter === "active" && !m.active) return false;
+      if (statusFilter === "inactive" && m.active) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const fullName = `${m.firstname} ${m.lastname}`.toLowerCase();
+        if (!fullName.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const nameA = `${a.lastname} ${a.firstname}`.toLowerCase();
+      const nameB = `${b.lastname} ${b.firstname}`.toLowerCase();
+      return sortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    });
+
   return (
     <div style={{ display: "flex", height: "calc(100vh - 45px)" }}>
       {/* LEFT: TABLE */}
       <div style={{ flex: 2, overflowY: "auto", display: "flex", flexDirection: "column" }}>
         <header style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
+          display: "flex", flexDirection: "column", gap: 10,
           padding: "14px 20px", borderBottom: "1px solid #e2e8f0",
           position: "sticky", top: 0, background: "#fff", zIndex: 1,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>Mitglieder</h2>
-            <span style={{
-              background: "#f1f5f9", color: "#64748b",
-              borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600,
-            }}>{members.length}</span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => setShowExport(true)}
-              style={{
-                background: "#fff", color: "#374151", border: "1px solid #d1d5db",
-                borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              }}
-            >
-              Export
-            </button>
-            {canCreateMembers() && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>Mitglieder</h2>
+              <span style={{
+                background: "#f1f5f9", color: "#64748b",
+                borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600,
+              }}>{displayedMembers.length}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
               <button
-                onClick={() => { setCreating(true); setSelected(null); }}
+                onClick={() => setShowExport(true)}
                 style={{
-                  background: "#2563eb", color: "#fff", border: "none",
+                  background: "#fff", color: "#374151", border: "1px solid #d1d5db",
                   borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}
               >
-                + Neues Mitglied
+                Export
               </button>
-            )}
+              {canCreateMembers() && (
+                <button
+                  onClick={() => { setCreating(true); setSelected(null); }}
+                  style={{
+                    background: "#2563eb", color: "#fff", border: "none",
+                    borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  + Neues Mitglied
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search + filter row */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="text"
+              placeholder="Name suchen…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                flex: 1, padding: "6px 10px", fontSize: 13,
+                border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
+                color: "#1e293b",
+              }}
+            />
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as StatusFilter)}
+              style={{
+                padding: "6px 10px", fontSize: 13,
+                border: "1px solid #d1d5db", borderRadius: 7,
+                background: "#fff", color: "#374151", cursor: "pointer",
+              }}
+            >
+              <option value="all">Alle</option>
+              <option value="active">Aktiv</option>
+              <option value="inactive">Inaktiv</option>
+            </select>
+            <button
+              onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
+              title={sortDir === "asc" ? "A → Z (klicken für Z → A)" : "Z → A (klicken für A → Z)"}
+              style={{
+                padding: "6px 12px", fontSize: 13, fontWeight: 600,
+                border: "1px solid #d1d5db", borderRadius: 7,
+                background: "#fff", color: "#374151", cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {sortDir === "asc" ? "A → Z" : "Z → A"}
+            </button>
           </div>
         </header>
 
@@ -88,7 +153,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
             </tr>
           </thead>
           <tbody>
-            {members.map(m => (
+            {displayedMembers.map(m => (
               <tr
                 key={m.id}
                 onClick={() => { setSelected(m); setCreating(false); }}
