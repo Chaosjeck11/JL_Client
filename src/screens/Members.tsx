@@ -3,6 +3,7 @@ import { fetchMembers, fetchRoles } from "../api/members";
 import type { Member, Role } from "../types/member";
 import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
+import MemberExportModal from "./members/MemberExportModal";
 import { canCreateMembers } from "../auth/permissions";
 
 type MembersProps = {
@@ -24,6 +25,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
   const [selected, setSelected] = useState<Member | null>(null);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
+  const [showExport, setShowExport] = useState(false);
 
   useEffect(() => {
     fetchMembers()
@@ -50,17 +52,28 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
               borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600,
             }}>{members.length}</span>
           </div>
-          {canCreateMembers() && (
+          <div style={{ display: "flex", gap: 8 }}>
             <button
-              onClick={() => { setCreating(true); setSelected(null); }}
+              onClick={() => setShowExport(true)}
               style={{
-                background: "#2563eb", color: "#fff", border: "none",
+                background: "#fff", color: "#374151", border: "1px solid #d1d5db",
                 borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
               }}
             >
-              + Neues Mitglied
+              Export
             </button>
-          )}
+            {canCreateMembers() && (
+              <button
+                onClick={() => { setCreating(true); setSelected(null); }}
+                style={{
+                  background: "#2563eb", color: "#fff", border: "none",
+                  borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                + Neues Mitglied
+              </button>
+            )}
+          </div>
         </header>
 
         {error && <p style={{ color: "#dc2626", margin: "10px 20px" }}>{error}</p>}
@@ -156,6 +169,9 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
           </div>
         )}
       </div>
+      {showExport && (
+        <MemberExportModal members={members} onClose={() => setShowExport(false)} />
+      )}
     </div>
   );
 }

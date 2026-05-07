@@ -11,6 +11,8 @@ import type { BusinessYear, Category, PaymentTag, RunningBalanceEntry, Transacti
 import type { Member } from "../types/member";
 import BusinessYearForm from "./finance/BusinessYearForm";
 import CategoryManager from "./finance/CategoryManager";
+import ImportModal from "./finance/ImportModal";
+import ReportModal from "./finance/ReportModal";
 import TransactionCreate from "./TransactionCreate";
 import TransactionDetail from "./TransactionDetail";
 
@@ -84,6 +86,8 @@ export default function Finance() {
   const [creating, setCreating] = useState(false);
   const [creatingYear, setCreatingYear] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [error, setError] = useState("");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [showStornos, setShowStornos] = useState(false);
@@ -264,16 +268,27 @@ export default function Finance() {
             >
               Rückbuchungen {showStornos ? "▲" : "▼"}
             </button>
+            <button
+              onClick={() => setShowReport(true)}
+              style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" }}
+            >
+              Report
+            </button>
             {isAdmin && (
-              <button
-                onClick={() => { setCreating(true); setSelected(null); setCreatingYear(false); }}
-                style={{
-                  padding: "5px 14px", borderRadius: 6, border: "none",
-                  background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                + Neue Buchung
-              </button>
+              <>
+                <button
+                  onClick={() => setShowImport(true)}
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer" }}
+                >
+                  Import
+                </button>
+                <button
+                  onClick={() => { setCreating(true); setSelected(null); setCreatingYear(false); }}
+                  style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  + Neue Buchung
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -611,6 +626,23 @@ export default function Finance() {
           </table>
         </div>
       </div>
+
+      {showReport && (
+        <ReportModal
+          businessYears={businessYears}
+          categories={categories}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {showImport && (
+        <ImportModal
+          businessYears={businessYears}
+          categories={categories}
+          onImported={reloadYear}
+          onClose={() => setShowImport(false)}
+        />
+      )}
 
       {/* ── RIGHT: DETAIL / CREATE PANEL ── */}
       {showPanel && (
