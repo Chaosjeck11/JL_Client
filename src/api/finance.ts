@@ -132,6 +132,30 @@ export async function downloadAttachment(transactionId: number, attachmentId: nu
   URL.revokeObjectURL(url);
 }
 
+export async function fetchAttachmentArrayBuffer(transactionId: number, attachmentId: number): Promise<ArrayBuffer> {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.arrayBuffer();
+}
+
+export async function fetchAttachmentDataUrl(transactionId: number, attachmentId: number): Promise<string> {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function deleteAttachment(transactionId: number, attachmentId: number): Promise<void> {
   return apiFetch(`/finance/transactions/${transactionId}/attachments/${attachmentId}`, { method: "DELETE" });
 }
