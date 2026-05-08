@@ -146,6 +146,8 @@ type YearSelectStep = {
 export default function MemberDetail({ member, roles, onUpdated }: Props) {
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<FormState>(() => memberToForm(member));
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [yearSelectStep, setYearSelectStep] = useState<YearSelectStep | null>(null);
@@ -156,6 +158,8 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
 
   function cancelEdit() {
     setForm(memberToForm(member));
+    setNewPassword("");
+    setConfirmPassword("");
     setError("");
     setYearSelectStep(null);
     setEdit(false);
@@ -167,6 +171,16 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
   }
 
   async function save() {
+    if (newPassword || confirmPassword) {
+      if (newPassword !== confirmPassword) {
+        setError("Passwörter stimmen nicht überein");
+        return;
+      }
+      if (newPassword.length < 6) {
+        setError("Passwort muss mindestens 6 Zeichen lang sein");
+        return;
+      }
+    }
     if (beitragsrelevantChanged() && yearSelectStep === null) {
       setSaving(true);
       try {
@@ -205,8 +219,11 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
       if (retroactiveYearIds !== undefined) {
         body.retroactiveYearIds = retroactiveYearIds;
       }
+      if (newPassword) body.password = newPassword;
       const updated = await updateMember(member.id, body);
       onUpdated(updated);
+      setNewPassword("");
+      setConfirmPassword("");
       setYearSelectStep(null);
       setEdit(false);
     } catch {
@@ -393,6 +410,28 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         </FormField>
         <FormField label="Berufstätig">
           <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} style={{ cursor: "pointer" }} />
+        </FormField>
+      </div>
+
+      <SectionHeader label="Passwort ändern" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <FormField label="Neues Passwort">
+          <input
+            type="password"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            placeholder="Leer lassen = kein Wechsel"
+            style={inputStyle}
+          />
+        </FormField>
+        <FormField label="Passwort bestätigen">
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            placeholder="Passwort wiederholen"
+            style={inputStyle}
+          />
         </FormField>
       </div>
 

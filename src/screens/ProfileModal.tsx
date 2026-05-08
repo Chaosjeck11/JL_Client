@@ -32,6 +32,7 @@ export default function ProfileModal({ member, onClose, onUpdated }: Props) {
     schuelerStudentAzubi: member.schuelerStudentAzubi ?? false,
     berufstaetig: member.berufstaetig ?? false,
   });
+  const [pwForm, setPwForm] = useState({ newPassword: "", confirmPassword: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -40,9 +41,19 @@ export default function ProfileModal({ member, onClose, onUpdated }: Props) {
   }
 
   async function save() {
+    if (pwForm.newPassword || pwForm.confirmPassword) {
+      if (pwForm.newPassword !== pwForm.confirmPassword) {
+        setError("Passwörter stimmen nicht überein");
+        return;
+      }
+      if (pwForm.newPassword.length < 6) {
+        setError("Passwort muss mindestens 6 Zeichen lang sein");
+        return;
+      }
+    }
     try {
       setSaving(true);
-      const updated = await updateMember(member.id, {
+      const body: Record<string, unknown> = {
         firstname: form.firstname,
         lastname: form.lastname,
         email: form.email,
@@ -53,7 +64,9 @@ export default function ProfileModal({ member, onClose, onUpdated }: Props) {
         bereitsMitglied: form.bereitsMitglied,
         schuelerStudentAzubi: form.schuelerStudentAzubi,
         berufstaetig: form.berufstaetig,
-      });
+      };
+      if (pwForm.newPassword) body.password = pwForm.newPassword;
+      const updated = await updateMember(member.id, body);
       onUpdated(updated);
     } catch {
       setError("Speichern fehlgeschlagen");
@@ -124,6 +137,33 @@ export default function ProfileModal({ member, onClose, onUpdated }: Props) {
           </FormField>
           <FormField label="Berufstätig">
             <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} />
+          </FormField>
+        </div>
+
+        <div style={{
+          marginTop: 16, paddingTop: 14, borderTop: "1px solid #e2e8f0",
+          display: "flex", flexDirection: "column", gap: 10,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+            Passwort ändern
+          </div>
+          <FormField label="Neues Passwort">
+            <input
+              type="password"
+              value={pwForm.newPassword}
+              onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+              placeholder="Leer lassen = kein Wechsel"
+              style={{ flex: 1 }}
+            />
+          </FormField>
+          <FormField label="Passwort bestätigen">
+            <input
+              type="password"
+              value={pwForm.confirmPassword}
+              onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+              placeholder="Passwort wiederholen"
+              style={{ flex: 1 }}
+            />
           </FormField>
         </div>
 
