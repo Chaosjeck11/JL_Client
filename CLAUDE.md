@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+
+## Maintenance
+After significant changes to the codebase, update this CLAUDE.md 
+to reflect new architecture, added services, or changed conventions.
+
+
 ## Commands
 
 ```bash
@@ -43,11 +49,11 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
 - Backend base URL is hardcoded: `http://100.91.210.125:3000`.
 - `src/api/members.ts` — `/members` endpoints (list, PATCH, POST).
-- `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance.
+- `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, transaction attachments (upload/download/delete).
 
 **Types:**
 - `src/types/member.ts` — `Member`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
-- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`.
+- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`.
 
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
@@ -62,7 +68,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - "Kategorien verwalten" toggle (admin only) opens `CategoryManager` inline below the header.
   - "+ Jahr" button (admin only) next to the year dropdown opens `BusinessYearForm` in the right panel.
 - `TransactionCreate` — create form for a new transaction (used by `Finance`). `tag` (`ONLINE` | `BAR`) is required; defaults to `ONLINE`.
-- `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form.
+- `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form. Includes **"Anhänge"** section (always visible in detail view): lists attachments with filename/size/download; admins can upload multiple files and delete attachments. Upload uses raw `fetch` with `FormData` (not `apiFetch`) to avoid the JSON `Content-Type` header. Download fetches as Blob + creates a temporary object URL to trigger browser download (required because auth header can't be sent via `<a href>`).
 
 **Members sub-screens (`src/screens/members/`):**
 - `MemberExportModal` — overlay modal for exporting the member list. Fields are selectable in three groups (Stammdaten, Mitgliedschaft, Beitragsinfos) with group-level checkboxes and Alle/Keine shortcuts. Beitragskategorie is a computed field ("Reduziert (35 €)" if u18 || bereitsMitglied || schuelerStudentAzubi, else "Voll (100 €)"). Status filter: Alle/Aktiv/Inaktiv with live member count. Format: CSV (semicolon-delimited, UTF-8 BOM) or PDF (portrait/landscape depending on column count, via jsPDF + AutoTable). Libraries loaded via dynamic import. Accessible to all logged-in users.
@@ -94,6 +100,7 @@ Full backend docs (data model, all routes, business logic):
 | Transactions | `/finance/transactions` |
 | Running balance | `GET /finance/transactions/balance/:businessYearId` |
 | Mitgliedsbeiträge | `/finance/mitgliedsbeitraege` |
+| Transaction Attachments | `/finance/transactions/:id/attachments` |
 
 ### Key constraints Claude Code must respect
 - Access level `0` = any authenticated user (GET routes)
@@ -113,3 +120,4 @@ Full backend docs (data model, all routes, business logic):
 All requests go through `src/api/client.ts → apiFetch()`.
 New endpoints → add a function to `src/api/members.ts` or `src/api/finance.ts`.
 Never call `fetch()` directly from components.
+**Exception:** file upload (`multipart/form-data`) and binary download (Blob) bypass `apiFetch` because it hardcodes `Content-Type: application/json` and calls `res.json()`. These use raw `fetch` with the token attached manually — see `uploadAttachment` and `downloadAttachment` in `src/api/finance.ts`.

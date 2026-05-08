@@ -5,8 +5,11 @@ import type {
   Mitgliedsbeitrag,
   RunningBalanceEntry,
   Transaction,
+  TransactionAttachment,
   TransactionType,
 } from "../types/finance";
+
+const API_URL = "http://100.91.210.125:3000";
 
 export function fetchCategories(): Promise<Category[]> {
   return apiFetch("/finance/categories");
@@ -95,6 +98,42 @@ export function updateTransaction(
 
 export function deleteTransaction(id: number): Promise<void> {
   return apiFetch(`/finance/transactions/${id}`, { method: "DELETE" });
+}
+
+export function fetchAttachments(transactionId: number): Promise<TransactionAttachment[]> {
+  return apiFetch(`/finance/transactions/${transactionId}/attachments`);
+}
+
+export async function uploadAttachment(transactionId: number, file: File): Promise<TransactionAttachment> {
+  const token = localStorage.getItem("token");
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+export async function downloadAttachment(transactionId: number, attachmentId: number, filename: string): Promise<void> {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function deleteAttachment(transactionId: number, attachmentId: number): Promise<void> {
+  return apiFetch(`/finance/transactions/${transactionId}/attachments/${attachmentId}`, { method: "DELETE" });
 }
 
 export function fetchMitgliedsbeitraege(filters?: {
