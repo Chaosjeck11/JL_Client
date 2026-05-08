@@ -51,8 +51,9 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
+- `ProfileModal` — overlay modal opened by the avatar button (top-right nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API.
 - `Members` — split-pane layout: member table (left) + detail/create panel (right). Manages its own list state and selected member. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only).
-- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field.
+- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right).
   - Left: year dropdown (descending), three summary badges (Übertrag/Einnahmen/Kontostand from `fetchBusinessYear`), running-balance table with a „Zahlung" column (tag: Online/Bar) that is filterable via dropdown, summary footer row.
@@ -96,7 +97,7 @@ Full backend docs (data model, all routes, business logic):
 
 ### Key constraints Claude Code must respect
 - Access level `0` = any authenticated user (GET routes)
-- Access level `5` = admin (POST / PATCH / DELETE)
+- Access level `5` = admin (POST / PATCH / DELETE); `PATCH /members/:id` (including password change) therefore only works for admins
 - `type` and `amount` on Transactions are **immutable** after creation
 - `tag` (`ONLINE` | `BAR`) is required on every Transaction; the frontend enforces this on create and defaults to `ONLINE` in the edit form
 - `RUECKBUCHUNG` requires `relatedTransactionId`; the related tx must not itself be a `RUECKBUCHUNG`
