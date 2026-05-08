@@ -28,11 +28,12 @@ No test framework is configured yet.
 | `react-dom` | ^19.2.0 | DOM renderer |
 | `jspdf` | ^4.2.1 | PDF generation (Report-Export) |
 | `jspdf-autotable` | ^5.0.7 | Table plugin for jsPDF |
+| `pdf-lib` | ^1.17.1 | PDF merging — copies pages from attachment PDFs into the report, embeds images full-page (Report-Export with Anhänge) |
 | `xlsx` | ^0.18.5 | Excel/CSV parsing (Buchungs-Import) |
 
 **Dev (`devDependencies`):** TypeScript ~5.9, ESLint 9, Vite (rolldown-vite 7), `@types/react`, `@types/react-dom`, `@types/node`.
 
-`jspdf` and `jspdf-autotable` are loaded via **dynamic import** inside `ReportModal` and `MemberExportModal` to keep the initial bundle lean. `xlsx` is loaded via **dynamic import** inside `ImportModal`.
+`jspdf`, `jspdf-autotable`, and `pdf-lib` are loaded via **dynamic import** inside `ReportModal` and `MemberExportModal` to keep the initial bundle lean. `xlsx` is loaded via **dynamic import** inside `ImportModal`.
 
 ## Architecture
 
@@ -77,7 +78,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `TransactionForm` — richer create form with segmented-control type selector and conditional `relatedTransactionId` field for `RUECKBUCHUNG`; not yet wired into `Finance.tsx` (replaces `TransactionCreate` when integrated).
 - `CategoryManager` — admin panel: lists categories with per-row delete, inline create form at the bottom; calls `onCategoriesChanged` after mutations so the parent keeps its category list in sync.
 - `BusinessYearForm` — simple form to create a new business year; default year is current year + 1; shows hint that carry-over is calculated automatically.
-- `ReportModal` — overlay modal for generating finance reports. Filters: Geschäftsjahr(e) (multi-select), Kategorien (multi-select, empty = all), Rückbuchungen toggle, Tag (ONLINE/BAR/kein Tag, empty = all). Format: CSV (semicolon-delimited, UTF-8 BOM, Excel-kompatibel) or PDF (landscape, via jsPDF + AutoTable with summary footer). Accessible to all logged-in users. Libraries loaded via dynamic import.
+- `ReportModal` — overlay modal for generating finance reports. Filters: Geschäftsjahr(e) (multi-select), Kategorien (multi-select, empty = all), Rückbuchungen toggle, Tag (ONLINE/BAR/kein Tag, empty = all). Option **"Anhänge einschließen"**: fetches attachments for all filtered transactions in parallel; for PDF: jsPDF renders the main tables + a per-year attachment overview table, then `pdf-lib` merges actual attachment files — PDF attachments are copied page-by-page, JPEG/PNG embedded full-page, other image formats converted via canvas to JPEG first, unsupported formats get a placeholder page; each attachment is preceded by a separator page (transaction date/description + filename); for CSV: adds a "Anhänge" column with pipe-separated filenames. Format: CSV (semicolon-delimited, UTF-8 BOM, Excel-kompatibel) or PDF (landscape, via jsPDF + AutoTable with summary footer). Accessible to all logged-in users. Libraries loaded via dynamic import.
 - `ImportModal` — overlay modal for bulk-importing transactions from `.xlsx` or `.csv`. CSV delimiter is semicolon. Columns: `Datum;Beschreibung;Kategorie;Tag;Typ;Betrag` (same template as CSV export, `Kontostand` column is ignored if present). Datum format: `DD.MM.YYYY`. Geschäftsjahr is auto-detected from date (month ≥ 2 → year Y, month = 1 → year Y−1). `RUECKBUCHUNG` rows are rejected with an error. Shows a preview table with per-row validation before importing. "Vorlage (.csv)" button downloads an example file. Admin only.
 
 
@@ -120,4 +121,8 @@ Full backend docs (data model, all routes, business logic):
 All requests go through `src/api/client.ts → apiFetch()`.
 New endpoints → add a function to `src/api/members.ts` or `src/api/finance.ts`.
 Never call `fetch()` directly from components.
-**Exception:** file upload (`multipart/form-data`) and binary download (Blob) bypass `apiFetch` because it hardcodes `Content-Type: application/json` and calls `res.json()`. These use raw `fetch` with the token attached manually — see `uploadAttachment` and `downloadAttachment` in `src/api/finance.ts`.
+**Exception:** file upload (`multipart/form-data`) and binary download (Blob/ArrayBuffer/DataURL) bypass `apiFetch` because it hardcodes `Content-Type: application/json` and calls `res.json()`. These use raw `fetch` with the token attached manually — see in `src/api/finance.ts`:
+- `uploadAttachment` — multipart upload
+- `downloadAttachment` — Blob → object URL → browser download
+- `fetchAttachmentArrayBuffer` — returns `ArrayBuffer` (used by `ReportModal` to feed `pdf-lib` for PDF merging and JPEG/PNG embedding)
+- `fetchAttachmentDataUrl` — returns base64 data URL (used by `ReportModal` for canvas-based conversion of non-JPEG/PNG image formats)
