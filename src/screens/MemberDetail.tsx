@@ -136,7 +136,7 @@ function memberToForm(m: Member): FormState {
   };
 }
 
-const BEITRAGSRELEVANT: (keyof FormState)[] = ["u18", "bereitsMitglied", "schuelerStudentAzubi"];
+const BEITRAGSRELEVANT: (keyof FormState)[] = ["u18", "bereitsMitglied", "schuelerStudentAzubi", "joinedAt"];
 
 type YearSelectStep = {
   years: BusinessYear[];
@@ -402,7 +402,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
           background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8,
         }}>
           <p style={{ margin: "0 0 10px", fontSize: 13, fontWeight: 700, color: "#1d4ed8" }}>
-            Beitragsrelevante Felder geändert – rückwirkend übernehmen für:
+            Beitragsrelevante Änderung – rückwirkend übernehmen für:
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
             {yearSelectStep.years.map(y => (
