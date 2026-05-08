@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { createTransaction, updateTransaction } from "../api/finance";
-import type { Category, PaymentTag, Transaction } from "../types/finance";
+import { useState, useEffect, useRef } from "react";
+import { createTransaction, updateTransaction, fetchAttachments, uploadAttachment, downloadAttachment, deleteAttachment } from "../api/finance";
+import type { Category, PaymentTag, Transaction, TransactionAttachment } from "../types/finance";
 import { canManageFinance } from "../auth/permissions";
 
 type Props = {
@@ -90,6 +90,47 @@ export default function TransactionDetail({
   const [tag, setTag] = useState<PaymentTag>(transaction.tag ?? "ONLINE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [attachments, setAttachments] = useState<TransactionAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachError, setAttachError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchAttachments(transaction.id).then(setAttachments).catch(() => {});
+  }, [transaction.id]);
+
+  async function handleUpload(files: FileList) {
+    setUploading(true);
+    setAttachError("");
+    try {
+      for (const file of Array.from(files)) {
+        await uploadAttachment(transaction.id, file);
+      }
+      const updated = await fetchAttachments(transaction.id);
+      setAttachments(updated);
+    } catch {
+      setAttachError("Upload fehlgeschlagen");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteAttachment(aid: number) {
+    if (!confirm("Anhang löschen?")) return;
+    try {
+      await deleteAttachment(transaction.id, aid);
+      setAttachments(prev => prev.filter(a => a.id !== aid));
+    } catch {
+      setAttachError("Löschen fehlgeschlagen");
+    }
+  }
+
+  function fmtSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 
   const sign = transaction.type === "EINZAHLUNG" ? "+" : "-";
   const amountColor = transaction.type === "EINZAHLUNG" ? "#16a34a" : transaction.type === "AUSZAHLUNG" ? "#dc2626" : "#d97706";
@@ -187,6 +228,70 @@ export default function TransactionDetail({
             )}
           </div>
         )}
+
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+            Anhänge {attachments.length > 0 && `(${attachments.length})`}
+          </div>
+
+          {attachError && (
+            <div style={{ padding: "6px 10px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 12, marginBottom: 8 }}>
+              {attachError}
+            </div>
+          )}
+
+          {attachments.length === 0 && (
+            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 10 }}>Keine Anhänge</div>
+          )}
+
+          {attachments.map(a => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <span style={{ flex: 1, fontSize: 13, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {a.filename}
+              </span>
+              <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
+              <button
+                onClick={() => downloadAttachment(transaction.id, a.id, a.filename)}
+                title="Herunterladen"
+                style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #d1d5db", background: "#fff", fontSize: 12, cursor: "pointer" }}
+              >
+                ↓
+              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => handleDeleteAttachment(a.id)}
+                  title="Löschen"
+                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+
+          {isAdmin && (
+            <div style={{ marginTop: 10 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                style={{ display: "none" }}
+                onChange={e => e.target.files && handleUpload(e.target.files)}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                style={{
+                  padding: "6px 14px", borderRadius: 6, border: "1px dashed #94a3b8",
+                  background: "#f8fafc", fontSize: 13, cursor: uploading ? "not-allowed" : "pointer",
+                  color: "#475569", opacity: uploading ? 0.6 : 1,
+                }}
+              >
+                {uploading ? "Wird hochgeladen…" : "+ Anhang hinzufügen"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

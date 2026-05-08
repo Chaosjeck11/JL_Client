@@ -39,6 +39,16 @@ export type RunningBalanceEntry = {
   runningBalance: number;
 };
 
+export type TransactionAttachment = {
+  id: number;
+  transactionId: number;
+  filename: string;
+  storedName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+};
+
 export type Mitgliedsbeitrag = {
   id: number;
   memberId: number;
