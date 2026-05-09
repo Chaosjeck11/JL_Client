@@ -6,6 +6,8 @@ import MemberCreate from "./MemberCreate";
 import MemberExportModal from "./members/MemberExportModal";
 import { canCreateMembers } from "../auth/permissions";
 
+const API_BASE = "http://DEPLOY_SERVER_IP:3000";
+
 type MembersProps = {
   onLogout: () => void;
 };
@@ -171,9 +173,11 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
                       background: m.active ? "#dbeafe" : "#f1f5f9",
                       color: m.active ? "#1d4ed8" : "#94a3b8",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 700,
+                      fontSize: 12, fontWeight: 700, overflow: "hidden",
                     }}>
-                      {m.firstname.charAt(0).toUpperCase()}{m.lastname.charAt(0).toUpperCase()}
+                      {m.avatarPath
+                        ? <img src={`${API_BASE}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
                     </div>
                     <span style={{ fontWeight: 500, fontSize: 14, color: "#1e293b" }}>
                       {m.firstname} {m.lastname}

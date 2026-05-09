@@ -49,7 +49,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **API layer:**
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
 - Backend base URL is hardcoded: `http://DEPLOY_SERVER_IP:3000`.
-- `src/api/members.ts` — `/members` endpoints (list, PATCH, POST).
+- `src/api/members.ts` — `/members` endpoints (list, PATCH, POST, avatar upload/delete). Avatar upload uses raw `fetch` with `FormData` (same pattern as attachment upload — bypasses `apiFetch`).
 - `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, transaction attachments (upload/download/delete).
 
 **Types:**
@@ -58,8 +58,8 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
-- `ProfileModal` — overlay modal opened by the avatar button (top-right nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API.
-- `Members` — split-pane layout: member table (left) + detail/create panel (right). Manages its own list state and selected member. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only).
+- `ProfileModal` — overlay modal opened by the avatar button (top-right nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API. **Avatar upload/delete**: avatar circle is clickable → opens file picker; camera overlay on hover; "Löschen" button shown when avatar exists. Upload calls `uploadAvatar` (raw `fetch`/`FormData`). `onAvatarChanged` prop notifies `App.tsx` to update the nav avatar immediately without closing the modal.
+- `Members` — split-pane layout: member table (left) + detail/create panel (right). Manages its own list state and selected member. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only). Avatar shown in list row when `avatarPath` set; falls back to initials.
 - `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right).
@@ -102,6 +102,7 @@ Full backend docs (data model, all routes, business logic):
 | Running balance | `GET /finance/transactions/balance/:businessYearId` |
 | Mitgliedsbeiträge | `/finance/mitgliedsbeitraege` |
 | Transaction Attachments | `/finance/transactions/:id/attachments` |
+| Member Avatars | `POST/GET/DELETE /members/:id/avatar` |
 
 ### Key constraints Claude Code must respect
 - Access level `0` = any authenticated user (GET routes)
@@ -126,3 +127,7 @@ Never call `fetch()` directly from components.
 - `downloadAttachment` — Blob → object URL → browser download
 - `fetchAttachmentArrayBuffer` — returns `ArrayBuffer` (used by `ReportModal` to feed `pdf-lib` for PDF merging and JPEG/PNG embedding)
 - `fetchAttachmentDataUrl` — returns base64 data URL (used by `ReportModal` for canvas-based conversion of non-JPEG/PNG image formats)
+
+And in `src/api/members.ts`:
+- `uploadAvatar` — multipart upload to `POST /members/:id/avatar`; returns updated `Member`
+- `deleteAvatar` — `DELETE /members/:id/avatar` via `apiFetch`

@@ -107,6 +107,7 @@ export default function App() {
           member={currentMember}
           onClose={() => setShowProfile(false)}
           onUpdated={updated => { setCurrentMember(updated); setShowProfile(false); }}
+          onAvatarChanged={updated => setCurrentMember(updated)}
         />
       )}
     </div>
