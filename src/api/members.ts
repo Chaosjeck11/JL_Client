@@ -1,6 +1,8 @@
 import { apiFetch } from "./client";
 import type { Member, Role } from "../types/member";
 
+const API_BASE = "http://100.91.210.125:3000";
+
 export async function fetchMembers(): Promise<Member[]> {
   return apiFetch("/members");
 }
@@ -21,6 +23,23 @@ export async function updateMember(
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
+
+export async function uploadAvatar(memberId: number, file: File): Promise<Member> {
+  const token = localStorage.getItem("token");
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/members/${memberId}/avatar`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
+export async function deleteAvatar(memberId: number): Promise<void> {
+  return apiFetch(`/members/${memberId}/avatar`, { method: "DELETE" });
 }
 
 export async function createMember(data: {

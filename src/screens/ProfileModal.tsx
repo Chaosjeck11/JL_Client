@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Member } from "../types/member";
-import { updateMember } from "../api/members";
+import { updateMember, uploadAvatar, deleteAvatar } from "../api/members";
 
 const API_BASE = "http://100.91.210.125:3000";
 
@@ -8,6 +8,7 @@ type Props = {
   member: Member;
   onClose: () => void;
   onUpdated: (member: Member) => void;
+  onAvatarChanged?: (member: Member) => void;
 };
 
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -19,7 +20,11 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-export default function ProfileModal({ member, onClose, onUpdated }: Props) {
+export default function ProfileModal({ member, onClose, onUpdated, onAvatarChanged }: Props) {
+  const [localAvatarPath, setLocalAvatarPath] = useState(member.avatarPath ?? null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarHover, setAvatarHover] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     firstname: member.firstname,
     lastname: member.lastname,
@@ -75,7 +80,38 @@ export default function ProfileModal({ member, onClose, onUpdated }: Props) {
     }
   }
 
-  const avatarUrl = member.avatarPath ? `${API_BASE}/${member.avatarPath}` : null;
+  const avatarUrl = localAvatarPath ? `${API_BASE}/${localAvatarPath}` : null;
+
+  async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setAvatarUploading(true);
+      setError("");
+      const updated = await uploadAvatar(member.id, file);
+      setLocalAvatarPath(updated.avatarPath ?? null);
+      onAvatarChanged?.(updated);
+    } catch {
+      setError("Avatar-Upload fehlgeschlagen");
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleAvatarDelete() {
+    try {
+      setAvatarUploading(true);
+      setError("");
+      await deleteAvatar(member.id);
+      setLocalAvatarPath(null);
+      onAvatarChanged?.({ ...member, avatarPath: null });
+    } catch {
+      setError("Avatar löschen fehlgeschlagen");
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   return (
     <div
@@ -92,15 +128,54 @@ export default function ProfileModal({ member, onClose, onUpdated }: Props) {
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: "50%",
-            background: "#4a90d9", color: "#fff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 22, fontWeight: "bold", overflow: "hidden", flexShrink: 0,
-          }}>
-            {avatarUrl
-              ? <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : member.firstname.charAt(0).toUpperCase()}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleAvatarFile}
+            />
+            <div
+              onClick={() => !avatarUploading && fileInputRef.current?.click()}
+              onMouseEnter={() => setAvatarHover(true)}
+              onMouseLeave={() => setAvatarHover(false)}
+              title="Bild hochladen"
+              style={{
+                width: 60, height: 60, borderRadius: "50%",
+                background: "#4a90d9", color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 22, fontWeight: "bold", overflow: "hidden",
+                cursor: avatarUploading ? "default" : "pointer",
+                position: "relative",
+              }}
+            >
+              {avatarUrl
+                ? <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : member.firstname.charAt(0).toUpperCase()}
+              {(avatarHover || avatarUploading) && (
+                <div style={{
+                  position: "absolute", inset: 0, borderRadius: "50%",
+                  background: "rgba(0,0,0,0.45)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 20,
+                }}>
+                  {avatarUploading ? "⏳" : "📷"}
+                </div>
+              )}
+            </div>
+            {localAvatarPath && !avatarUploading && (
+              <button
+                onClick={handleAvatarDelete}
+                style={{
+                  fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                  border: "1px solid #fca5a5", background: "#fff5f5",
+                  color: "#dc2626", cursor: "pointer",
+                }}
+              >
+                Löschen
+              </button>
+            )}
           </div>
           <h3 style={{ margin: 0 }}>Mein Profil</h3>
         </div>
