@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, prepareFileForUpload } from "./client";
 import type { AppFile } from "../types/files";
 
 const API_URL = "http://100.91.210.125:3000";
@@ -18,8 +18,9 @@ export async function uploadFile(
   description?: string,
 ): Promise<AppFile> {
   const token = localStorage.getItem("token");
+  const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", blob, filename);
   if (path !== undefined) form.append("path", path);
   if (description !== undefined) form.append("description", description);
   const res = await fetch(`${API_URL}/files/upload`, {

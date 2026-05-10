@@ -1,5 +1,19 @@
 const API_URL = "http://100.91.210.125:3000";
 
+export function sanitizeFilename(name: string): string {
+  return name
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue")
+    .replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^\w.\-]/g, "_");
+}
+
+export async function prepareFileForUpload(file: File): Promise<[Blob, string]> {
+  const buffer = await file.arrayBuffer();
+  const blob = new Blob([buffer], { type: file.type });
+  return [blob, sanitizeFilename(file.name)];
+}
+
 export async function apiFetch(
   path: string,
   options: RequestInit = {},

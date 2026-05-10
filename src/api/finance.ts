@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, prepareFileForUpload } from "./client";
 import type {
   BusinessYear,
   Category,
@@ -106,8 +106,9 @@ export function fetchAttachments(transactionId: number): Promise<TransactionAtta
 
 export async function uploadAttachment(transactionId: number, file: File): Promise<TransactionAttachment> {
   const token = localStorage.getItem("token");
+  const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", blob, filename);
   const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},

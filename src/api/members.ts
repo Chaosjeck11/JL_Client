@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, prepareFileForUpload } from "./client";
 import type { Member, MemberAttachment, Role } from "../types/member";
 
 const API_BASE = "http://100.91.210.125:3000";
@@ -27,8 +27,9 @@ export async function updateMember(
 
 export async function uploadAvatar(memberId: number, file: File): Promise<Member> {
   const token = localStorage.getItem("token");
+  const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", blob, filename);
   const res = await fetch(`${API_BASE}/members/${memberId}/avatar`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -48,8 +49,9 @@ export function fetchMemberAttachments(memberId: number): Promise<MemberAttachme
 
 export async function uploadMemberAttachment(memberId: number, file: File): Promise<MemberAttachment> {
   const token = localStorage.getItem("token");
+  const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", blob, filename);
   const res = await fetch(`${API_BASE}/members/${memberId}/attachments`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
