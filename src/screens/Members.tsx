@@ -5,8 +5,7 @@ import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
 import MemberExportModal from "./members/MemberExportModal";
 import { canCreateMembers } from "../auth/permissions";
-
-const API_BASE = "http://100.91.210.125:3000";
+import { getApiUrl } from "../api/client";
 
 type MembersProps = {
   onLogout: () => void;
@@ -176,7 +175,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
                       fontSize: 12, fontWeight: 700, overflow: "hidden",
                     }}>
                       {m.avatarPath
-                        ? <img src={`${API_BASE}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ? <img src={`${getApiUrl()}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                         : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
                     </div>
                     <span style={{ fontWeight: 500, fontSize: 14, color: "#1e293b" }}>

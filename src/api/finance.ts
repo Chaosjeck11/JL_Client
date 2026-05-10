@@ -1,4 +1,4 @@
-import { apiFetch, prepareFileForUpload } from "./client";
+import { apiFetch, getApiUrl, prepareFileForUpload } from "./client";
 import type {
   BusinessYear,
   Category,
@@ -9,7 +9,6 @@ import type {
   TransactionType,
 } from "../types/finance";
 
-const API_URL = "http://100.91.210.125:3000";
 
 export function fetchCategories(): Promise<Category[]> {
   return apiFetch("/finance/categories");
@@ -109,7 +108,7 @@ export async function uploadAttachment(transactionId: number, file: File): Promi
   const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
   form.append("file", blob, filename);
-  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments`, {
+  const res = await fetch(`${getApiUrl()}/finance/transactions/${transactionId}/attachments`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -120,7 +119,7 @@ export async function uploadAttachment(transactionId: number, file: File): Promi
 
 export async function downloadAttachment(transactionId: number, attachmentId: number, filename: string): Promise<void> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+  const res = await fetch(`${getApiUrl()}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -135,7 +134,7 @@ export async function downloadAttachment(transactionId: number, attachmentId: nu
 
 export async function fetchAttachmentBlob(transactionId: number, attachmentId: number): Promise<{ url: string; mimeType: string }> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+  const res = await fetch(`${getApiUrl()}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -145,7 +144,7 @@ export async function fetchAttachmentBlob(transactionId: number, attachmentId: n
 
 export async function fetchAttachmentArrayBuffer(transactionId: number, attachmentId: number): Promise<ArrayBuffer> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+  const res = await fetch(`${getApiUrl()}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -154,7 +153,7 @@ export async function fetchAttachmentArrayBuffer(transactionId: number, attachme
 
 export async function fetchAttachmentDataUrl(transactionId: number, attachmentId: number): Promise<string> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+  const res = await fetch(`${getApiUrl()}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);

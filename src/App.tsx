@@ -8,9 +8,8 @@ import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
 import { fetchMember } from "./api/members";
+import { getApiUrl } from "./api/client";
 import type { Member } from "./types/member";
-
-const API_BASE = "http://100.91.210.125:3000";
 
 type Tab = "members" | "finance" | "beitraege" | "files";
 
@@ -44,7 +43,7 @@ export default function App() {
     return <Login onSuccess={() => setLoggedIn(true)} />;
   }
 
-  const avatarUrl = currentMember?.avatarPath ? `${API_BASE}/${currentMember.avatarPath}` : null;
+  const avatarUrl = currentMember?.avatarPath ? `${getApiUrl()}/${currentMember.avatarPath}` : null;
   const initial   = currentMember?.firstname.charAt(0).toUpperCase() ?? "?";
 
   return (

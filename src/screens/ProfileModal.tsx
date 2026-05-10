@@ -1,8 +1,7 @@
 import { useRef, useState } from "react";
 import type { Member } from "../types/member";
 import { updateMember, uploadAvatar, deleteAvatar } from "../api/members";
-
-const API_BASE = "http://100.91.210.125:3000";
+import { getApiUrl } from "../api/client";
 
 type Props = {
   member: Member;
@@ -80,7 +79,7 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
     }
   }
 
-  const avatarUrl = localAvatarPath ? `${API_BASE}/${localAvatarPath}` : null;
+  const avatarUrl = localAvatarPath ? `${getApiUrl()}/${localAvatarPath}` : null;
 
   async function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
