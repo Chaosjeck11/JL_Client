@@ -3,6 +3,7 @@ import Login from "./screens/Login";
 import Members from "./screens/Members";
 import Finance from "./screens/Finance";
 import Mitgliederbeitraege from "./screens/Mitgliederbeitraege";
+import Files from "./screens/Files";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
@@ -11,12 +12,13 @@ import type { Member } from "./types/member";
 
 const API_BASE = "http://100.91.210.125:3000";
 
-type Tab = "members" | "finance" | "beitraege";
+type Tab = "members" | "finance" | "beitraege" | "files";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "members",    label: "Mitglieder" },
   { id: "finance",    label: "Finanzen" },
   { id: "beitraege",  label: "Beiträge" },
+  { id: "files",      label: "Dateien" },
 ];
 
 export default function App() {
@@ -101,6 +103,7 @@ export default function App() {
       {activeTab === "members"   && <Members onLogout={handleLogout} />}
       {activeTab === "finance"   && <Finance />}
       {activeTab === "beitraege" && <Mitgliederbeitraege />}
+      {activeTab === "files"     && <Files />}
 
       {showProfile && currentMember && (
         <ProfileModal
