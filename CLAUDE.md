@@ -40,7 +40,7 @@ No test framework is configured yet.
 This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router library — navigation is handled with state in `App.tsx`.
 
 **Auth flow:**
-- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance") as the only global state.
+- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance" | "beitraege" | "files") as the only global state.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
 - Permission checks in `src/auth/permissions.ts` gate UI elements based on `accessLevel >= 5`:
   - `canEditMembers()`, `canCreateMembers()` — member management
@@ -49,12 +49,14 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **API layer:**
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
 - Backend base URL is hardcoded: `http://DEPLOY_SERVER_IP:3000`.
-- `src/api/members.ts` — `/members` endpoints (list, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
-- `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, transaction attachments (upload/download/delete).
+- `src/api/members.ts` — `/members` endpoints (list, single, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
+- `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, mitgliedsbeitraege, transaction attachments (upload/download/delete/preview).
+- `src/api/files.ts` — `/files` endpoints: `fetchFiles(path?)`, `fetchFolders()`, `uploadFile` (raw fetch/FormData), `downloadFile` (Blob → objectURL), `previewFile` (Blob → objectURL, inline), `updateFile`, `deleteFile`.
 
 **Types:**
-- `src/types/member.ts` — `Member`, `MemberAttachment`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
-- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`.
+- `src/types/member.ts` — `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
+- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`, `Mitgliedsbeitrag`.
+- `src/types/files.ts` — `AppFile`.
 
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
@@ -84,6 +86,15 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `ReportModal` — overlay modal for generating finance reports. Filters: Geschäftsjahr(e) (multi-select), Kategorien (multi-select, empty = all), Rückbuchungen toggle, Tag (ONLINE/BAR/kein Tag, empty = all). Option **"Anhänge einschließen"**: fetches attachments for all filtered transactions in parallel; for PDF: jsPDF renders the main tables + a per-year attachment overview table, then `pdf-lib` merges actual attachment files — PDF attachments are copied page-by-page, JPEG/PNG embedded full-page, other image formats converted via canvas to JPEG first, unsupported formats get a placeholder page; each attachment is preceded by a separator page (transaction date/description + filename); for CSV: adds a "Anhänge" column with pipe-separated filenames. Format: CSV (semicolon-delimited, UTF-8 BOM, Excel-kompatibel) or PDF (landscape, via jsPDF + AutoTable with summary footer). Accessible to all logged-in users. Libraries loaded via dynamic import.
 - `ImportModal` — overlay modal for bulk-importing transactions from `.xlsx` or `.csv`. CSV delimiter is semicolon. Columns: `Datum;Beschreibung;Kategorie;Tag;Typ;Betrag` (same template as CSV export, `Kontostand` column is ignored if present). Datum format: `DD.MM.YYYY`. Geschäftsjahr is auto-detected from date (month ≥ 2 → year Y, month = 1 → year Y−1). `RUECKBUCHUNG` rows are rejected with an error. Shows a preview table with per-row validation before importing. "Vorlage (.csv)" button downloads an example file. Admin only.
 
+**Files screen (`src/screens/Files.tsx`):**
+- Split-pane: 180px folder sidebar (left, `#f1f5f9` bg) + file list (center) + detail/upload panel (right, shown on file select or "+ Datei hochladen").
+- Folder sidebar lists distinct paths from `fetchFolders()` + "Alle Dateien" root; selecting a folder filters the file list client-side.
+- File list table: name, size (human-readable), date, description; search filters on filename + description.
+- Detail panel: filename, mimeType, size, upload date, uploader name (looked up from `fetchMembers()`); description + path editable inline (admin only, saved via `updateFile`); "Herunterladen" → `downloadFile`; "Löschen" (admin only, `confirm()` guard); preview area: images via `<img>`, PDFs via `<iframe>`, other types show extension badge + download button.
+- Upload form (admin only): single file input, path and description fields, calls `uploadFile` (raw fetch/FormData); on success refreshes file list and folder list, then shows detail of new file.
+- Blob URL lifecycle: `previewUrlRef` tracks current URL for revocation on file switch and unmount; cancellation token prevents stale state when switching files during a pending preview fetch.
+- Types: `src/types/files.ts` → `AppFile`. API functions: `src/api/files.ts` (`fetchFiles`, `fetchFolders`, `uploadFile`, `downloadFile`, `previewFile`, `updateFile`, `deleteFile`).
+
 
 ## Backend reference
 
@@ -107,6 +118,7 @@ Full backend docs (data model, all routes, business logic):
 | Transaction Attachments | `/finance/transactions/:id/attachments` |
 | Member Attachments | `/members/:id/attachments` |
 | Member Avatars | `POST/GET/DELETE /members/:id/avatar` |
+| Files | `/files` |
 
 ### Key constraints Claude Code must respect
 - Access level `0` = any authenticated user (GET routes)
@@ -119,12 +131,13 @@ Full backend docs (data model, all routes, business logic):
 - Deleting a Category fails if transactions are assigned
 
 ### TypeScript types live in
-- `src/types/member.ts` → `Member`, `MemberAttachment`
-- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`, `TransactionAttachment`
+- `src/types/member.ts` → `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`
+- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`, `TransactionAttachment`, `Mitgliedsbeitrag`
+- `src/types/files.ts` → `AppFile`
 
 ### API client pattern
 All requests go through `src/api/client.ts → apiFetch()`.
-New endpoints → add a function to `src/api/members.ts` or `src/api/finance.ts`.
+New endpoints → add a function to the appropriate API module (`members.ts`, `finance.ts`, `files.ts`).
 Never call `fetch()` directly from components.
 **Exception:** file upload (`multipart/form-data`) and binary download (Blob/ArrayBuffer/DataURL) bypass `apiFetch` because it hardcodes `Content-Type: application/json` and calls `res.json()`. These use raw `fetch` with the token attached manually — see in `src/api/finance.ts`:
 - `uploadAttachment` — multipart upload
@@ -141,3 +154,10 @@ And in `src/api/members.ts`:
 - `downloadMemberAttachment` — Blob → object URL → browser download
 - `deleteMemberAttachment` — `DELETE /members/:id/attachments/:aid` via `apiFetch`
 - `fetchMemberAttachmentBlob` — returns `{ url: string; mimeType: string }` blob URL (used by `MemberDetail` for `AttachmentViewer` preview)
+
+And in `src/api/files.ts` (all raw fetch — no `apiFetch`):
+- `uploadFile` — multipart upload to `POST /files/upload`; body fields `path?`, `description?`; returns `AppFile`
+- `downloadFile` — Blob → object URL → browser download (`Content-Disposition: attachment`)
+- `previewFile` — Blob → object URL for inline preview (`Content-Disposition: inline`); used by `Files` screen
+- `updateFile` — `PATCH /files/:id` via `apiFetch` (description, path)
+- `deleteFile` — `DELETE /files/:id` via `apiFetch`
