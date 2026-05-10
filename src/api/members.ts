@@ -1,7 +1,6 @@
-import { apiFetch, prepareFileForUpload } from "./client";
+import { apiFetch, getApiUrl, prepareFileForUpload } from "./client";
 import type { Member, MemberAttachment, Role } from "../types/member";
 
-const API_BASE = "http://DEPLOY_SERVER_IP:3000";
 
 export async function fetchMembers(): Promise<Member[]> {
   return apiFetch("/members");
@@ -30,7 +29,7 @@ export async function uploadAvatar(memberId: number, file: File): Promise<Member
   const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
   form.append("file", blob, filename);
-  const res = await fetch(`${API_BASE}/members/${memberId}/avatar`, {
+  const res = await fetch(`${getApiUrl()}/members/${memberId}/avatar`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -52,7 +51,7 @@ export async function uploadMemberAttachment(memberId: number, file: File): Prom
   const [blob, filename] = await prepareFileForUpload(file);
   const form = new FormData();
   form.append("file", blob, filename);
-  const res = await fetch(`${API_BASE}/members/${memberId}/attachments`, {
+  const res = await fetch(`${getApiUrl()}/members/${memberId}/attachments`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -63,7 +62,7 @@ export async function uploadMemberAttachment(memberId: number, file: File): Prom
 
 export async function downloadMemberAttachment(memberId: number, attachmentId: number, filename: string): Promise<void> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_BASE}/members/${memberId}/attachments/${attachmentId}/download`, {
+  const res = await fetch(`${getApiUrl()}/members/${memberId}/attachments/${attachmentId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -82,7 +81,7 @@ export async function deleteMemberAttachment(memberId: number, attachmentId: num
 
 export async function fetchMemberAttachmentBlob(memberId: number, attachmentId: number): Promise<{ url: string; mimeType: string }> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_BASE}/members/${memberId}/attachments/${attachmentId}/download`, {
+  const res = await fetch(`${getApiUrl()}/members/${memberId}/attachments/${attachmentId}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);

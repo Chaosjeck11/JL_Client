@@ -1,4 +1,8 @@
-const API_URL = "http://DEPLOY_SERVER_IP:3000";
+const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
+
+export function getApiUrl(): string {
+  return (localStorage.getItem("api_base_url") ?? DEFAULT_API_URL).replace(/\/$/, "");
+}
 
 export function sanitizeFilename(name: string): string {
   return name
@@ -28,7 +32,7 @@ export async function apiFetch(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${getApiUrl()}${path}`, {
     ...options,
     headers,
   });

@@ -1,7 +1,6 @@
-import { apiFetch, prepareFileForUpload } from "./client";
+import { apiFetch, getApiUrl, prepareFileForUpload } from "./client";
 import type { AppFile } from "../types/files";
 
-const API_URL = "http://DEPLOY_SERVER_IP:3000";
 
 export function fetchFiles(path?: string): Promise<AppFile[]> {
   const params = path ? `?path=${encodeURIComponent(path)}` : "";
@@ -23,7 +22,7 @@ export async function uploadFile(
   form.append("file", blob, filename);
   if (path !== undefined) form.append("path", path);
   if (description !== undefined) form.append("description", description);
-  const res = await fetch(`${API_URL}/files/upload`, {
+  const res = await fetch(`${getApiUrl()}/files/upload`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
@@ -34,7 +33,7 @@ export async function uploadFile(
 
 export async function downloadFile(id: number, filename: string): Promise<void> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/files/${id}/download`, {
+  const res = await fetch(`${getApiUrl()}/files/${id}/download`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);
@@ -49,7 +48,7 @@ export async function downloadFile(id: number, filename: string): Promise<void> 
 
 export async function previewFile(id: number): Promise<string> {
   const token = localStorage.getItem("token");
-  const res = await fetch(`${API_URL}/files/${id}/preview`, {
+  const res = await fetch(`${getApiUrl()}/files/${id}/preview`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);

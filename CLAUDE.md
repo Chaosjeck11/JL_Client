@@ -48,7 +48,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 **API layer:**
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
-- Backend base URL is hardcoded: `http://DEPLOY_SERVER_IP:3000`.
+- Backend base URL is **user-configurable**: `getApiUrl()` (exported from `src/api/client.ts`) reads `localStorage('api_base_url')`, falling back to `http://DEPLOY_SERVER_IP:3000`. The URL is saved to `localStorage` on login via the Server-Adresse field in `Login.tsx`. All API modules (`members.ts`, `finance.ts`, `files.ts`) and screens that build URLs directly (`App.tsx`, `Members.tsx`, `ProfileModal.tsx`, `MemberDetail.tsx`) import and call `getApiUrl()` — never hardcode the base URL.
 - `src/api/members.ts` — `/members` endpoints (list, single, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
 - `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, mitgliedsbeitraege, transaction attachments (upload/download/delete/preview).
 - `src/api/files.ts` — `/files` endpoints: `fetchFiles(path?)`, `fetchFolders()`, `uploadFile` (raw fetch/FormData), `downloadFile` (Blob → objectURL), `previewFile` (Blob → objectURL, inline), `updateFile`, `deleteFile`.
@@ -59,7 +59,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `src/types/files.ts` — `AppFile`.
 
 **Screens (`src/screens/`):**
-- `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
+- `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `http://DEPLOY_SERVER_IP:3000`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`.
 - `ProfileModal` — overlay modal opened by the avatar button (top-right nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API. **Avatar upload/delete**: avatar circle is clickable → opens file picker; camera overlay on hover; "Löschen" button shown when avatar exists. Upload calls `uploadAvatar` (raw `fetch`/`FormData`). `onAvatarChanged` prop notifies `App.tsx` to update the nav avatar immediately without closing the modal.
 - `Members` — split-pane layout: member table (left) + detail/create panel (right). Manages its own list state and selected member. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only). Avatar shown in list row when `avatarPath` set; falls back to initials.
 - `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save. Includes **"Anhänge"** section (view mode only): lists attachments with filename/size; single click opens `AttachmentViewer` side panel (click again to close); download button (↓) per row; admins can upload multiple files and delete attachments. Active attachment row highlighted blue.
@@ -102,7 +102,7 @@ Full backend docs (data model, all routes, business logic):
 @../JL_Backend/CLAUDE.md   ← Claude Code löst diesen Pfad automatisch auf
 
 ### Quick-reference: API base URL
-`http://DEPLOY_SERVER_IP:3000`  (hardcoded in `src/api/client.ts`)
+Default: `http://DEPLOY_SERVER_IP:3000`. Configurable at runtime via the Login screen → stored in `localStorage('api_base_url')`. Always access via `getApiUrl()` from `src/api/client.ts`.
 
 ### Available endpoints (summary)
 

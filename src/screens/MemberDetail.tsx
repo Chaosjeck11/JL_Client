@@ -5,8 +5,7 @@ import { updateMember, fetchMemberAttachments, uploadMemberAttachment, downloadM
 import { fetchBusinessYears } from "../api/finance";
 import { canEditMembers } from "../auth/permissions";
 import AttachmentViewer from "../components/AttachmentViewer";
-
-const API_BASE = "http://DEPLOY_SERVER_IP:3000";
+import { getApiUrl } from "../api/client";
 
 type Props = {
   member: Member;
@@ -307,7 +306,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
     });
   }
 
-  const avatarUrl = member.avatarPath ? `${API_BASE}/${member.avatarPath}` : null;
+  const avatarUrl = member.avatarPath ? `${getApiUrl()}/${member.avatarPath}` : null;
 
   // ── VIEW MODE ─────────────────────────────────────────────────────────────
   if (!edit) {
