@@ -49,18 +49,18 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **API layer:**
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
 - Backend base URL is hardcoded: `http://DEPLOY_SERVER_IP:3000`.
-- `src/api/members.ts` — `/members` endpoints (list, PATCH, POST, avatar upload/delete). Avatar upload uses raw `fetch` with `FormData` (same pattern as attachment upload — bypasses `apiFetch`).
+- `src/api/members.ts` — `/members` endpoints (list, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
 - `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, transaction attachments (upload/download/delete).
 
 **Types:**
-- `src/types/member.ts` — `Member`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
+- `src/types/member.ts` — `Member`, `MemberAttachment`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
 - `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`.
 
 **Screens (`src/screens/`):**
 - `Login` — credential form, calls `auth.login()`, notifies parent via `onSuccess`.
 - `ProfileModal` — overlay modal opened by the avatar button (top-right nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API. **Avatar upload/delete**: avatar circle is clickable → opens file picker; camera overlay on hover; "Löschen" button shown when avatar exists. Upload calls `uploadAvatar` (raw `fetch`/`FormData`). `onAvatarChanged` prop notifies `App.tsx` to update the nav avatar immediately without closing the modal.
 - `Members` — split-pane layout: member table (left) + detail/create panel (right). Manages its own list state and selected member. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only). Avatar shown in list row when `avatarPath` set; falls back to initials.
-- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save.
+- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save. Includes **"Anhänge"** section (view mode only): lists attachments with filename/size; single click opens `AttachmentViewer` side panel (click again to close); download button (↓) per row; admins can upload multiple files and delete attachments. Active attachment row highlighted blue.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right).
   - Left: year dropdown (descending), three summary badges (Übertrag/Einnahmen/Kontostand from `fetchBusinessYear`), running-balance table with a „Zahlung" column (tag: Online/Bar) that is filterable via dropdown, summary footer row.
@@ -69,7 +69,10 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - "Kategorien verwalten" toggle (admin only) opens `CategoryManager` inline below the header.
   - "+ Jahr" button (admin only) next to the year dropdown opens `BusinessYearForm` in the right panel.
 - `TransactionCreate` — create form for a new transaction (used by `Finance`). `tag` (`ONLINE` | `BAR`) is required; defaults to `ONLINE`.
-- `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form. Includes **"Anhänge"** section (always visible in detail view): lists attachments with filename/size/download; admins can upload multiple files and delete attachments. Upload uses raw `fetch` with `FormData` (not `apiFetch`) to avoid the JSON `Content-Type` header. Download fetches as Blob + creates a temporary object URL to trigger browser download (required because auth header can't be sent via `<a href>`).
+- `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form. Includes **"Anhänge"** section (always visible in detail view): single click on filename opens `AttachmentViewer` side panel (click again to close); active row highlighted blue; download button (↓) per row; admins can upload multiple files and delete attachments. Upload uses raw `fetch` with `FormData` (not `apiFetch`). Download fetches as Blob + object URL (auth header can't be sent via `<a href>`).
+
+**Shared components (`src/components/`):**
+- `AttachmentViewer` — generic side-panel file viewer (fixed right-edge panel, 600px wide, full viewport height). Props: `filename`, `url` (blob URL), `mimeType`, `onDownload`, `onClose`. Renders PDF via iframe, images via img, fallback with download button for other types. Used by both `TransactionDetail` and `MemberDetail`.
 
 **Members sub-screens (`src/screens/members/`):**
 - `MemberExportModal` — overlay modal for exporting the member list. Fields are selectable in three groups (Stammdaten, Mitgliedschaft, Beitragsinfos) with group-level checkboxes and Alle/Keine shortcuts. Beitragskategorie is a computed field ("Reduziert (35 €)" if u18 || bereitsMitglied || schuelerStudentAzubi, else "Voll (100 €)"). Status filter: Alle/Aktiv/Inaktiv with live member count. Format: CSV (semicolon-delimited, UTF-8 BOM) or PDF (portrait/landscape depending on column count, via jsPDF + AutoTable). Libraries loaded via dynamic import. Accessible to all logged-in users.
@@ -102,6 +105,7 @@ Full backend docs (data model, all routes, business logic):
 | Running balance | `GET /finance/transactions/balance/:businessYearId` |
 | Mitgliedsbeiträge | `/finance/mitgliedsbeitraege` |
 | Transaction Attachments | `/finance/transactions/:id/attachments` |
+| Member Attachments | `/members/:id/attachments` |
 | Member Avatars | `POST/GET/DELETE /members/:id/avatar` |
 
 ### Key constraints Claude Code must respect
@@ -115,8 +119,8 @@ Full backend docs (data model, all routes, business logic):
 - Deleting a Category fails if transactions are assigned
 
 ### TypeScript types live in
-- `src/types/member.ts` → `Member`
-- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`
+- `src/types/member.ts` → `Member`, `MemberAttachment`
+- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`, `TransactionAttachment`
 
 ### API client pattern
 All requests go through `src/api/client.ts → apiFetch()`.
@@ -125,9 +129,15 @@ Never call `fetch()` directly from components.
 **Exception:** file upload (`multipart/form-data`) and binary download (Blob/ArrayBuffer/DataURL) bypass `apiFetch` because it hardcodes `Content-Type: application/json` and calls `res.json()`. These use raw `fetch` with the token attached manually — see in `src/api/finance.ts`:
 - `uploadAttachment` — multipart upload
 - `downloadAttachment` — Blob → object URL → browser download
+- `fetchAttachmentBlob` — returns `{ url: string; mimeType: string }` blob URL (used by `TransactionDetail` for `AttachmentViewer` preview)
 - `fetchAttachmentArrayBuffer` — returns `ArrayBuffer` (used by `ReportModal` to feed `pdf-lib` for PDF merging and JPEG/PNG embedding)
 - `fetchAttachmentDataUrl` — returns base64 data URL (used by `ReportModal` for canvas-based conversion of non-JPEG/PNG image formats)
 
 And in `src/api/members.ts`:
 - `uploadAvatar` — multipart upload to `POST /members/:id/avatar`; returns updated `Member`
 - `deleteAvatar` — `DELETE /members/:id/avatar` via `apiFetch`
+- `fetchMemberAttachments` — list attachments for a member
+- `uploadMemberAttachment` — multipart upload to `POST /members/:id/attachments`
+- `downloadMemberAttachment` — Blob → object URL → browser download
+- `deleteMemberAttachment` — `DELETE /members/:id/attachments/:aid` via `apiFetch`
+- `fetchMemberAttachmentBlob` — returns `{ url: string; mimeType: string }` blob URL (used by `MemberDetail` for `AttachmentViewer` preview)
