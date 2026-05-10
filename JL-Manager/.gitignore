@@ -7,7 +7,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-package-lock.json
 node_modules
 dist
 dist-ssr
@@ -23,17 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-node_modules/
-dist/
-build/
-.env
-.env.local
-.env.*.local
-.npm/
-coverage/
-*.log
-.vscode/
-.idea/
-
-
-JL-Manager/src-tauri/target/
