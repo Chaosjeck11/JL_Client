@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { createTransaction, updateTransaction, fetchAttachments, uploadAttachment, downloadAttachment, deleteAttachment } from "../api/finance";
+import { createTransaction, updateTransaction, fetchAttachments, uploadAttachment, downloadAttachment, deleteAttachment, fetchAttachmentBlob } from "../api/finance";
 import type { Category, PaymentTag, Transaction, TransactionAttachment } from "../types/finance";
 import { canManageFinance } from "../auth/permissions";
+import AttachmentViewer from "../components/AttachmentViewer";
 
 type Props = {
   transaction: Transaction;
@@ -94,10 +95,34 @@ export default function TransactionDetail({
   const [uploading, setUploading] = useState(false);
   const [attachError, setAttachError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<{ attachment: TransactionAttachment; url: string; mimeType: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAttachments(transaction.id).then(setAttachments).catch(() => {});
+    return () => {
+      if (preview) URL.revokeObjectURL(preview.url);
+    };
   }, [transaction.id]);
+
+  async function openPreview(a: TransactionAttachment) {
+    if (preview?.attachment.id === a.id) { closePreview(); return; }
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreviewLoading(a.id);
+    try {
+      const { url, mimeType } = await fetchAttachmentBlob(transaction.id, a.id);
+      setPreview({ attachment: a, url, mimeType });
+    } catch {
+      setAttachError("Vorschau fehlgeschlagen");
+    } finally {
+      setPreviewLoading(null);
+    }
+  }
+
+  function closePreview() {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  }
 
   async function handleUpload(files: FileList) {
     setUploading(true);
@@ -244,30 +269,51 @@ export default function TransactionDetail({
             <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 10 }}>Keine Anhänge</div>
           )}
 
-          {attachments.map(a => (
-            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #f1f5f9" }}>
-              <span style={{ flex: 1, fontSize: 13, color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {a.filename}
-              </span>
-              <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
-              <button
-                onClick={() => downloadAttachment(transaction.id, a.id, a.filename)}
-                title="Herunterladen"
-                style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #d1d5db", background: "#fff", fontSize: 12, cursor: "pointer" }}
+          {attachments.map(a => {
+            const isActive = preview?.attachment.id === a.id;
+            const isLoading = previewLoading === a.id;
+            return (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
+                  borderBottom: "1px solid #f1f5f9", borderRadius: 6,
+                  background: isActive ? "#eff6ff" : "transparent",
+                  cursor: "pointer",
+                }}
               >
-                ↓
-              </button>
-              {isAdmin && (
                 <button
-                  onClick={() => handleDeleteAttachment(a.id)}
-                  title="Löschen"
-                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                  onClick={() => openPreview(a)}
+                  title="Vorschau"
+                  style={{
+                    flex: 1, textAlign: "left", background: "none", border: "none", padding: 0,
+                    fontSize: 13, color: isActive ? "#1d4ed8" : "#1e293b",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    cursor: "pointer", fontWeight: isActive ? 600 : 400,
+                  }}
                 >
-                  ✕
+                  {isLoading ? "Lädt…" : a.filename}
                 </button>
-              )}
-            </div>
-          ))}
+                <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
+                <button
+                  onClick={e => { e.stopPropagation(); downloadAttachment(transaction.id, a.id, a.filename); }}
+                  title="Herunterladen"
+                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #d1d5db", background: "#fff", fontSize: 12, cursor: "pointer" }}
+                >
+                  ↓
+                </button>
+                {isAdmin && (
+                  <button
+                    onClick={e => { e.stopPropagation(); handleDeleteAttachment(a.id); }}
+                    title="Löschen"
+                    style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            );
+          })}
 
           {isAdmin && (
             <div style={{ marginTop: 10 }}>
@@ -292,6 +338,14 @@ export default function TransactionDetail({
             </div>
           )}
         </div>
+
+        {preview && <AttachmentViewer
+          filename={preview.attachment.filename}
+          url={preview.url}
+          mimeType={preview.mimeType}
+          onDownload={() => downloadAttachment(transaction.id, preview.attachment.id, preview.attachment.filename)}
+          onClose={closePreview}
+        />}
       </div>
     );
   }

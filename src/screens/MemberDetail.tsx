@@ -1,9 +1,10 @@
-import { useState } from "react";
-import type { Member, Role } from "../types/member";
+import { useState, useEffect, useRef } from "react";
+import type { Member, MemberAttachment, Role } from "../types/member";
 import type { BusinessYear } from "../types/finance";
-import { updateMember } from "../api/members";
+import { updateMember, fetchMemberAttachments, uploadMemberAttachment, downloadMemberAttachment, deleteMemberAttachment, fetchMemberAttachmentBlob } from "../api/members";
 import { fetchBusinessYears } from "../api/finance";
 import { canEditMembers } from "../auth/permissions";
+import AttachmentViewer from "../components/AttachmentViewer";
 
 const API_BASE = "http://100.91.210.125:3000";
 
@@ -143,6 +144,12 @@ type YearSelectStep = {
   selected: Set<number>;
 };
 
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function MemberDetail({ member, roles, onUpdated }: Props) {
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<FormState>(() => memberToForm(member));
@@ -151,6 +158,64 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [yearSelectStep, setYearSelectStep] = useState<YearSelectStep | null>(null);
+
+  const [attachments, setAttachments] = useState<MemberAttachment[]>([]);
+  const [attachUploading, setAttachUploading] = useState(false);
+  const [attachError, setAttachError] = useState("");
+  const [preview, setPreview] = useState<{ attachment: MemberAttachment; url: string; mimeType: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchMemberAttachments(member.id).then(setAttachments).catch(() => {});
+    return () => { if (preview) URL.revokeObjectURL(preview.url); };
+  }, [member.id]);
+
+  async function openPreview(a: MemberAttachment) {
+    if (preview?.attachment.id === a.id) { closePreview(); return; }
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreviewLoading(a.id);
+    try {
+      const { url, mimeType } = await fetchMemberAttachmentBlob(member.id, a.id);
+      setPreview({ attachment: a, url, mimeType });
+    } catch {
+      setAttachError("Vorschau fehlgeschlagen");
+    } finally {
+      setPreviewLoading(null);
+    }
+  }
+
+  function closePreview() {
+    if (preview) URL.revokeObjectURL(preview.url);
+    setPreview(null);
+  }
+
+  async function handleUpload(files: FileList) {
+    setAttachUploading(true);
+    setAttachError("");
+    try {
+      for (const file of Array.from(files)) {
+        await uploadMemberAttachment(member.id, file);
+      }
+      setAttachments(await fetchMemberAttachments(member.id));
+    } catch {
+      setAttachError("Upload fehlgeschlagen");
+    } finally {
+      setAttachUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteAttachment(aid: number) {
+    if (!confirm("Anhang löschen?")) return;
+    try {
+      await deleteMemberAttachment(member.id, aid);
+      setAttachments(prev => prev.filter(a => a.id !== aid));
+      if (preview?.attachment.id === aid) closePreview();
+    } catch {
+      setAttachError("Löschen fehlgeschlagen");
+    }
+  }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }));
@@ -336,11 +401,99 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
           </>
         )}
 
+        <SectionHeader label={`Anhänge${attachments.length > 0 ? ` (${attachments.length})` : ""}`} />
+
+        {attachError && (
+          <div style={{ padding: "6px 10px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 12, marginBottom: 8 }}>
+            {attachError}
+          </div>
+        )}
+
+        {attachments.length === 0 && (
+          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 8 }}>Keine Anhänge</div>
+        )}
+
+        {attachments.map(a => {
+          const isActive = preview?.attachment.id === a.id;
+          const isLoading = previewLoading === a.id;
+          return (
+            <div
+              key={a.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
+                borderBottom: "1px solid #f1f5f9", borderRadius: 6,
+                background: isActive ? "#eff6ff" : "transparent",
+              }}
+            >
+              <button
+                onClick={() => openPreview(a)}
+                title="Vorschau"
+                style={{
+                  flex: 1, textAlign: "left", background: "none", border: "none", padding: 0,
+                  fontSize: 13, color: isActive ? "#1d4ed8" : "#1e293b",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  cursor: "pointer", fontWeight: isActive ? 600 : 400,
+                }}
+              >
+                {isLoading ? "Lädt…" : a.filename}
+              </button>
+              <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
+              <button
+                onClick={e => { e.stopPropagation(); downloadMemberAttachment(member.id, a.id, a.filename); }}
+                title="Herunterladen"
+                style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #d1d5db", background: "#fff", fontSize: 12, cursor: "pointer" }}
+              >
+                ↓
+              </button>
+              {canEditMembers() && (
+                <button
+                  onClick={e => { e.stopPropagation(); handleDeleteAttachment(a.id); }}
+                  title="Löschen"
+                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #fca5a5", background: "#fef2f2", color: "#dc2626", fontSize: 12, cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        {canEditMembers() && (
+          <div style={{ marginTop: 8 }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={e => e.target.files && handleUpload(e.target.files)}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={attachUploading}
+              style={{
+                padding: "6px 14px", borderRadius: 6, border: "1px dashed #94a3b8",
+                background: "#f8fafc", fontSize: 13, cursor: attachUploading ? "not-allowed" : "pointer",
+                color: "#475569", opacity: attachUploading ? 0.6 : 1,
+              }}
+            >
+              {attachUploading ? "Wird hochgeladen…" : "+ Anhang hinzufügen"}
+            </button>
+          </div>
+        )}
+
         {canEditMembers() && (
           <div style={{ marginTop: 20 }}>
             <button onClick={() => setEdit(true)} style={btnPrimary}>Bearbeiten</button>
           </div>
         )}
+
+        {preview && <AttachmentViewer
+          filename={preview.attachment.filename}
+          url={preview.url}
+          mimeType={preview.mimeType}
+          onDownload={() => downloadMemberAttachment(member.id, preview.attachment.id, preview.attachment.filename)}
+          onClose={closePreview}
+        />}
       </div>
     );
   }

@@ -1,3 +1,13 @@
+export type MemberAttachment = {
+  id: number;
+  memberId: number;
+  filename: string;
+  storedName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+};
+
 export type Role = {
   id: number;
   name: string;

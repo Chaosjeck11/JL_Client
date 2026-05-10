@@ -132,6 +132,16 @@ export async function downloadAttachment(transactionId: number, attachmentId: nu
   URL.revokeObjectURL(url);
 }
 
+export async function fetchAttachmentBlob(transactionId: number, attachmentId: number): Promise<{ url: string; mimeType: string }> {
+  const token = localStorage.getItem("token");
+  const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const blob = await res.blob();
+  return { url: URL.createObjectURL(blob), mimeType: blob.type };
+}
+
 export async function fetchAttachmentArrayBuffer(transactionId: number, attachmentId: number): Promise<ArrayBuffer> {
   const token = localStorage.getItem("token");
   const res = await fetch(`${API_URL}/finance/transactions/${transactionId}/attachments/${attachmentId}/download`, {
