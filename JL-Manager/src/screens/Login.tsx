@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { login } from "../auth/auth";
+import type { ApiError } from "../api/client";
 
 const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
 
@@ -35,12 +36,47 @@ export default function Login({ onSuccess }: Props) {
   const [apiUrl, setApiUrl] = useState(
     () => localStorage.getItem("api_base_url") ?? DEFAULT_API_URL,
   );
-  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<{ message: string; detail?: string } | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [reachability, setReachability] = useState<"checking" | "ok" | "error">("checking");
+  const isFirstRender = useRef(true);
+
+  async function checkReachability(url: string) {
+    const trimmed = url.trim().replace(/\/$/, "") || DEFAULT_API_URL;
+    setReachability("checking");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    try {
+      await fetch(trimmed, { method: "HEAD", mode: "no-cors", signal: controller.signal });
+      setReachability("ok");
+    } catch {
+      setReachability("error");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  useEffect(() => {
+    checkReachability(apiUrl);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const timer = setTimeout(() => checkReachability(apiUrl), 800);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setError(null);
+    setShowDetail(false);
     setLoading(true);
 
     const trimmed = apiUrl.trim().replace(/\/$/, "") || DEFAULT_API_URL;
@@ -49,8 +85,18 @@ export default function Login({ onSuccess }: Props) {
     try {
       await login(email, password);
       onSuccess();
-    } catch {
-      setError("Login fehlgeschlagen. E-Mail oder Passwort ungültig.");
+    } catch (err) {
+      const apiErr = err as ApiError;
+      const status = apiErr.status ? ` (${apiErr.status})` : "";
+      let detail = apiErr.body ?? "";
+      try {
+        const parsed = JSON.parse(detail);
+        detail = JSON.stringify(parsed, null, 2);
+      } catch { /* not JSON, keep raw */ }
+      setError({
+        message: `Login fehlgeschlagen${status}. E-Mail oder Passwort ungültig.`,
+        detail: detail || apiErr.message,
+      });
     } finally {
       setLoading(false);
     }
@@ -114,15 +160,38 @@ export default function Login({ onSuccess }: Props) {
           {/* Password */}
           <div>
             <label style={labelStyle}>Passwort</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-              style={inputStyle}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+                style={{ ...inputStyle, paddingRight: 40 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                  fontSize: 16,
+                  color: "#94a3b8",
+                  lineHeight: 1,
+                }}
+                tabIndex={-1}
+                aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
 
           {/* Error */}
@@ -136,7 +205,44 @@ export default function Login({ onSuccess }: Props) {
               fontSize: 13,
               lineHeight: 1.4,
             }}>
-              {error}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span>{error.message}</span>
+                {error.detail && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDetail(v => !v)}
+                    style={{
+                      flexShrink: 0,
+                      background: "none",
+                      border: "1px solid #fca5a5",
+                      borderRadius: 4,
+                      color: "#dc2626",
+                      fontSize: 11,
+                      cursor: "pointer",
+                      padding: "2px 6px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {showDetail ? "Details ▲" : "Details ▼"}
+                  </button>
+                )}
+              </div>
+              {showDetail && error.detail && (
+                <pre style={{
+                  marginTop: 8,
+                  marginBottom: 0,
+                  padding: "8px 10px",
+                  background: "#fff5f5",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  overflowX: "auto",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  color: "#7f1d1d",
+                }}>
+                  {error.detail}
+                </pre>
+              )}
             </div>
           )}
 
@@ -165,7 +271,14 @@ export default function Login({ onSuccess }: Props) {
             borderTop: "1px solid #f1f5f9",
             paddingTop: 18,
           }}>
-            <label style={{ ...labelStyle, color: "#94a3b8" }}>Server-Adresse</label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <label style={{ ...labelStyle, marginBottom: 0, color: "#94a3b8" }}>Server-Adresse</label>
+              <span style={{ fontSize: 11, color: "#64748b", display: "flex", alignItems: "center", gap: 3 }}>
+                {reachability === "checking" && <><span>🟡</span> Prüfe…</>}
+                {reachability === "ok"       && <><span>🟢</span> Erreichbar</>}
+                {reachability === "error"    && <><span>🔴</span> Nicht erreichbar</>}
+              </span>
+            </div>
             <input
               type="text"
               value={apiUrl}
@@ -179,6 +292,11 @@ export default function Login({ onSuccess }: Props) {
                 border: "1px solid #e2e8f0",
               }}
             />
+            {reachability === "error" && (
+              <div style={{ marginTop: 5, fontSize: 11, color: "#dc2626" }}>
+                Tailscale aktiv?
+              </div>
+            )}
           </div>
         </form>
       </div>
