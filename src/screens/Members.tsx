@@ -10,6 +10,7 @@ import { getApiUrl } from "../api/client";
 
 type MembersProps = {
   onLogout: () => void;
+  isMobile?: boolean;
 };
 
 type SortDir = "asc" | "desc";
@@ -24,7 +25,7 @@ const thStyle: React.CSSProperties = {
   letterSpacing: "0.06em",
 };
 
-export default function Members({ onLogout: _onLogout }: MembersProps) {
+export default function Members({ onLogout: _onLogout, isMobile = false }: MembersProps) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Member | null>(null);
   const [creating, setCreating] = useState(false);
@@ -59,10 +60,17 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
       return sortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
     });
 
+  const showDetailPanel = selected !== null || creating;
+
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 45px)" }}>
+    <div style={{ display: "flex", height: "var(--content-h)" }}>
       {/* LEFT: TABLE */}
-      <div style={{ flex: 2, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+      <div style={{
+        flex: isMobile ? 1 : 2,
+        overflowY: "auto",
+        display: isMobile && showDetailPanel ? "none" : "flex",
+        flexDirection: "column",
+      }}>
         <header style={{
           display: "flex", flexDirection: "column", gap: 10,
           padding: "14px 20px", borderBottom: "1px solid #e2e8f0",
@@ -143,69 +151,132 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
 
         {membersError && <p style={{ color: "#dc2626", margin: "10px 20px" }}>Fehler beim Laden der Mitglieder</p>}
 
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
-              <th align="left" style={{ ...thStyle, paddingLeft: 20 }}>Name</th>
-              <th align="left" style={thStyle}>E-Mail</th>
-              <th align="left" style={thStyle}>Adresse</th>
-              <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
+        {isMobile ? (
+          /* Mobile: card-style list */
+          <div>
             {displayedMembers.map(m => (
-              <tr
+              <div
                 key={m.id}
                 onClick={() => { setSelected(m); setCreating(false); }}
                 style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "13px 16px", borderBottom: "1px solid #f1f5f9",
                   cursor: "pointer",
-                  borderBottom: "1px solid #f1f5f9",
                   borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
-                  background: selected?.id === m.id ? "#eff6ff" : "transparent",
+                  background: selected?.id === m.id ? "#eff6ff" : "#fff",
                 }}
               >
-                <td style={{ padding: "10px 20px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                      background: m.active ? "#dbeafe" : "#f1f5f9",
-                      color: m.active ? "#1d4ed8" : "#94a3b8",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 700, overflow: "hidden",
-                    }}>
-                      {m.avatarPath
-                        ? <img src={`${getApiUrl()}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
-                    </div>
-                    <span style={{ fontWeight: 500, fontSize: 14, color: "#1e293b" }}>
-                      {m.firstname} {m.lastname}
-                    </span>
+                <div style={{
+                  width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                  background: m.active ? "#dbeafe" : "#f1f5f9",
+                  color: m.active ? "#1d4ed8" : "#94a3b8",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, fontWeight: 700, overflow: "hidden",
+                }}>
+                  {m.avatarPath
+                    ? <img src={`${getApiUrl()}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: "#1e293b", marginBottom: 2 }}>
+                    {m.firstname} {m.lastname}
                   </div>
-                </td>
-                <td style={{ padding: "10px 12px", fontSize: 13, color: "#475569" }}>{m.email}</td>
-                <td style={{ padding: "10px 12px", fontSize: 13, color: "#64748b" }}>{m.address ?? "–"}</td>
-                <td style={{ padding: "10px 20px 10px 12px" }}>
-                  <span style={{
-                    display: "inline-block", padding: "3px 10px", borderRadius: 20,
-                    fontSize: 12, fontWeight: 600,
-                    background: m.active ? "#dcfce7" : "#f1f5f9",
-                    color: m.active ? "#166534" : "#64748b",
-                  }}>
-                    {m.active ? "Aktiv" : "Inaktiv"}
-                  </span>
-                </td>
-              </tr>
+                  <div style={{ fontSize: 13, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {m.email}
+                  </div>
+                </div>
+                <span style={{
+                  flexShrink: 0, padding: "3px 10px", borderRadius: 20,
+                  fontSize: 12, fontWeight: 600,
+                  background: m.active ? "#dcfce7" : "#f1f5f9",
+                  color: m.active ? "#166534" : "#64748b",
+                }}>
+                  {m.active ? "Aktiv" : "Inaktiv"}
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          /* Desktop: table */
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                <th align="left" style={{ ...thStyle, paddingLeft: 20 }}>Name</th>
+                <th align="left" style={thStyle}>E-Mail</th>
+                <th align="left" style={thStyle}>Adresse</th>
+                <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedMembers.map(m => (
+                <tr
+                  key={m.id}
+                  onClick={() => { setSelected(m); setCreating(false); }}
+                  style={{
+                    cursor: "pointer",
+                    borderBottom: "1px solid #f1f5f9",
+                    borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
+                    background: selected?.id === m.id ? "#eff6ff" : "transparent",
+                  }}
+                >
+                  <td style={{ padding: "10px 20px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                        background: m.active ? "#dbeafe" : "#f1f5f9",
+                        color: m.active ? "#1d4ed8" : "#94a3b8",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 700, overflow: "hidden",
+                      }}>
+                        {m.avatarPath
+                          ? <img src={`${getApiUrl()}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
+                      </div>
+                      <span style={{ fontWeight: 500, fontSize: 14, color: "#1e293b" }}>
+                        {m.firstname} {m.lastname}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, color: "#475569" }}>{m.email}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, color: "#64748b" }}>{m.address ?? "–"}</td>
+                  <td style={{ padding: "10px 20px 10px 12px" }}>
+                    <span style={{
+                      display: "inline-block", padding: "3px 10px", borderRadius: 20,
+                      fontSize: 12, fontWeight: 600,
+                      background: m.active ? "#dcfce7" : "#f1f5f9",
+                      color: m.active ? "#166534" : "#64748b",
+                    }}>
+                      {m.active ? "Aktiv" : "Inaktiv"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* RIGHT: DETAIL */}
       <div style={{
         flex: 1, overflowY: "auto",
-        borderLeft: "1px solid #e2e8f0",
+        borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
         background: "#f8fafc",
+        display: isMobile && !showDetailPanel ? "none" : "block",
       }}>
+        {isMobile && showDetailPanel && (
+          <button
+            onClick={() => { setSelected(null); setCreating(false); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              width: "100%", padding: "12px 16px",
+              border: "none", borderBottom: "1px solid #e2e8f0",
+              background: "#fff", cursor: "pointer",
+              color: "#2563eb", fontSize: 14, fontWeight: 600,
+            }}
+          >
+            ← Zurück
+          </button>
+        )}
         {creating ? (
           <div style={{ padding: 20 }}>
             <MemberCreate
@@ -215,7 +286,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
                 setSelected(member);
                 setCreating(false);
               }}
-              onCancel={() => setCreating(false)}
+              onCancel={() => { setCreating(false); }}
             />
           </div>
         ) : selected ? (
@@ -231,9 +302,11 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
             />
           </div>
         ) : (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-            <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Mitglied auswählen…</p>
-          </div>
+          !isMobile && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+              <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Mitglied auswählen…</p>
+            </div>
+          )
         )}
       </div>
       {showExport && (

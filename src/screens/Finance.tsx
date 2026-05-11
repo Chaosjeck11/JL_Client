@@ -75,7 +75,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 
 type ActiveFilter = "date" | "desc" | "cat" | "tag" | null;
 
-export default function Finance() {
+export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const queryClient = useQueryClient();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -228,10 +228,16 @@ export default function Finance() {
   };
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 44px)", background: "#f8fafc" }}>
+    <div style={{ display: "flex", height: "var(--content-h)", background: "#f8fafc" }}>
 
       {/* ── LEFT: KASSENBUCH ── */}
-      <div style={{ flex: showPanel ? 3 : 1, padding: "20px 24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{
+        flex: showPanel ? 3 : 1,
+        padding: isMobile ? "14px 16px" : "20px 24px",
+        overflowY: "auto", overflowX: "hidden",
+        display: isMobile && showPanel ? "none" : "flex",
+        flexDirection: "column", gap: 16,
+      }}>
 
         {/* Toolbar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
@@ -363,7 +369,8 @@ export default function Finance() {
         )}
 
         {/* Transaction table */}
-        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "visible" }}>
+        <div style={{ overflowX: "auto" }}>
+        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "visible", minWidth: isMobile ? 560 : undefined }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead ref={filterRef}>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
@@ -631,6 +638,7 @@ export default function Finance() {
             )}
           </table>
         </div>
+        </div>
       </div>
 
       {showReport && (
@@ -653,9 +661,26 @@ export default function Finance() {
       {/* ── RIGHT: DETAIL / CREATE PANEL ── */}
       {showPanel && (
         <div style={{
-          flex: 2, padding: "20px 24px", borderLeft: "1px solid #e2e8f0",
+          flex: isMobile ? 1 : 2,
+          padding: isMobile ? "0" : "20px 24px",
+          borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
           overflowY: "auto", background: "#fff",
         }}>
+          {isMobile && (
+            <button
+              onClick={() => { setSelected(null); setCreating(false); setCreatingYear(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                width: "100%", padding: "12px 16px",
+                border: "none", borderBottom: "1px solid #e2e8f0",
+                background: "#fff", cursor: "pointer",
+                color: "#2563eb", fontSize: 14, fontWeight: 600,
+              }}
+            >
+              ← Zurück
+            </button>
+          )}
+          <div style={{ padding: isMobile ? "16px" : "0" }}>
           {creatingYear ? (
             <BusinessYearForm
               onCreated={by => {
@@ -692,6 +717,7 @@ export default function Finance() {
               }}
             />
           ) : null}
+          </div>
         </div>
       )}
     </div>

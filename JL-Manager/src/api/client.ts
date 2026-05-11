@@ -1,10 +1,5 @@
 const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
 
-export interface ApiError extends Error {
-  status?: number;
-  body?: string;
-}
-
 export function getApiUrl(): string {
   return (localStorage.getItem("api_base_url") ?? DEFAULT_API_URL).replace(/\/$/, "");
 }
@@ -43,12 +38,7 @@ export async function apiFetch(
   });
 
   if (!res.ok) {
-    let body = "";
-    try { body = await res.text(); } catch { /* ignore */ }
-    const err = new Error(`API error ${res.status}`);
-    (err as ApiError).status = res.status;
-    (err as ApiError).body = body;
-    throw err;
+    throw new Error(`API error ${res.status}`);
   }
 
   if (res.status === 204 || res.headers.get("content-length") === "0") {

@@ -85,7 +85,11 @@ BUNDLE_DIR="src-tauri/target/release/bundle"
 # ── Linux ─────────────────────────────────────────────────────────────────────
 echo ""
 echo "=== BUILD LINUX ==="
-NO_STRIP=true pnpm tauri build
+NO_STRIP=true \
+GDK_BACKEND=x11 \
+WAYLAND_DISPLAY="" \
+WEBKIT_DISABLE_DMABUF_RENDERER=1 \
+pnpm tauri build
 
 find "$BUNDLE_DIR/appimage" -name "*.AppImage" -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
 find "$BUNDLE_DIR/deb"      -name "*.deb"      -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
