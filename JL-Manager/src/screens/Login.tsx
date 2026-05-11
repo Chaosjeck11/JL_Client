@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { login } from "../auth/auth";
-import { DEFAULT_API_URL } from "../api/client";
+
+const DEFAULT_API_URL = "http://100.91.210.125:3000";
 
 type Props = {
   onSuccess: () => void;
@@ -48,13 +49,8 @@ export default function Login({ onSuccess }: Props) {
     try {
       await login(email, password);
       onSuccess();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
-        setError("Server nicht erreichbar.");
-      } else {
-        setError("Login fehlgeschlagen. E-Mail oder Passwort ungültig.");
-      }
+    } catch {
+      setError("Login fehlgeschlagen. E-Mail oder Passwort ungültig.");
     } finally {
       setLoading(false);
     }
