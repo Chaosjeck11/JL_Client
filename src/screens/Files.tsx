@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   deleteFile,
   downloadFile,
@@ -11,7 +12,6 @@ import {
 import { fetchMembers } from "../api/members";
 import { canManageFinance } from "../auth/permissions";
 import type { AppFile } from "../types/files";
-import type { Member } from "../types/member";
 
 function fmtDate(d: string): string {
   if (!d) return "–";
@@ -26,15 +26,25 @@ function fmtSize(bytes: number): string {
 }
 
 export default function Files() {
-  const [files, setFiles] = useState<AppFile[]>([]);
-  const [folders, setFolders] = useState<string[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  const queryClient = useQueryClient();
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<AppFile | null>(null);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
-  const [error, setError] = useState("");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+
+  const { data: files = [], isError: filesError } = useQuery<AppFile[]>({
+    queryKey: ["files"],
+    queryFn: () => fetchFiles(),
+  });
+  const { data: folders = [] } = useQuery({
+    queryKey: ["files-folders"],
+    queryFn: fetchFolders,
+  });
+  const { data: members = [] } = useQuery({
+    queryKey: ["members"],
+    queryFn: fetchMembers,
+  });
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -54,13 +64,6 @@ export default function Files() {
   const isAdmin = canManageFinance();
 
   useEffect(() => {
-    Promise.all([fetchFiles(), fetchFolders(), fetchMembers()])
-      .then(([f, flds, mems]) => {
-        setFiles(f);
-        setFolders(flds);
-        setMembers(mems);
-      })
-      .catch(() => setError("Fehler beim Laden der Dateien"));
     return () => {
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
@@ -123,9 +126,8 @@ export default function Files() {
     setUploadError("");
     try {
       const created = await apiUploadFile(uploadFileVal, uploadPath || undefined, uploadDescription || undefined);
-      const newFolders = await fetchFolders();
-      setFolders(newFolders);
-      setFiles(prev => [...prev, created]);
+      queryClient.invalidateQueries({ queryKey: ["files"] });
+      queryClient.invalidateQueries({ queryKey: ["files-folders"] });
       setCreating(false);
       setSelectedFile(created);
       setUploadFileVal(null);
@@ -147,9 +149,9 @@ export default function Files() {
         description: editDesc || undefined,
         path: editPath || undefined,
       });
-      setFiles(prev => prev.map(f => f.id === updated.id ? updated : f));
+      queryClient.invalidateQueries({ queryKey: ["files"] });
+      queryClient.invalidateQueries({ queryKey: ["files-folders"] });
       setSelectedFile(updated);
-      fetchFolders().then(setFolders);
     } catch {
       setSaveError("Fehler beim Speichern");
     } finally {
@@ -162,9 +164,9 @@ export default function Files() {
     if (!confirm(`Datei "${selectedFile.filename}" wirklich löschen?`)) return;
     try {
       await deleteFile(selectedFile.id);
-      setFiles(prev => prev.filter(f => f.id !== selectedFile.id));
+      queryClient.invalidateQueries({ queryKey: ["files"] });
+      queryClient.invalidateQueries({ queryKey: ["files-folders"] });
       setSelectedFile(null);
-      fetchFolders().then(setFolders);
     } catch {
       setSaveError("Fehler beim Löschen");
     }
@@ -255,9 +257,9 @@ export default function Files() {
             </div>
           </header>
 
-          {error && (
+          {filesError && (
             <div style={{ margin: "10px 20px", padding: "10px 14px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 13 }}>
-              {error}
+              Fehler beim Laden der Dateien
             </div>
           )}
 

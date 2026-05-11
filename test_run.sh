@@ -1,4 +1,3 @@
-cat > sync-dev.sh << 'EOF'
 #!/bin/bash
 set -e
 
@@ -16,4 +15,3 @@ npm install
 
 echo "==> tauri dev..."
 npm run tauri dev
-EOF

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMembers, fetchRoles } from "../api/members";
-import type { Member, Role } from "../types/member";
+import type { Member } from "../types/member";
 import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
 import MemberExportModal from "./members/MemberExportModal";
@@ -24,24 +25,22 @@ const thStyle: React.CSSProperties = {
 };
 
 export default function Members({ onLogout: _onLogout }: MembersProps) {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Member | null>(null);
-  const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  useEffect(() => {
-    fetchMembers()
-      .then(setMembers)
-      .catch(() => setError("Fehler beim Laden der Mitglieder"));
-    fetchRoles()
-      .then(setRoles)
-      .catch(() => {});
-  }, []);
+  const { data: members = [], isError: membersError } = useQuery({
+    queryKey: ["members"],
+    queryFn: fetchMembers,
+  });
+  const { data: roles = [] } = useQuery({
+    queryKey: ["roles"],
+    queryFn: fetchRoles,
+  });
 
   const displayedMembers = members
     .filter(m => {
@@ -142,7 +141,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
           </div>
         </header>
 
-        {error && <p style={{ color: "#dc2626", margin: "10px 20px" }}>{error}</p>}
+        {membersError && <p style={{ color: "#dc2626", margin: "10px 20px" }}>Fehler beim Laden der Mitglieder</p>}
 
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
@@ -212,7 +211,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
             <MemberCreate
               roles={roles}
               onCreated={(member) => {
-                setMembers(ms => [...ms, member]);
+                queryClient.invalidateQueries({ queryKey: ["members"] });
                 setSelected(member);
                 setCreating(false);
               }}
@@ -226,7 +225,7 @@ export default function Members({ onLogout: _onLogout }: MembersProps) {
               member={selected}
               roles={roles}
               onUpdated={(updated) => {
-                setMembers(ms => ms.map(m => (m.id === updated.id ? updated : m)));
+                queryClient.invalidateQueries({ queryKey: ["members"] });
                 setSelected(updated);
               }}
             />

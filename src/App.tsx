@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Login from "./screens/Login";
 import Members from "./screens/Members";
 import Finance from "./screens/Finance";
@@ -9,7 +10,6 @@ import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
-import type { Member } from "./types/member";
 
 type Tab = "members" | "finance" | "beitraege" | "files";
 
@@ -23,18 +23,19 @@ const TABS: { id: Tab; label: string }[] = [
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(!!getToken());
   const [activeTab, setActiveTab] = useState<Tab>("members");
-  const [currentMember, setCurrentMember] = useState<Member | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!loggedIn) { setCurrentMember(null); return; }
-    const user = getCurrentUser();
-    if (!user) return;
-    fetchMember(user.sub).then(setCurrentMember).catch(() => {});
-  }, [loggedIn]);
+  const currentUser = loggedIn ? getCurrentUser() : null;
+  const { data: currentMember = null } = useQuery({
+    queryKey: ["members", currentUser?.sub],
+    queryFn: () => fetchMember(currentUser!.sub),
+    enabled: !!currentUser,
+  });
 
   function handleLogout() {
     logout();
+    queryClient.clear();
     setLoggedIn(false);
     setActiveTab("members");
   }
@@ -108,8 +109,13 @@ export default function App() {
         <ProfileModal
           member={currentMember}
           onClose={() => setShowProfile(false)}
-          onUpdated={updated => { setCurrentMember(updated); setShowProfile(false); }}
-          onAvatarChanged={updated => setCurrentMember(updated)}
+          onUpdated={() => {
+            queryClient.invalidateQueries({ queryKey: ["members", currentUser?.sub] });
+            setShowProfile(false);
+          }}
+          onAvatarChanged={() => {
+            queryClient.invalidateQueries({ queryKey: ["members", currentUser?.sub] });
+          }}
         />
       )}
     </div>

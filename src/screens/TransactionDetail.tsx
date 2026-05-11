@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTransaction, updateTransaction, fetchAttachments, uploadAttachment, downloadAttachment, deleteAttachment, fetchAttachmentBlob } from "../api/finance";
 import type { Category, PaymentTag, Transaction, TransactionAttachment } from "../types/finance";
 import { canManageFinance } from "../auth/permissions";
@@ -84,6 +85,7 @@ export default function TransactionDetail({
   onUpdated,
   onDeleted,
 }: Props) {
+  const queryClient = useQueryClient();
   const [edit, setEdit] = useState(false);
   const [date, setDate] = useState(transaction.date.substring(0, 10));
   const [description, setDescription] = useState(transaction.description);
@@ -91,19 +93,21 @@ export default function TransactionDetail({
   const [tag, setTag] = useState<PaymentTag>(transaction.tag ?? "ONLINE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [attachments, setAttachments] = useState<TransactionAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [attachError, setAttachError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<{ attachment: TransactionAttachment; url: string; mimeType: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState<number | null>(null);
-
+  const previewRef = useRef(preview);
+  useEffect(() => { previewRef.current = preview; });
   useEffect(() => {
-    fetchAttachments(transaction.id).then(setAttachments).catch(() => {});
-    return () => {
-      if (preview) URL.revokeObjectURL(preview.url);
-    };
-  }, [transaction.id]);
+    return () => { if (previewRef.current?.url) URL.revokeObjectURL(previewRef.current.url); };
+  }, []);
+
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["transaction-attachments", transaction.id],
+    queryFn: () => fetchAttachments(transaction.id),
+  });
 
   async function openPreview(a: TransactionAttachment) {
     if (preview?.attachment.id === a.id) { closePreview(); return; }
@@ -131,8 +135,7 @@ export default function TransactionDetail({
       for (const file of Array.from(files)) {
         await uploadAttachment(transaction.id, file);
       }
-      const updated = await fetchAttachments(transaction.id);
-      setAttachments(updated);
+      queryClient.invalidateQueries({ queryKey: ["transaction-attachments", transaction.id] });
     } catch {
       setAttachError("Upload fehlgeschlagen");
     } finally {
@@ -145,7 +148,7 @@ export default function TransactionDetail({
     if (!confirm("Anhang löschen?")) return;
     try {
       await deleteAttachment(transaction.id, aid);
-      setAttachments(prev => prev.filter(a => a.id !== aid));
+      queryClient.invalidateQueries({ queryKey: ["transaction-attachments", transaction.id] });
     } catch {
       setAttachError("Löschen fehlgeschlagen");
     }
