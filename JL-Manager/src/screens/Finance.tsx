@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchBusinessYear,
   fetchBusinessYears,
@@ -7,8 +8,7 @@ import {
 } from "../api/finance";
 import { fetchMembers } from "../api/members";
 import { canManageFinance } from "../auth/permissions";
-import type { BusinessYear, Category, PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
-import type { Member } from "../types/member";
+import type { PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
 import BusinessYearForm from "./finance/BusinessYearForm";
 import CategoryManager from "./finance/CategoryManager";
 import ImportModal from "./finance/ImportModal";
@@ -76,19 +76,14 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 type ActiveFilter = "date" | "desc" | "cat" | "tag" | null;
 
 export default function Finance() {
-  const [businessYears, setBusinessYears] = useState<BusinessYear[]>([]);
+  const queryClient = useQueryClient();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
-  const [yearDetail, setYearDetail] = useState<BusinessYear | null>(null);
-  const [entries, setEntries] = useState<RunningBalanceEntry[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
   const [selected, setSelected] = useState<Transaction | null>(null);
   const [creating, setCreating] = useState(false);
   const [creatingYear, setCreatingYear] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [error, setError] = useState("");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [showStornos, setShowStornos] = useState(false);
 
@@ -104,26 +99,49 @@ export default function Finance() {
 
   const isAdmin = canManageFinance();
 
-  useEffect(() => {
-    Promise.all([fetchBusinessYears(), fetchCategories(), fetchMembers()])
-      .then(([years, cats, mems]) => {
-        const sorted = [...years].sort((a, b) => b.year - a.year);
-        setBusinessYears(sorted);
-        setCategories(cats);
-        setMembers(mems);
-        if (sorted.length > 0) setSelectedYearId(sorted[0].id);
-      })
-      .catch(() => setError("Fehler beim Laden der Stammdaten"));
-  }, []);
+  const { data: rawYears = [] } = useQuery({
+    queryKey: ["business-years"],
+    queryFn: fetchBusinessYears,
+  });
+  const businessYears = useMemo(
+    () => [...rawYears].sort((a, b) => b.year - a.year),
+    [rawYears],
+  );
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
+  });
+
+  const { data: members = [] } = useQuery({
+    queryKey: ["members"],
+    queryFn: fetchMembers,
+  });
+
+  const effectiveYearId = selectedYearId ?? businessYears[0]?.id ?? null;
+
+  const { data: entries = [] } = useQuery<RunningBalanceEntry[]>({
+    queryKey: ["running-balance", effectiveYearId],
+    queryFn: () => fetchRunningBalance(effectiveYearId!),
+    enabled: effectiveYearId !== null,
+  });
+
+  const { data: yearDetail = null } = useQuery({
+    queryKey: ["business-years", effectiveYearId],
+    queryFn: () => fetchBusinessYear(effectiveYearId!),
+    enabled: effectiveYearId !== null,
+  });
 
   useEffect(() => {
-    if (selectedYearId === null) return;
     setSelected(null);
     setCreating(false);
-    Promise.all([fetchRunningBalance(selectedYearId), fetchBusinessYear(selectedYearId)])
-      .then(([ents, detail]) => { setEntries(ents); setYearDetail(detail); })
-      .catch(() => setError("Fehler beim Laden der Buchungen"));
-  }, [selectedYearId]);
+  }, [effectiveYearId]);
+
+  function reloadYear() {
+    if (effectiveYearId === null) return;
+    queryClient.invalidateQueries({ queryKey: ["running-balance", effectiveYearId] });
+    queryClient.invalidateQueries({ queryKey: ["business-years", effectiveYearId] });
+  }
 
   // Close filter dropdown on outside click
   useEffect(() => {
@@ -136,12 +154,6 @@ export default function Finance() {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [activeFilter]);
-
-  function reloadYear() {
-    if (selectedYearId === null) return;
-    Promise.all([fetchRunningBalance(selectedYearId), fetchBusinessYear(selectedYearId)])
-      .then(([ents, detail]) => { setEntries(ents); setYearDetail(detail); });
-  }
 
   function toggleCat(id: number) {
     setFilterCatIds(prev =>
@@ -226,7 +238,7 @@ export default function Finance() {
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h2 style={{ margin: 0, fontSize: 20, color: "#1e293b" }}>Kassenbuch</h2>
             <select
-              value={selectedYearId ?? ""}
+              value={effectiveYearId ?? ""}
               onChange={e => setSelectedYearId(Number(e.target.value))}
               style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 14, background: "#fff" }}
             >
@@ -295,13 +307,7 @@ export default function Finance() {
 
         {/* Category manager */}
         {showCategoryManager && (
-          <CategoryManager onCategoriesChanged={setCategories} />
-        )}
-
-        {error && (
-          <div style={{ padding: "10px 14px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 13 }}>
-            {error}
-          </div>
+          <CategoryManager onCategoriesChanged={() => {}} />
         )}
 
         {/* Stats cards */}
@@ -653,8 +659,7 @@ export default function Finance() {
           {creatingYear ? (
             <BusinessYearForm
               onCreated={by => {
-                const updated = [...businessYears, by].sort((a, b) => b.year - a.year);
-                setBusinessYears(updated);
+                queryClient.invalidateQueries({ queryKey: ["business-years"] });
                 setSelectedYearId(by.id);
                 setCreatingYear(false);
               }}
@@ -663,7 +668,7 @@ export default function Finance() {
           ) : creating ? (
             <TransactionCreate
               businessYears={businessYears}
-              defaultBusinessYearId={selectedYearId}
+              defaultBusinessYearId={effectiveYearId}
               categories={categories}
               members={members}
               onCreated={t => {
@@ -678,7 +683,7 @@ export default function Finance() {
               transaction={selected}
               categories={categories}
               onUpdated={updated => {
-                setEntries(es => es.map(e => e.transaction.id === updated.id ? { ...e, transaction: updated } : e));
+                reloadYear();
                 setSelected(updated);
               }}
               onDeleted={() => {

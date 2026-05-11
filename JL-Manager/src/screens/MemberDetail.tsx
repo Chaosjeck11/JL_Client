@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Member, MemberAttachment, Role } from "../types/member";
 import type { BusinessYear } from "../types/finance";
 import { updateMember, fetchMemberAttachments, uploadMemberAttachment, downloadMemberAttachment, deleteMemberAttachment, fetchMemberAttachmentBlob } from "../api/members";
@@ -150,6 +151,7 @@ function fmtSize(bytes: number): string {
 }
 
 export default function MemberDetail({ member, roles, onUpdated }: Props) {
+  const queryClient = useQueryClient();
   const [edit, setEdit] = useState(false);
   const [form, setForm] = useState<FormState>(() => memberToForm(member));
   const [newPassword, setNewPassword] = useState("");
@@ -158,17 +160,21 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
   const [error, setError] = useState("");
   const [yearSelectStep, setYearSelectStep] = useState<YearSelectStep | null>(null);
 
-  const [attachments, setAttachments] = useState<MemberAttachment[]>([]);
   const [attachUploading, setAttachUploading] = useState(false);
   const [attachError, setAttachError] = useState("");
   const [preview, setPreview] = useState<{ attachment: MemberAttachment; url: string; mimeType: string } | null>(null);
   const [previewLoading, setPreviewLoading] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const previewRef = useRef(preview);
+  useEffect(() => { previewRef.current = preview; });
   useEffect(() => {
-    fetchMemberAttachments(member.id).then(setAttachments).catch(() => {});
-    return () => { if (preview) URL.revokeObjectURL(preview.url); };
-  }, [member.id]);
+    return () => { if (previewRef.current?.url) URL.revokeObjectURL(previewRef.current.url); };
+  }, []);
+
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["member-attachments", member.id],
+    queryFn: () => fetchMemberAttachments(member.id),
+  });
 
   async function openPreview(a: MemberAttachment) {
     if (preview?.attachment.id === a.id) { closePreview(); return; }
@@ -196,7 +202,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
       for (const file of Array.from(files)) {
         await uploadMemberAttachment(member.id, file);
       }
-      setAttachments(await fetchMemberAttachments(member.id));
+      queryClient.invalidateQueries({ queryKey: ["member-attachments", member.id] });
     } catch {
       setAttachError("Upload fehlgeschlagen");
     } finally {
@@ -209,7 +215,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
     if (!confirm("Anhang löschen?")) return;
     try {
       await deleteMemberAttachment(member.id, aid);
-      setAttachments(prev => prev.filter(a => a.id !== aid));
+      queryClient.invalidateQueries({ queryKey: ["member-attachments", member.id] });
       if (preview?.attachment.id === aid) closePreview();
     } catch {
       setAttachError("Löschen fehlgeschlagen");

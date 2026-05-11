@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createCategory,
   deleteCategory,
@@ -11,16 +12,17 @@ type Props = {
 };
 
 export default function CategoryManager({ onCategoriesChanged }: Props) {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchCategories().then(setCategories).catch(() => setError("Fehler beim Laden der Kategorien"));
-  }, []);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
+  });
 
   async function handleCreate() {
     if (!name.trim()) {
@@ -35,7 +37,7 @@ export default function CategoryManager({ onCategoriesChanged }: Props) {
         description: description.trim() || undefined,
       });
       const updated = [...categories, created];
-      setCategories(updated);
+      await queryClient.invalidateQueries({ queryKey: ["categories"] });
       onCategoriesChanged(updated);
       setName("");
       setDescription("");
@@ -53,7 +55,7 @@ export default function CategoryManager({ onCategoriesChanged }: Props) {
       setError("");
       await deleteCategory(cat.id);
       const updated = categories.filter((c) => c.id !== cat.id);
-      setCategories(updated);
+      await queryClient.invalidateQueries({ queryKey: ["categories"] });
       onCategoriesChanged(updated);
     } catch {
       setError("Löschen fehlgeschlagen");

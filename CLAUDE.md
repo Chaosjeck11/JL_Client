@@ -26,6 +26,7 @@ No test framework is configured yet.
 |---|---|---|
 | `react` | ^19.2.0 | UI framework |
 | `react-dom` | ^19.2.0 | DOM renderer |
+| `@tanstack/react-query` | ^5.100.9 | Server-state / data-fetching cache |
 | `jspdf` | ^4.2.1 | PDF generation (Report-Export) |
 | `jspdf-autotable` | ^5.0.7 | Table plugin for jsPDF |
 | `pdf-lib` | ^1.17.1 | PDF merging — copies pages from attachment PDFs into the report, embeds images full-page (Report-Export with Anhänge) |
@@ -39,8 +40,25 @@ No test framework is configured yet.
 
 This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router library — navigation is handled with state in `App.tsx`.
 
+**Data fetching — TanStack Query:**
+- `QueryClient` is created in `main.tsx` and wraps the whole app via `QueryClientProvider`.
+- Defaults: `staleTime: 20_000`, `refetchInterval: 20_000`, `refetchIntervalInBackground: false`, `retry: 1`. Data auto-refreshes every 20 s while the tab is active.
+- **All server data is fetched via `useQuery`.** Never add `useEffect` + `useState` for data loading — use `useQuery` instead.
+- **After every create/update/delete, call `queryClient.invalidateQueries({ queryKey: [...] })`.** Never patch state manually.
+- Query key conventions:
+  - `['members']` / `['members', memberId]`
+  - `['roles']`
+  - `['business-years']` / `['business-years', yearId]`
+  - `['categories']`
+  - `['running-balance', yearId]`
+  - `['mitgliedsbeitraege', { businessYearId }]`
+  - `['files']` / `['files-folders']`
+  - `['transaction-attachments', transactionId]`
+  - `['member-attachments', memberId]`
+- Exceptions (still use `useEffect`): blob URL lifecycle with cancellation tokens, event listeners, UI-state reactions (not data fetching).
+
 **Auth flow:**
-- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance" | "beitraege" | "files") as the only global state.
+- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance" | "beitraege" | "files") as the only global state. On logout, `queryClient.clear()` wipes the cache.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
 - Permission checks in `src/auth/permissions.ts` gate UI elements based on `accessLevel >= 5`:
   - `canEditMembers()`, `canCreateMembers()` — member management

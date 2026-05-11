@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchBusinessYears, fetchMitgliedsbeitraege } from "../api/finance";
 import type { BusinessYear, Mitgliedsbeitrag } from "../types/finance";
 
@@ -42,32 +43,29 @@ function SummaryCard({
 }
 
 export default function Mitgliederbeitraege() {
-  const [businessYears, setBusinessYears] = useState<BusinessYear[]>([]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
-  const [beitraege, setBeitraege] = useState<Mitgliedsbeitrag[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  useEffect(() => {
-    fetchBusinessYears()
-      .then(years => {
-        const sorted = [...years].sort((a, b) => b.year - a.year);
-        setBusinessYears(sorted);
-        if (sorted.length > 0) setSelectedYearId(sorted[0].id);
-      })
-      .catch(() => setError("Fehler beim Laden der Geschäftsjahre"));
-  }, []);
+  const { data: rawYears = [], isError: yearsError } = useQuery({
+    queryKey: ["business-years"],
+    queryFn: fetchBusinessYears,
+  });
+  const businessYears: BusinessYear[] = useMemo(
+    () => [...rawYears].sort((a, b) => b.year - a.year),
+    [rawYears],
+  );
 
-  useEffect(() => {
-    if (selectedYearId === null) return;
-    setLoading(true);
-    setError("");
-    fetchMitgliedsbeitraege({ businessYearId: selectedYearId })
-      .then(setBeitraege)
-      .catch(() => setError("Fehler beim Laden der Beiträge"))
-      .finally(() => setLoading(false));
-  }, [selectedYearId]);
+  const effectiveYearId = selectedYearId ?? businessYears[0]?.id ?? null;
+
+  const { data: beitraege = [], isFetching, isError: beitraegeError } = useQuery({
+    queryKey: ["mitgliedsbeitraege", { businessYearId: effectiveYearId }],
+    queryFn: () => fetchMitgliedsbeitraege({ businessYearId: effectiveYearId! }),
+    enabled: effectiveYearId !== null,
+  });
+
+  const error = yearsError ? "Fehler beim Laden der Geschäftsjahre"
+    : beitraegeError ? "Fehler beim Laden der Beiträge"
+    : "";
 
   const bezahlt   = beitraege.filter(b => b.status === "BEZAHLT").length;
   const teilweise = beitraege.filter(b => b.status === "TEILWEISE").length;
@@ -76,7 +74,7 @@ export default function Mitgliederbeitraege() {
     (s, b) => s + Math.max(0, b.betragJL - b.bezahltJL) + Math.max(0, b.betragKG - b.bezahltKG), 0,
   );
 
-  const visible = statusFilter === "ALL"
+  const visible: Mitgliedsbeitrag[] = statusFilter === "ALL"
     ? beitraege
     : beitraege.filter(b => b.status === statusFilter);
 
@@ -86,7 +84,7 @@ export default function Mitgliederbeitraege() {
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: "#1e293b" }}>Mitgliederbeiträge</h2>
         <select
-          value={selectedYearId ?? ""}
+          value={effectiveYearId ?? ""}
           onChange={e => setSelectedYearId(Number(e.target.value))}
           style={{
             fontSize: 14, padding: "4px 8px", borderRadius: 6,
@@ -132,7 +130,7 @@ export default function Mitgliederbeitraege() {
         ))}
       </div>
 
-      {loading ? (
+      {isFetching && beitraege.length === 0 ? (
         <p style={{ color: "#94a3b8" }}>Lade…</p>
       ) : (
         <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
