@@ -14,4 +14,4 @@ cd JL-Manager
 npm install
 
 echo "==> tauri dev..."
-npm run tauri dev
+GDK_BACKEND=x11 WAYLAND_DISPLAY="" WEBKIT_DISABLE_DMABUF_RENDERER=1 npm run tauri dev
