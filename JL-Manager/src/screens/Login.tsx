@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { login } from "../auth/auth";
-
-const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
+import { DEFAULT_API_URL } from "../api/client";
 
 type Props = {
   onSuccess: () => void;
@@ -49,8 +48,13 @@ export default function Login({ onSuccess }: Props) {
     try {
       await login(email, password);
       onSuccess();
-    } catch {
-      setError("Login fehlgeschlagen. E-Mail oder Passwort ungültig.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+        setError("Server nicht erreichbar.");
+      } else {
+        setError("Login fehlgeschlagen. E-Mail oder Passwort ungültig.");
+      }
     } finally {
       setLoading(false);
     }

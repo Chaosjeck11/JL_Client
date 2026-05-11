@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
+export const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
 
 export function getApiUrl(): string {
   return (localStorage.getItem("api_base_url") ?? DEFAULT_API_URL).replace(/\/$/, "");
@@ -18,11 +18,12 @@ export async function prepareFileForUpload(file: File): Promise<[Blob, string]> 
   return [blob, sanitizeFilename(file.name)];
 }
 
-export async function apiFetch(
+export async function apiFetch<T = void>(
   path: string,
   options: RequestInit = {},
-) {
+): Promise<T> {
   const token = localStorage.getItem("token");
+  const { headers: optionsHeaders, ...restOptions } = options;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -33,8 +34,8 @@ export async function apiFetch(
   }
 
   const res = await fetch(`${getApiUrl()}${path}`, {
-    ...options,
-    headers,
+    ...restOptions,
+    headers: { ...(optionsHeaders as Record<string, string>), ...headers },
   });
 
   if (!res.ok) {
@@ -42,8 +43,8 @@ export async function apiFetch(
   }
 
   if (res.status === 204 || res.headers.get("content-length") === "0") {
-    return;
+    return undefined as T;
   }
 
-  return res.json();
+  return res.json() as Promise<T>;
 }
