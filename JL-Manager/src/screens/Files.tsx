@@ -25,7 +25,7 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function Files() {
+export default function Files({ isMobile = false }: { isMobile?: boolean }) {
   const queryClient = useQueryClient();
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<AppFile | null>(null);
@@ -183,13 +183,18 @@ export default function Files() {
   };
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 44px)", background: "#f8fafc" }}>
+    <div style={{ display: "flex", height: "var(--content-h)", background: "#f8fafc" }}>
 
       {/* ── LEFT: FILE BROWSER ── */}
-      <div style={{ flex: showPanel ? 3 : 1, display: "flex", minWidth: 0 }}>
+      <div style={{
+        flex: showPanel ? 3 : 1,
+        display: isMobile && showPanel ? "none" : "flex",
+        flexDirection: isMobile ? "column" : "row",
+        minWidth: 0,
+      }}>
 
-        {/* Folder sidebar */}
-        <div style={{
+        {/* Folder sidebar — desktop only; mobile uses pill bar below */}
+        {!isMobile && <div style={{
           width: 180, flexShrink: 0, overflowY: "auto",
           borderRight: "1px solid #e2e8f0", background: "#f1f5f9",
           paddingTop: 16,
@@ -214,7 +219,34 @@ export default function Files() {
               {entry.label}
             </button>
           ))}
-        </div>
+        </div>}
+
+        {/* Mobile: folder pill bar */}
+        {isMobile && (
+          <div style={{
+            display: "flex", gap: 8, overflowX: "auto", padding: "10px 16px",
+            borderBottom: "1px solid #e2e8f0", background: "#f8fafc",
+            flexShrink: 0,
+          }}>
+            {[{ label: "Alle", value: null as string | null }, ...folders.map(f => ({ label: f || "(Kein Ordner)", value: f }))].map(entry => (
+              <button
+                key={entry.value ?? "__all__"}
+                onClick={() => { setSelectedFolder(entry.value); setSelectedFile(null); setCreating(false); }}
+                style={{
+                  flexShrink: 0, padding: "5px 14px", borderRadius: 20,
+                  border: selectedFolder === entry.value ? "none" : "1px solid #d1d5db",
+                  background: selectedFolder === entry.value ? "#1e293b" : "#fff",
+                  color: selectedFolder === entry.value ? "#fff" : "#374151",
+                  fontWeight: selectedFolder === entry.value ? 600 : 400,
+                  fontSize: 13, cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* File list */}
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -311,8 +343,29 @@ export default function Files() {
 
       {/* ── RIGHT: DETAIL / UPLOAD PANEL ── */}
       {showPanel && (
-        <div style={{ flex: 2, padding: "20px 24px", overflowY: "auto", background: "#fff", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 16 }}>
-
+        <div style={{
+          flex: isMobile ? 1 : 2,
+          padding: isMobile ? "0" : "20px 24px",
+          overflowY: "auto", background: "#fff",
+          borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
+          display: "flex", flexDirection: "column", gap: isMobile ? 0 : 16,
+        }}>
+          {isMobile && (
+            <button
+              onClick={() => { setSelectedFile(null); setCreating(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                width: "100%", padding: "12px 16px",
+                border: "none", borderBottom: "1px solid #e2e8f0",
+                background: "#fff", cursor: "pointer",
+                color: "#2563eb", fontSize: 14, fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              ← Zurück
+            </button>
+          )}
+          <div style={{ padding: isMobile ? "16px" : "0", flex: 1, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
           {creating ? (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -460,6 +513,7 @@ export default function Files() {
               </div>
             </>
           ) : null}
+          </div>
         </div>
       )}
     </div>

@@ -79,7 +79,7 @@ export default function Mitgliederbeitraege() {
     : beitraege.filter(b => b.status === statusFilter);
 
   return (
-    <div style={{ padding: "24px 28px", overflowY: "auto", height: "calc(100vh - 44px)", boxSizing: "border-box" }}>
+    <div style={{ padding: "16px 16px", overflowY: "auto", height: "var(--content-h)", boxSizing: "border-box" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: "#1e293b" }}>Mitgliederbeiträge</h2>
@@ -133,7 +133,8 @@ export default function Mitgliederbeitraege() {
       {isFetching && beitraege.length === 0 ? (
         <p style={{ color: "#94a3b8" }}>Lade…</p>
       ) : (
-        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden", minWidth: 600 }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
@@ -186,6 +187,7 @@ export default function Mitgliederbeitraege() {
               })}
             </tbody>
           </table>
+        </div>
         </div>
       )}
     </div>

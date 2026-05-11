@@ -1,0 +1,23 @@
+:root {
+  --content-h: calc(100vh - 44px);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --content-h: calc(100vh - 44px - 56px);
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent iOS zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Safe area support for notched devices */
+  .mobile-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
