@@ -42,7 +42,7 @@ function SummaryCard({
   );
 }
 
-export default function Mitgliederbeitraege() {
+export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: boolean }) {
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
@@ -105,8 +105,8 @@ export default function Mitgliederbeitraege() {
 
       {/* Summary cards */}
       <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <SummaryCard label="Bezahlt"    value={bezahlt}    color="#16a34a" />
-        <SummaryCard label="Teilweise"  value={teilweise}  color="#d97706" />
+        {!isMobile && <SummaryCard label="Bezahlt"    value={bezahlt}    color="#16a34a" />}
+        {!isMobile && <SummaryCard label="Teilweise"  value={teilweise}  color="#d97706" />}
         <SummaryCard label="Ausstehend" value={ausstehend} color="#dc2626" />
         <SummaryCard label="Gesamt offen" value={`${totalOffen.toFixed(2)} €`} color="#64748b" />
       </div>
@@ -134,25 +134,23 @@ export default function Mitgliederbeitraege() {
         <p style={{ color: "#94a3b8" }}>Lade…</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
-        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden", minWidth: 600 }}>
+        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden", minWidth: isMobile ? undefined : 600 }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                {["Mitglied", "Beitrag JL", "Beitrag KG", "Bezahlt JL", "Bezahlt KG", "Offen", "Status"].map((h, i) => (
-                  <th
-                    key={h}
-                    align={i === 0 ? "left" : i === 6 ? "left" : "right"}
-                    style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}
-                  >
-                    {h}
-                  </th>
-                ))}
+                <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Mitglied</th>
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Beitrag JL</th>}
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Beitrag KG</th>}
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Bezahlt JL</th>}
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Bezahlt KG</th>}
+                <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Offen</th>
+                <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  <td colSpan={isMobile ? 3 : 7} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
                     Keine Einträge
                   </td>
                 </tr>
@@ -169,10 +167,10 @@ export default function Mitgliederbeitraege() {
                         ? `${b.member.firstname} ${b.member.lastname}${!b.member.active ? " (inaktiv)" : ""}`
                         : `Mitglied #${b.memberId}`}
                     </td>
-                    <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.betragJL.toFixed(2)} €</td>
-                    <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.betragKG.toFixed(2)} €</td>
-                    <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.bezahltJL.toFixed(2)} €</td>
-                    <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.bezahltKG.toFixed(2)} €</td>
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.betragJL.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.betragKG.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.bezahltJL.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.bezahltKG.toFixed(2)} €</td>}
                     <td
                       align="right"
                       style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: offen > 0 ? "#dc2626" : "#16a34a" }}

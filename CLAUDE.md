@@ -89,7 +89,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Navigation (App.tsx):**
 - Desktop: sticky top bar with tab buttons + avatar/logout (right).
 - Mobile: slim top bar (active tab name + avatar + logout) + fixed 56px **bottom tab bar** with SVG icons + labels. Bottom nav uses CSS class `mobile-bottom-nav` for safe-area-inset support on notched devices.
-- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`.
+- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`.
 
 **Screens (`src/screens/`):**
 - `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `http://100.91.210.125:3000`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`. **Connectivity indicator**: on mount and 800ms after URL changes, a `fetch` with `mode: "no-cors"` + 3s `AbortController` timeout probes the server; badge shows 🟡 Prüfe… / 🟢 Erreichbar / 🔴 Nicht erreichbar next to the label; "Tailscale aktiv?" hint shown below input when unreachable. **Password visibility toggle**: 👁️/🙈 button inside the password field toggles `type="password"` ↔ `type="text"` (`tabIndex={-1}`, does not steal form focus). **Error detail panel**: on login failure, error box shows HTTP status code in message + collapsible "Details ▼" button that reveals the raw API response body (JSON pretty-printed if parseable, otherwise plain text).
@@ -97,8 +97,8 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `Members` — split-pane layout: member list (left) + detail/create panel (right). Prop `isMobile?: boolean`. **Mobile**: card-style list rows (avatar + name + email + status badge); tapping a row hides the list and shows the detail panel full-width; "← Zurück" button returns to list. **Desktop**: table with Name/E-Mail/Adresse/Status columns. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only).
 - `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save. Includes **"Anhänge"** section (view mode only): lists attachments with filename/size; single click opens `AttachmentViewer` side panel (click again to close); download button (↓) per row; admins can upload multiple files and delete attachments. Active attachment row highlighted blue.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
-- `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right). Prop `isMobile?: boolean`. **Mobile**: list panel OR detail panel shown at a time; "← Zurück" returns to list; transaction table wrapped in `overflowX: auto` scroll container (minWidth 560px).
-  - Left: year dropdown (descending), three summary badges (Übertrag/Einnahmen/Kontostand from `fetchBusinessYear`), running-balance table with a „Zahlung" column (tag: Online/Bar) that is filterable via dropdown, summary footer row.
+- `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right). Prop `isMobile?: boolean`. **Mobile**: list panel OR detail panel shown at a time; "← Zurück" returns to list; transaction table shows only 3 columns (Datum, Beschreibung, Betrag) — no horizontal scroll; desktop shows all 7 columns (Datum, Beschreibung, Kategorie, Zahlung, Typ, Betrag, Kontostand). Stats cards: mobile shows only Einnahmen + Kontostand; desktop shows all 4 (Übertrag, Einnahmen, Ausgaben, Kontostand).
+  - Left: year dropdown (descending), summary badges, running-balance table with a „Zahlung" column (tag: Online/Bar, desktop only) that is filterable via dropdown, summary footer row.
   - Right panel switches between: `BusinessYearForm`, `TransactionCreate`, `TransactionDetail`, or placeholder text.
   - Toolbar buttons: "Kategorien" (admin), "Rückbuchungen", **"Report"** (all users), **"Import"** (admin), "+ Neue Buchung" (admin).
   - "Kategorien verwalten" toggle (admin only) opens `CategoryManager` inline below the header.
@@ -123,14 +123,14 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - **Desktop**: 180px folder sidebar (left, `#f1f5f9` bg) + file list (center) + detail/upload panel (right, shown on file select or "+ Datei hochladen").
 - **Mobile**: folder sidebar replaced by a horizontal-scroll pill bar above the file list; file list OR detail panel shown at a time; "← Zurück" returns to list.
 - Folder sidebar/pills list distinct paths from `fetchFolders()` + "Alle Dateien" root; selecting a folder filters the file list client-side.
-- File list table: name, size (human-readable), date, description; search filters on filename + description.
+- File list table: desktop shows name, size, date, description; **mobile shows only name + date** — no horizontal scroll. Search filters on filename + description.
 - Detail panel: filename, mimeType, size, upload date, uploader name (looked up from `fetchMembers()`); description + path editable inline (admin only, saved via `updateFile`); "Herunterladen" → `downloadFile`; "Löschen" (admin only, `confirm()` guard); preview area: images via `<img>`, PDFs via `<iframe>`, other types show extension badge + download button.
 - Upload form (admin only): single file input, path and description fields, calls `uploadFile` (raw fetch/FormData); on success refreshes file list and folder list, then shows detail of new file.
 - Blob URL lifecycle: `previewUrlRef` tracks current URL for revocation on file switch and unmount; cancellation token prevents stale state when switching files during a pending preview fetch.
 - Types: `src/types/files.ts` → `AppFile`. API functions: `src/api/files.ts` (`fetchFiles`, `fetchFolders`, `uploadFile`, `downloadFile`, `previewFile`, `updateFile`, `deleteFile`).
 
-**Mitgliederbeitraege screen (`src/screens/Mitgliederbeitraege.tsx`):**
-- Uses `height: "var(--content-h)"`. Table wrapped in `overflowX: auto` scroll container (minWidth 600px) for mobile horizontal scroll.
+**Mitgliederbeitraege screen (`src/screens/Mitgliederbeitraege.tsx`):** Prop `isMobile?: boolean`.
+- Uses `height: "var(--content-h)"`. **Mobile**: table shows 3 columns (Mitglied, Offen, Status) — no horizontal scroll; desktop shows all 7 (Mitglied, Beitrag JL, Beitrag KG, Bezahlt JL, Bezahlt KG, Offen, Status). Summary cards: mobile shows only Ausstehend + Gesamt offen; desktop shows all 4.
 
 
 ## Backend reference
