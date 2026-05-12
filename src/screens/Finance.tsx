@@ -319,9 +319,9 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
         {/* Stats cards */}
         {yearDetail && (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />
+            {!isMobile && <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />}
             <StatCard label="Einnahmen"  value={`+${totalIncome.toFixed(2)} €`}  color="#16a34a" />
-            <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />
+            {!isMobile && <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />}
             <StatCard label="Kontostand" value={`${finalBalance.toFixed(2)} €`}   color={finalBalance >= 0 ? "#1e293b" : "#dc2626"} />
           </div>
         )}
@@ -370,7 +370,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
 
         {/* Transaction table */}
         <div style={{ overflowX: "auto" }}>
-        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "visible", minWidth: isMobile ? 560 : undefined }}>
+        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "visible" }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead ref={filterRef}>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
@@ -449,7 +449,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                 </th>
 
                 {/* ── Kategorie ── */}
-                <th
+                {!isMobile && <th
                   align="left"
                   style={thClickable}
                   onClick={() => setActiveFilter(activeFilter === "cat" ? null : "cat")}
@@ -501,10 +501,10 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                       )}
                     </div>
                   )}
-                </th>
+                </th>}
 
                 {/* ── Tag ── */}
-                <th
+                {!isMobile && <th
                   align="left"
                   style={thClickable}
                   onClick={() => setActiveFilter(activeFilter === "tag" ? null : "tag")}
@@ -557,24 +557,18 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                       )}
                     </div>
                   )}
-                </th>
+                </th>}
 
                 {/* Typ, Betrag, Kontostand — not filterable */}
-                {["Typ", "Betrag", "Kontostand"].map((h, i) => (
-                  <th
-                    key={h}
-                    align={i >= 1 ? "right" : "left"}
-                    style={thBase}
-                  >
-                    {h}
-                  </th>
-                ))}
+                {!isMobile && <th align="left" style={thBase}>Typ</th>}
+                <th align="right" style={thBase}>Betrag</th>
+                {!isMobile && <th align="right" style={thBase}>Kontostand</th>}
               </tr>
             </thead>
             <tbody>
               {visibleEntries.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  <td colSpan={isMobile ? 3 : 7} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
                     {baseEntries.length === 0 ? "Keine Buchungen für dieses Jahr" : "Keine Ergebnisse für die aktuellen Filter"}
                   </td>
                 </tr>
@@ -608,15 +602,15 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                   >
                     <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtDate(t.date)}</td>
                     <td style={{ padding: "9px 14px", fontSize: 13, color: "#1e293b" }}>{t.description}</td>
-                    <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b" }}>{t.category.name}</td>
-                    <td style={{ padding: "9px 14px" }}><TagPill tag={t.tag} /></td>
-                    <td style={{ padding: "9px 14px" }}><TypePill type={t.type} /></td>
+                    {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b" }}>{t.category.name}</td>}
+                    {!isMobile && <td style={{ padding: "9px 14px" }}><TagPill tag={t.tag} /></td>}
+                    {!isMobile && <td style={{ padding: "9px 14px" }}><TypePill type={t.type} /></td>}
                     <td align="right" style={{ padding: "9px 14px", fontSize: 13, fontWeight: 600, color: amtColor, whiteSpace: "nowrap" }}>
                       {t.type === "EINZAHLUNG" ? "+" : "-"}{t.amount.toFixed(2)} €
                     </td>
-                    <td align="right" style={{ padding: "9px 14px", fontSize: 13, color: "#1e293b", whiteSpace: "nowrap" }}>
+                    {!isMobile && <td align="right" style={{ padding: "9px 14px", fontSize: 13, color: "#1e293b", whiteSpace: "nowrap" }}>
                       {runningBalance.toFixed(2)} €
-                    </td>
+                    </td>}
                   </tr>
                 );
               })}
@@ -624,15 +618,26 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
             {visibleEntries.length > 0 && (
               <tfoot>
                 <tr style={{ background: "#f8fafc", borderTop: "2px solid #e2e8f0" }}>
-                  <td colSpan={5} style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Gesamt</td>
-                  <td align="right" style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                    <span style={{ color: "#16a34a" }}>+{totalIncome.toFixed(2)} €</span>
-                    {" / "}
-                    <span style={{ color: "#dc2626" }}>-{totalExpenses.toFixed(2)} €</span>
-                  </td>
-                  <td align="right" style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: finalBalance >= 0 ? "#1e293b" : "#dc2626" }}>
-                    {finalBalance.toFixed(2)} €
-                  </td>
+                  {isMobile ? (
+                    <>
+                      <td colSpan={2} style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Gesamt</td>
+                      <td align="right" style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: finalBalance >= 0 ? "#1e293b" : "#dc2626", whiteSpace: "nowrap" }}>
+                        {finalBalance.toFixed(2)} €
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td colSpan={5} style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: "#374151" }}>Gesamt</td>
+                      <td align="right" style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                        <span style={{ color: "#16a34a" }}>+{totalIncome.toFixed(2)} €</span>
+                        {" / "}
+                        <span style={{ color: "#dc2626" }}>-{totalExpenses.toFixed(2)} €</span>
+                      </td>
+                      <td align="right" style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700, color: finalBalance >= 0 ? "#1e293b" : "#dc2626" }}>
+                        {finalBalance.toFixed(2)} €
+                      </td>
+                    </>
+                  )}
                 </tr>
               </tfoot>
             )}

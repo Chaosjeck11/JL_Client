@@ -180,7 +180,7 @@ export default function App() {
       {/* ── Screen content ── */}
       {activeTab === "members"   && <Members onLogout={handleLogout} isMobile={isMobile} />}
       {activeTab === "finance"   && <Finance isMobile={isMobile} />}
-      {activeTab === "beitraege" && <Mitgliederbeitraege />}
+      {activeTab === "beitraege" && <Mitgliederbeitraege isMobile={isMobile} />}
       {activeTab === "files"     && <Files isMobile={isMobile} />}
 
       {showProfile && currentMember && (

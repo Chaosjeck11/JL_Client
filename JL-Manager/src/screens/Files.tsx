@@ -299,17 +299,16 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                  {["Name", "Größe", "Datum", "Beschreibung"].map(h => (
-                    <th key={h} align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                      {h}
-                    </th>
-                  ))}
+                  <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Name</th>
+                  {!isMobile && <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Größe</th>}
+                  <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Datum</th>
+                  {!isMobile && <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Beschreibung</th>}
                 </tr>
               </thead>
               <tbody>
                 {filteredFiles.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                    <td colSpan={isMobile ? 2 : 4} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
                       Keine Dateien
                     </td>
                   </tr>
@@ -329,9 +328,9 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                       style={{ cursor: "pointer", background: bg, borderBottom: "1px solid #f1f5f9", borderLeft: isSel ? "3px solid #3b82f6" : "3px solid transparent", transition: "background 0.1s" }}
                     >
                       <td style={{ padding: "9px 14px", fontSize: 13, color: "#1e293b", fontWeight: 500, wordBreak: "break-word" }}>{f.filename}</td>
-                      <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtSize(f.size)}</td>
+                      {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtSize(f.size)}</td>}
                       <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtDate(f.uploadedAt)}</td>
-                      <td style={{ padding: "9px 14px", fontSize: 13, color: "#94a3b8" }}>{f.description ?? "–"}</td>
+                      {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "#94a3b8" }}>{f.description ?? "–"}</td>}
                     </tr>
                   );
                 })}
