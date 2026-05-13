@@ -6,14 +6,18 @@ import {
   deleteVeranstaltung,
   deleteVeranstaltungAttachment,
   downloadVeranstaltungAttachment,
+  fetchAllAttachments,
   fetchVeranstaltungAttachmentBlob,
   fetchVeranstaltungFinancials,
   fetchVeranstaltungForm,
+  updateFormColumns,
   updateFormRow,
   updateVeranstaltung,
   uploadVeranstaltungAttachment,
 } from "../../api/veranstaltungen";
+import { downloadAttachment, fetchAttachmentBlob } from "../../api/finance";
 import type {
+  AllAttachments,
   FormColumn,
   Veranstaltung,
   VeranstaltungAttachment,
@@ -48,6 +52,22 @@ const inputStyle: React.CSSProperties = {
   padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db",
   fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
 };
+
+const colInputStyle: React.CSSProperties = {
+  padding: "5px 8px", borderRadius: 6, border: "1px solid #d1d5db",
+  fontSize: 13, background: "#fff", boxSizing: "border-box",
+};
+
+const COLUMN_TYPES = [
+  { value: "text",     label: "Text" },
+  { value: "number",   label: "Zahl" },
+  { value: "date",     label: "Datum" },
+  { value: "checkbox", label: "Ja/Nein" },
+];
+
+function uid(): string {
+  return Math.random().toString(36).slice(2, 10);
+}
 
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -162,6 +182,9 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
     setEditDate(veranstaltung.date.substring(0, 10));
     setEditDesc(veranstaltung.description ?? "");
     setMetaError("");
+    setEditingCols(false);
+    setColDraft(null);
+    setColError("");
   }, [veranstaltung.id]);
 
   // Financials
@@ -176,11 +199,19 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
     queryFn: () => fetchVeranstaltungForm(veranstaltung.id),
   });
 
-  // Attachments (from the Veranstaltung detail's attachments field)
-  const attachments: VeranstaltungAttachment[] = veranstaltung.attachments ?? [];
+  // All attachments (direct + from transactions)
+  const { data: allAttachments } = useQuery<AllAttachments>({
+    queryKey: ["veranstaltung-all-attachments", veranstaltung.id],
+    queryFn: () => fetchAllAttachments(veranstaltung.id),
+  });
+  const directAttachments: VeranstaltungAttachment[] = allAttachments?.direct ?? veranstaltung.attachments ?? [];
+  const txAttachments = allAttachments?.fromTransactions ?? [];
 
   // Attachment viewer
-  const [viewerAttachment, setViewerAttachment] = useState<VeranstaltungAttachment | null>(null);
+  type ViewerSource =
+    | { kind: "direct"; att: VeranstaltungAttachment }
+    | { kind: "transaction"; att: AllAttachments["fromTransactions"][number] };
+  const [viewerSource, setViewerSource] = useState<ViewerSource | null>(null);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerMime, setViewerMime] = useState<string>("application/octet-stream");
   const viewerUrlRef = useRef<string | null>(null);
@@ -192,31 +223,40 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
     };
   }, []);
 
-  async function openViewer(att: VeranstaltungAttachment) {
+  function closeViewer() {
+    setViewerSource(null);
+    if (viewerUrlRef.current) { URL.revokeObjectURL(viewerUrlRef.current); viewerUrlRef.current = null; }
+    setViewerUrl(null);
+  }
+
+  async function openDirectViewer(att: VeranstaltungAttachment) {
     const token = ++cancelTokenRef.current;
-    if (viewerAttachment?.id === att.id) {
-      setViewerAttachment(null);
-      setViewerUrl(null);
-      return;
-    }
-    if (viewerUrlRef.current) {
-      URL.revokeObjectURL(viewerUrlRef.current);
-      viewerUrlRef.current = null;
-    }
-    setViewerAttachment(att);
+    if (viewerSource?.kind === "direct" && viewerSource.att.id === att.id) { closeViewer(); return; }
+    if (viewerUrlRef.current) { URL.revokeObjectURL(viewerUrlRef.current); viewerUrlRef.current = null; }
+    setViewerSource({ kind: "direct", att });
     setViewerUrl(null);
     try {
       const { url, mimeType } = await fetchVeranstaltungAttachmentBlob(veranstaltung.id, att.id);
-      if (cancelTokenRef.current !== token) {
-        URL.revokeObjectURL(url);
-        return;
-      }
+      if (cancelTokenRef.current !== token) { URL.revokeObjectURL(url); return; }
       viewerUrlRef.current = url;
       setViewerUrl(url);
       setViewerMime(mimeType);
-    } catch {
-      // silent
-    }
+    } catch { /* silent */ }
+  }
+
+  async function openTxViewer(att: AllAttachments["fromTransactions"][number]) {
+    const token = ++cancelTokenRef.current;
+    if (viewerSource?.kind === "transaction" && viewerSource.att.id === att.id) { closeViewer(); return; }
+    if (viewerUrlRef.current) { URL.revokeObjectURL(viewerUrlRef.current); viewerUrlRef.current = null; }
+    setViewerSource({ kind: "transaction", att });
+    setViewerUrl(null);
+    try {
+      const { url, mimeType } = await fetchAttachmentBlob(att.transactionId, att.id);
+      if (cancelTokenRef.current !== token) { URL.revokeObjectURL(url); return; }
+      viewerUrlRef.current = url;
+      setViewerUrl(url);
+      setViewerMime(mimeType);
+    } catch { /* silent */ }
   }
 
   // Attachment upload
@@ -234,6 +274,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
       }
       queryClient.invalidateQueries({ queryKey: ["veranstaltungen", veranstaltung.id] });
       queryClient.invalidateQueries({ queryKey: ["veranstaltungen"] });
+      queryClient.invalidateQueries({ queryKey: ["veranstaltung-all-attachments", veranstaltung.id] });
     } catch {
       setUploadError("Upload fehlgeschlagen.");
     } finally {
@@ -246,21 +287,66 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
     if (!confirm(`Anhang "${att.filename}" löschen?`)) return;
     try {
       await deleteVeranstaltungAttachment(veranstaltung.id, att.id);
-      if (viewerAttachment?.id === att.id) {
-        setViewerAttachment(null);
-        setViewerUrl(null);
-      }
+      if (viewerSource?.kind === "direct" && viewerSource.att.id === att.id) closeViewer();
       queryClient.invalidateQueries({ queryKey: ["veranstaltungen", veranstaltung.id] });
       queryClient.invalidateQueries({ queryKey: ["veranstaltungen"] });
+      queryClient.invalidateQueries({ queryKey: ["veranstaltung-all-attachments", veranstaltung.id] });
     } catch {
       alert("Löschen fehlgeschlagen.");
     }
   }
 
+  // Form column editing
+  const [editingCols, setEditingCols] = useState(false);
+  const [colDraft, setColDraft] = useState<FormColumn[] | null>(null);
+  const [newColLabel, setNewColLabel] = useState("");
+  const [newColType, setNewColType] = useState<FormColumn["type"]>("text");
+  const [savingCols, setSavingCols] = useState(false);
+  const [colError, setColError] = useState("");
+
   // Form row editing
   const [rowDrafts, setRowDrafts] = useState<Record<number, Record<string, unknown>>>({});
   const [savingRows, setSavingRows] = useState<Set<number>>(new Set());
   const [addingRow, setAddingRow] = useState(false);
+
+  function openColEditor() {
+    setColDraft([...(form?.columns ?? [])]);
+    setNewColLabel("");
+    setNewColType("text");
+    setColError("");
+    setEditingCols(true);
+  }
+
+  function addColDraftColumn() {
+    if (!newColLabel.trim()) return;
+    setColDraft(prev => [...(prev ?? []), { id: uid(), label: newColLabel.trim(), type: newColType }]);
+    setNewColLabel("");
+    setNewColType("text");
+  }
+
+  function removeColDraftColumn(id: string) {
+    setColDraft(prev => (prev ?? []).filter(c => c.id !== id));
+  }
+
+  function updateColDraftColumn(id: string, field: keyof FormColumn, value: string) {
+    setColDraft(prev => (prev ?? []).map(c => c.id === id ? { ...c, [field]: value } : c));
+  }
+
+  async function saveFormCols() {
+    const toSave = colDraft ?? [];
+    setSavingCols(true);
+    setColError("");
+    try {
+      await updateFormColumns(veranstaltung.id, toSave);
+      queryClient.invalidateQueries({ queryKey: ["veranstaltung-form", veranstaltung.id] });
+      setEditingCols(false);
+      setColDraft(null);
+    } catch {
+      setColError("Fehler beim Speichern.");
+    } finally {
+      setSavingCols(false);
+    }
+  }
 
   function setRowDraft(rowId: number, colId: string, value: unknown) {
     setRowDrafts(d => ({
@@ -493,115 +579,243 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
       <SectionHeader>Formular</SectionHeader>
       {formLoading ? (
         <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Lädt…</p>
-      ) : columns.length === 0 ? (
-        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
-          Keine Spalten definiert. {isAdmin && "Vorlage über «Vorlage» konfigurieren."}
-        </p>
       ) : (
         <>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc" }}>
-                  {columns.map(col => (
-                    <th key={col.id} style={{
-                      padding: "6px 10px", textAlign: "left", fontWeight: 600,
-                      color: "#64748b", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap",
-                    }}>
-                      {col.label}
-                    </th>
-                  ))}
-                  {isAdmin && <th style={{ padding: "6px 6px", borderBottom: "1px solid #e2e8f0", width: 80 }} />}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 && (
-                  <tr>
-                    <td colSpan={columns.length + (isAdmin ? 1 : 0)} style={{ padding: "12px 10px", color: "#94a3b8", textAlign: "center" }}>
-                      Keine Einträge.
-                    </td>
-                  </tr>
-                )}
-                {rows.map(row => {
-                  const hasDraft = !!rowDrafts[row.id] && Object.keys(rowDrafts[row.id]).length > 0;
-                  const saving = savingRows.has(row.id);
-                  return (
-                    <tr key={row.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      {columns.map(col => (
-                        <td key={col.id} style={{ padding: "4px 8px" }}>
-                          {isAdmin ? (
-                            <CellInput
-                              column={col}
-                              value={getRowCellValue(row, col.id)}
-                              onChange={v => setRowDraft(row.id, col.id, v)}
-                            />
-                          ) : (
-                            <span style={{ fontSize: 13, color: "#1e293b" }}>
-                              {displayCellValue(col, row.cells[col.id])}
-                            </span>
-                          )}
-                        </td>
-                      ))}
-                      {isAdmin && (
-                        <td style={{ padding: "4px 6px", whiteSpace: "nowrap" }}>
-                          {hasDraft && (
-                            <button
-                              onClick={() => saveRow(row)}
-                              disabled={saving}
-                              style={{
-                                padding: "3px 8px", borderRadius: 4, border: "none",
-                                background: saving ? "#94a3b8" : "#1e293b",
-                                color: "#fff", fontSize: 11, fontWeight: 600,
-                                cursor: saving ? "not-allowed" : "pointer", marginRight: 4,
-                              }}
-                            >
-                              {saving ? "…" : "↑"}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteRow(row.id)}
-                            title="Zeile löschen"
-                            style={{
-                              background: "none", border: "none", cursor: "pointer",
-                              color: "#dc2626", fontSize: 16, padding: "2px 4px",
-                            }}
-                          >
-                            ×
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* Column editor (admin) */}
           {isAdmin && (
-            <button
-              onClick={handleAddRow}
-              disabled={addingRow}
-              style={{
-                marginTop: 8, padding: "6px 14px", borderRadius: 6,
-                border: "1px dashed #94a3b8", background: "#fff",
-                color: "#64748b", fontSize: 13, cursor: addingRow ? "not-allowed" : "pointer",
-              }}
-            >
-              {addingRow ? "…" : "+ Zeile hinzufügen"}
-            </button>
+            <div style={{ marginBottom: 12 }}>
+              {!editingCols ? (
+                <button
+                  onClick={openColEditor}
+                  style={{
+                    padding: "5px 12px", borderRadius: 6, border: "1px solid #d1d5db",
+                    background: "#fff", color: "#374151", fontSize: 12, cursor: "pointer",
+                  }}
+                >
+                  Spalten bearbeiten
+                </button>
+              ) : (
+                <div style={{
+                  padding: 12, borderRadius: 8, border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
+                }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: "#374151", marginBottom: 10 }}>
+                    Spalten bearbeiten
+                  </div>
+                  {(colDraft ?? []).length === 0 ? (
+                    <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 10px" }}>Keine Spalten.</p>
+                  ) : (
+                    <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10, fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: "#fff" }}>
+                          <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Bezeichnung</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Typ</th>
+                          <th style={{ padding: "5px 4px", borderBottom: "1px solid #e2e8f0", width: 32 }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(colDraft ?? []).map(col => (
+                          <tr key={col.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "4px 8px" }}>
+                              <input
+                                style={{ ...colInputStyle, width: "100%" }}
+                                value={col.label}
+                                onChange={e => updateColDraftColumn(col.id, "label", e.target.value)}
+                              />
+                            </td>
+                            <td style={{ padding: "4px 8px" }}>
+                              <select
+                                style={colInputStyle}
+                                value={col.type}
+                                onChange={e => updateColDraftColumn(col.id, "type", e.target.value)}
+                              >
+                                {COLUMN_TYPES.map(t => (
+                                  <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td style={{ padding: "4px 4px", textAlign: "center" }}>
+                              <button
+                                onClick={() => removeColDraftColumn(col.id)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 15, padding: "1px 4px" }}
+                              >×</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+                    <input
+                      style={{ ...colInputStyle, flex: 1, minWidth: 120 }}
+                      value={newColLabel}
+                      onChange={e => setNewColLabel(e.target.value)}
+                      placeholder="Neue Spalte…"
+                      onKeyDown={e => e.key === "Enter" && addColDraftColumn()}
+                    />
+                    <select
+                      style={colInputStyle}
+                      value={newColType}
+                      onChange={e => setNewColType(e.target.value as FormColumn["type"])}
+                    >
+                      {COLUMN_TYPES.map(t => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={addColDraftColumn}
+                      disabled={!newColLabel.trim()}
+                      style={{
+                        padding: "5px 12px", borderRadius: 6, border: "none",
+                        background: newColLabel.trim() ? "#1e293b" : "#94a3b8",
+                        color: "#fff", fontSize: 12, fontWeight: 600,
+                        cursor: newColLabel.trim() ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      + Spalte
+                    </button>
+                  </div>
+                  {colError && (
+                    <div style={{ color: "#dc2626", fontSize: 12, marginBottom: 8 }}>{colError}</div>
+                  )}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={saveFormCols}
+                      disabled={savingCols}
+                      style={{
+                        padding: "6px 14px", borderRadius: 6, border: "none",
+                        background: savingCols ? "#94a3b8" : "#1e293b",
+                        color: "#fff", fontSize: 13, fontWeight: 600,
+                        cursor: savingCols ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {savingCols ? "…" : "Speichern"}
+                    </button>
+                    <button
+                      onClick={() => { setEditingCols(false); setColDraft(null); setColError(""); }}
+                      style={{
+                        padding: "6px 12px", borderRadius: 6, border: "1px solid #d1d5db",
+                        background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer",
+                      }}
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Row table */}
+          {columns.length === 0 ? (
+            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Keine Spalten definiert.</p>
+          ) : (
+            <>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {columns.map(col => (
+                        <th key={col.id} style={{
+                          padding: "6px 10px", textAlign: "left", fontWeight: 600,
+                          color: "#64748b", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap",
+                        }}>
+                          {col.label}
+                        </th>
+                      ))}
+                      {isAdmin && <th style={{ padding: "6px 6px", borderBottom: "1px solid #e2e8f0", width: 80 }} />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={columns.length + (isAdmin ? 1 : 0)} style={{ padding: "12px 10px", color: "#94a3b8", textAlign: "center" }}>
+                          Keine Einträge.
+                        </td>
+                      </tr>
+                    )}
+                    {rows.map(row => {
+                      const hasDraft = !!rowDrafts[row.id] && Object.keys(rowDrafts[row.id]).length > 0;
+                      const saving = savingRows.has(row.id);
+                      return (
+                        <tr key={row.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          {columns.map(col => (
+                            <td key={col.id} style={{ padding: "4px 8px" }}>
+                              {isAdmin ? (
+                                <CellInput
+                                  column={col}
+                                  value={getRowCellValue(row, col.id)}
+                                  onChange={v => setRowDraft(row.id, col.id, v)}
+                                />
+                              ) : (
+                                <span style={{ fontSize: 13, color: "#1e293b" }}>
+                                  {displayCellValue(col, row.cells[col.id])}
+                                </span>
+                              )}
+                            </td>
+                          ))}
+                          {isAdmin && (
+                            <td style={{ padding: "4px 6px", whiteSpace: "nowrap" }}>
+                              {hasDraft && (
+                                <button
+                                  onClick={() => saveRow(row)}
+                                  disabled={saving}
+                                  style={{
+                                    padding: "3px 8px", borderRadius: 4, border: "none",
+                                    background: saving ? "#94a3b8" : "#1e293b",
+                                    color: "#fff", fontSize: 11, fontWeight: 600,
+                                    cursor: saving ? "not-allowed" : "pointer", marginRight: 4,
+                                  }}
+                                >
+                                  {saving ? "…" : "↑"}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteRow(row.id)}
+                                title="Zeile löschen"
+                                style={{
+                                  background: "none", border: "none", cursor: "pointer",
+                                  color: "#dc2626", fontSize: 16, padding: "2px 4px",
+                                }}
+                              >
+                                ×
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={handleAddRow}
+                  disabled={addingRow}
+                  style={{
+                    marginTop: 8, padding: "6px 14px", borderRadius: 6,
+                    border: "1px dashed #94a3b8", background: "#fff",
+                    color: "#64748b", fontSize: 13, cursor: addingRow ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {addingRow ? "…" : "+ Zeile hinzufügen"}
+                </button>
+              )}
+            </>
           )}
         </>
       )}
 
-      {/* Attachments */}
-      <SectionHeader>Anhänge ({attachments.length})</SectionHeader>
-      {attachments.length === 0 && !isAdmin && (
+      {/* Direct Attachments */}
+      <SectionHeader>Anhänge ({directAttachments.length})</SectionHeader>
+      {directAttachments.length === 0 && !isAdmin && (
         <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Keine Anhänge.</p>
       )}
-      {attachments.length > 0 && (
+      {directAttachments.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 8 }}>
           <tbody>
-            {attachments.map(att => {
-              const isActive = viewerAttachment?.id === att.id;
+            {directAttachments.map(att => {
+              const isActive = viewerSource?.kind === "direct" && viewerSource.att.id === att.id;
               return (
                 <tr
                   key={att.id}
@@ -610,7 +824,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                     background: isActive ? "#eff6ff" : "transparent",
                     cursor: "pointer",
                   }}
-                  onClick={() => openViewer(att)}
+                  onClick={() => openDirectViewer(att)}
                 >
                   <td style={{ padding: "7px 10px", color: "#1e293b" }}>{att.filename}</td>
                   <td style={{ padding: "7px 10px", color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtBytes(att.size)}</td>
@@ -662,18 +876,64 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
         </div>
       )}
 
+      {/* Transaction Attachments */}
+      {txAttachments.length > 0 && (
+        <>
+          <SectionHeader>Buchungs-Anhänge ({txAttachments.length})</SectionHeader>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 8 }}>
+            <tbody>
+              {txAttachments.map(att => {
+                const isActive = viewerSource?.kind === "transaction" && viewerSource.att.id === att.id;
+                return (
+                  <tr
+                    key={att.id}
+                    style={{
+                      borderBottom: "1px solid #f1f5f9",
+                      background: isActive ? "#eff6ff" : "transparent",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => openTxViewer(att)}
+                  >
+                    <td style={{ padding: "7px 10px", color: "#1e293b" }}>
+                      <div>{att.filename}</div>
+                      {att.transaction && (
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                          {fmtDate(att.transaction.date)} · {att.transaction.description}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: "7px 10px", color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtBytes(att.size)}</td>
+                    <td style={{ padding: "7px 6px", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); downloadAttachment(att.transactionId, att.id, att.filename); }}
+                        title="Herunterladen"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#3b82f6", fontSize: 15, padding: "2px 6px" }}
+                      >
+                        ↓
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </>
+      )}
+
       {/* Attachment viewer side panel */}
-      {viewerAttachment && (
+      {viewerSource && (
         <AttachmentViewer
-          filename={viewerAttachment.filename}
+          filename={viewerSource.att.filename}
           url={viewerUrl ?? ""}
           mimeType={viewerMime}
-          onDownload={() => downloadVeranstaltungAttachment(veranstaltung.id, viewerAttachment.id, viewerAttachment.filename)}
-          onClose={() => {
-            setViewerAttachment(null);
-            if (viewerUrlRef.current) { URL.revokeObjectURL(viewerUrlRef.current); viewerUrlRef.current = null; }
-            setViewerUrl(null);
+          onDownload={() => {
+            if (viewerSource.kind === "direct") {
+              downloadVeranstaltungAttachment(veranstaltung.id, viewerSource.att.id, viewerSource.att.filename);
+            } else {
+              downloadAttachment(viewerSource.att.transactionId, viewerSource.att.id, viewerSource.att.filename);
+            }
           }}
+          onClose={closeViewer}
         />
       )}
     </div>
