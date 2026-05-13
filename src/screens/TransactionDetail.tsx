@@ -95,6 +95,16 @@ export default function TransactionDetail({
   const [tag, setTag] = useState<PaymentTag>(transaction.tag ?? "ONLINE");
   const [veranstaltungId, setVeranstaltungId] = useState<number | null>(transaction.veranstaltung?.id ?? null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setEdit(false);
+    setDate(transaction.date.substring(0, 10));
+    setDescription(transaction.description);
+    setCategoryId(transaction.categoryId);
+    setTag(transaction.tag ?? "ONLINE");
+    setVeranstaltungId(transaction.veranstaltung?.id ?? null);
+    setError("");
+  }, [transaction.id]);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [attachError, setAttachError] = useState("");

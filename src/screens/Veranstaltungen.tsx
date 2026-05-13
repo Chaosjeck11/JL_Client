@@ -95,6 +95,7 @@ export default function Veranstaltungen({ isMobile = false }: { isMobile?: boole
             gap: 6,
             alignItems: "center",
             flexShrink: 0,
+            flexWrap: "wrap",
           }}>
             <input
               type="text"
@@ -102,7 +103,7 @@ export default function Veranstaltungen({ isMobile = false }: { isMobile?: boole
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                flex: 1, padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0",
+                flex: 1, minWidth: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0",
                 fontSize: 13, outline: "none", background: "#f8fafc",
               }}
             />

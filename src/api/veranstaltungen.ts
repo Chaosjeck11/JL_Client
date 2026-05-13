@@ -136,6 +136,16 @@ export function deleteFormRow(id: number, rowId: number): Promise<void> {
   return apiFetch(`/veranstaltungen/${id}/form/rows/${rowId}`, { method: "DELETE" });
 }
 
+export function updateFormColumns(
+  id: number,
+  columns: FormColumn[],
+): Promise<VeranstaltungForm> {
+  return apiFetch(`/veranstaltungen/${id}/form`, {
+    method: "PATCH",
+    body: JSON.stringify({ columns }),
+  });
+}
+
 export function fetchFormTemplate(): Promise<VeranstaltungFormTemplate> {
   return apiFetch("/veranstaltung-form-template");
 }
