@@ -32,6 +32,7 @@ export type Transaction = {
   relatedTransactionId?: number;
   memberId?: number | null;
   tag?: PaymentTag | null;
+  veranstaltung?: { id: number; name: string } | null;
 };
 
 export type RunningBalanceEntry = {
