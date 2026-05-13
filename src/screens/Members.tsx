@@ -14,6 +14,7 @@ type MembersProps = {
 };
 
 type SortDir = "asc" | "desc";
+type SortField = "lastname" | "firstname" | "joinedAt";
 type StatusFilter = "all" | "active" | "inactive";
 
 const thStyle: React.CSSProperties = {
@@ -33,6 +34,9 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortField, setSortField] = useState<SortField>("lastname");
+  const [joinedFrom, setJoinedFrom] = useState("");
+  const [joinedTo, setJoinedTo] = useState("");
 
   const { data: members = [], isError: membersError } = useQuery({
     queryKey: ["members"],
@@ -52,12 +56,24 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
         const fullName = `${m.firstname} ${m.lastname}`.toLowerCase();
         if (!fullName.includes(q)) return false;
       }
+      if (joinedFrom && m.joinedAt < joinedFrom) return false;
+      if (joinedTo && m.joinedAt > joinedTo + "T23:59:59") return false;
       return true;
     })
     .sort((a, b) => {
-      const nameA = `${a.lastname} ${a.firstname}`.toLowerCase();
-      const nameB = `${b.lastname} ${b.firstname}`.toLowerCase();
-      return sortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+      let valA: string;
+      let valB: string;
+      if (sortField === "firstname") {
+        valA = `${a.firstname} ${a.lastname}`.toLowerCase();
+        valB = `${b.firstname} ${b.lastname}`.toLowerCase();
+      } else if (sortField === "joinedAt") {
+        valA = a.joinedAt;
+        valB = b.joinedAt;
+      } else {
+        valA = `${a.lastname} ${a.firstname}`.toLowerCase();
+        valB = `${b.lastname} ${b.firstname}`.toLowerCase();
+      }
+      return sortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
 
   const showDetailPanel = selected !== null || creating;
@@ -109,14 +125,14 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
           </div>
 
           {/* Search + filter row */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input
               type="text"
               placeholder="Name suchen…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                flex: 1, padding: "6px 10px", fontSize: 13,
+                flex: 1, minWidth: 120, padding: "6px 10px", fontSize: 13,
                 border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
                 color: "#1e293b",
               }}
@@ -134,9 +150,22 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               <option value="active">Aktiv</option>
               <option value="inactive">Inaktiv</option>
             </select>
+            <select
+              value={sortField}
+              onChange={e => setSortField(e.target.value as SortField)}
+              style={{
+                padding: "6px 10px", fontSize: 13,
+                border: "1px solid #d1d5db", borderRadius: 7,
+                background: "#fff", color: "#374151", cursor: "pointer",
+              }}
+            >
+              <option value="lastname">Nachname</option>
+              <option value="firstname">Vorname</option>
+              <option value="joinedAt">Beitrittsdatum</option>
+            </select>
             <button
               onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
-              title={sortDir === "asc" ? "A → Z (klicken für Z → A)" : "Z → A (klicken für A → Z)"}
+              title={sortDir === "asc" ? "aufsteigend" : "absteigend"}
               style={{
                 padding: "6px 12px", fontSize: 13, fontWeight: 600,
                 border: "1px solid #d1d5db", borderRadius: 7,
@@ -144,8 +173,45 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                 whiteSpace: "nowrap",
               }}
             >
-              {sortDir === "asc" ? "A → Z" : "Z → A"}
+              {sortDir === "asc" ? "↑" : "↓"}
             </button>
+          </div>
+          {/* Beitrittsdatum filter row */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>Beitritt:</span>
+            <input
+              type="date"
+              value={joinedFrom}
+              onChange={e => setJoinedFrom(e.target.value)}
+              style={{
+                padding: "5px 8px", fontSize: 13,
+                border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
+                color: "#1e293b", background: "#fff",
+              }}
+            />
+            <span style={{ fontSize: 12, color: "#64748b" }}>–</span>
+            <input
+              type="date"
+              value={joinedTo}
+              onChange={e => setJoinedTo(e.target.value)}
+              style={{
+                padding: "5px 8px", fontSize: 13,
+                border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
+                color: "#1e293b", background: "#fff",
+              }}
+            />
+            {(joinedFrom || joinedTo) && (
+              <button
+                onClick={() => { setJoinedFrom(""); setJoinedTo(""); }}
+                style={{
+                  padding: "5px 10px", fontSize: 12,
+                  border: "1px solid #d1d5db", borderRadius: 7,
+                  background: "#fff", color: "#6b7280", cursor: "pointer",
+                }}
+              >
+                ✕
+              </button>
+            )}
           </div>
         </header>
 

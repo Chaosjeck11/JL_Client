@@ -7,6 +7,7 @@ import {
   fetchRunningBalance,
 } from "../api/finance";
 import { fetchMembers } from "../api/members";
+import { fetchVeranstaltungen } from "../api/veranstaltungen";
 import { canManageFinance } from "../auth/permissions";
 import type { PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
 import BusinessYearForm from "./finance/BusinessYearForm";
@@ -116,6 +117,11 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const { data: members = [] } = useQuery({
     queryKey: ["members"],
     queryFn: fetchMembers,
+  });
+
+  const { data: veranstaltungen = [] } = useQuery({
+    queryKey: ["veranstaltungen"],
+    queryFn: fetchVeranstaltungen,
   });
 
   const effectiveYearId = selectedYearId ?? businessYears[0]?.id ?? null;
@@ -322,6 +328,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
             {!isMobile && <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />}
             <StatCard label="Einnahmen"  value={`+${totalIncome.toFixed(2)} €`}  color="#16a34a" />
             {!isMobile && <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />}
+            {!isMobile && (() => { const g = totalIncome - totalExpenses; return <StatCard label="Gewinn" value={`${g >= 0 ? "+" : ""}${g.toFixed(2)} €`} color={g >= 0 ? "#16a34a" : "#dc2626"} />; })()}
             <StatCard label="Kontostand" value={`${finalBalance.toFixed(2)} €`}   color={finalBalance >= 0 ? "#1e293b" : "#dc2626"} />
           </div>
         )}
@@ -701,6 +708,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
               defaultBusinessYearId={effectiveYearId}
               categories={categories}
               members={members}
+              veranstaltungen={veranstaltungen}
               onCreated={t => {
                 reloadYear();
                 setSelected(t);
@@ -712,6 +720,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
             <TransactionDetail
               transaction={selected}
               categories={categories}
+              veranstaltungen={veranstaltungen}
               onUpdated={updated => {
                 reloadYear();
                 setSelected(updated);

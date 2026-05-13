@@ -55,10 +55,14 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - `['files']` / `['files-folders']`
   - `['transaction-attachments', transactionId]`
   - `['member-attachments', memberId]`
+  - `['veranstaltungen']` / `['veranstaltungen', id]`
+  - `['veranstaltung-form', id]`
+  - `['veranstaltung-financials', id]`
+  - `['veranstaltung-form-template']`
 - Exceptions (still use `useEffect`): blob URL lifecycle with cancellation tokens, event listeners, UI-state reactions (not data fetching).
 
 **Auth flow:**
-- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance" | "beitraege" | "files") as the only global state. On logout, `queryClient.clear()` wipes the cache.
+- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance" | "beitraege" | "files" | "veranstaltungen") as the only global state. On logout, `queryClient.clear()` wipes the cache.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
 - Permission checks in `src/auth/permissions.ts` gate UI elements based on `accessLevel >= 5`:
   - `canEditMembers()`, `canCreateMembers()` — member management
@@ -71,11 +75,13 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `src/api/members.ts` — `/members` endpoints (list, single, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
 - `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, mitgliedsbeitraege, transaction attachments (upload/download/delete/preview).
 - `src/api/files.ts` — `/files` endpoints: `fetchFiles(path?)`, `fetchFolders()`, `uploadFile` (raw fetch/FormData), `downloadFile` (Blob → objectURL), `previewFile` (Blob → objectURL, inline), `updateFile`, `deleteFile`.
+- `src/api/veranstaltungen.ts` — `/veranstaltungen` + `/veranstaltung-form-template` endpoints: full CRUD, financials, form rows (add/update/delete), attachment upload/download/delete/blob-preview, template get/update. Attachment uploads use raw `fetch`/`FormData`; downloads return Blob → objectURL.
 
 **Types:**
 - `src/types/member.ts` — `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
 - `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`, `Mitgliedsbeitrag`.
 - `src/types/files.ts` — `AppFile`.
+- `src/types/veranstaltungen.ts` — `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `AllAttachments`.
 
 **Responsive design:**
 - Mobile breakpoint: **768px**. Hook: `src/hooks/useIsMobile.ts` → `useIsMobile()` returns boolean, updates on resize.
@@ -84,12 +90,12 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - Mobile: `calc(100vh - 44px - 56px)` (top nav + bottom nav bar)
 - Every screen that fills the viewport must use `height: "var(--content-h)"` — never hardcode `calc(100vh - 44px)`.
 - Screens that accept layout adjustments receive `isMobile?: boolean` as prop (passed from `App.tsx`).
-- Split-pane screens (Members, Finance, Files) implement **stack navigation** on mobile: list panel OR detail panel visible at a time; detail panel shows a "← Zurück" button to return to the list.
+- Split-pane screens (Members, Finance, Files, Veranstaltungen) implement **stack navigation** on mobile: list panel OR detail panel visible at a time; detail panel shows a "← Zurück" button to return to the list.
 
 **Navigation (App.tsx):**
 - Desktop: sticky top bar with tab buttons + avatar/logout (right).
 - Mobile: slim top bar (active tab name + avatar + logout) + fixed 56px **bottom tab bar** with SVG icons + labels. Bottom nav uses CSS class `mobile-bottom-nav` for safe-area-inset support on notched devices.
-- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`.
+- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`, `Veranstaltungen`.
 
 **Screens (`src/screens/`):**
 - `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `http://DEPLOY_SERVER_IP:3000`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`. **Connectivity indicator**: on mount and 800ms after URL changes, a `fetch` with `mode: "no-cors"` + 3s `AbortController` timeout probes the server; badge shows 🟡 Prüfe… / 🟢 Erreichbar / 🔴 Nicht erreichbar next to the label; "Tailscale aktiv?" hint shown below input when unreachable. **Password visibility toggle**: 👁️/🙈 button inside the password field toggles `type="password"` ↔ `type="text"` (`tabIndex={-1}`, does not steal form focus). **Error detail panel**: on login failure, error box shows HTTP status code in message + collapsible "Details ▼" button that reveals the raw API response body (JSON pretty-printed if parseable, otherwise plain text).
@@ -107,7 +113,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form. Includes **"Anhänge"** section (always visible in detail view): single click on filename opens `AttachmentViewer` side panel (click again to close); active row highlighted blue; download button (↓) per row; admins can upload multiple files and delete attachments. Upload uses raw `fetch` with `FormData` (not `apiFetch`). Download fetches as Blob + object URL (auth header can't be sent via `<a href>`).
 
 **Shared components (`src/components/`):**
-- `AttachmentViewer` — generic side-panel file viewer (fixed right-edge panel, 600px wide, full viewport height). Props: `filename`, `url` (blob URL), `mimeType`, `onDownload`, `onClose`. Renders PDF via iframe, images via img, fallback with download button for other types. Used by both `TransactionDetail` and `MemberDetail`.
+- `AttachmentViewer` — generic side-panel file viewer (fixed right-edge panel, 600px wide, full viewport height). Props: `filename`, `url` (blob URL), `mimeType`, `onDownload`, `onClose`. Renders PDF via iframe, images via img, fallback with download button for other types. Used by `TransactionDetail`, `MemberDetail`, and `VeranstaltungDetail`.
 
 **Members sub-screens (`src/screens/members/`):**
 - `MemberExportModal` — overlay modal for exporting the member list. Fields are selectable in three groups (Stammdaten, Mitgliedschaft, Beitragsinfos) with group-level checkboxes and Alle/Keine shortcuts. Beitragskategorie is a computed field ("Reduziert (35 €)" if u18 || bereitsMitglied || schuelerStudentAzubi, else "Voll (100 €)"). Status filter: Alle/Aktiv/Inaktiv with live member count. Format: CSV (semicolon-delimited, UTF-8 BOM) or PDF (portrait/landscape depending on column count, via jsPDF + AutoTable). Libraries loaded via dynamic import. Accessible to all logged-in users.
@@ -131,6 +137,22 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 **Mitgliederbeitraege screen (`src/screens/Mitgliederbeitraege.tsx`):** Prop `isMobile?: boolean`.
 - Uses `height: "var(--content-h)"`. **Mobile**: table shows 3 columns (Mitglied, Offen, Status) — no horizontal scroll; desktop shows all 7 (Mitglied, Beitrag JL, Beitrag KG, Bezahlt JL, Bezahlt KG, Offen, Status). Summary cards: mobile shows only Ausstehend + Gesamt offen; desktop shows all 4.
+
+**Veranstaltungen screen (`src/screens/Veranstaltungen.tsx`):** Prop `isMobile?: boolean`. Tab label: "Events" (calendar icon).
+- Split-pane: event list (left, 320px) + right panel. Mobile: stack navigation.
+- Left list: events sorted by date desc; search on name + description; count badges (Buchungen / Anhänge). Toolbar: "Vorlage" button (admin, opens `FormTemplateManager`), "+ Neu" button (admin, opens `VeranstaltungCreate`).
+- Right panel switches between: `VeranstaltungCreate`, `FormTemplateManager`, `VeranstaltungDetail`, or placeholder text.
+- Detail data fetched via `useQuery(['veranstaltungen', id])` → `fetchVeranstaltung(id)` (includes transactions, attachments, form).
+
+**Veranstaltungen sub-screens (`src/screens/veranstaltungen/`):**
+- `VeranstaltungCreate` — form with name, date (defaults today), description. Creates via `POST /veranstaltungen`; invalidates `['veranstaltungen']`; calls `onCreated` with new event.
+- `VeranstaltungDetail` — detail/edit view. Sections:
+  - **Metadata** (name, date, description): inline edit toggle (admin); "Bearbeiten" / "Speichern" / "Abbrechen" buttons. Delete button with confirmation (admin).
+  - **Finanzen**: 3 stat cards (Einnahmen, Ausgaben, Saldo) fetched via `useQuery(['veranstaltung-financials', id])`.
+  - **Buchungen**: read-only table of linked transactions (date, description, category, amount) from the event detail response.
+  - **Formular**: table rendered from the event's `form.columns` snapshot. Admin can edit cells inline (input type matches `column.type`: text/number/date/checkbox), save per-row via PATCH, add rows, delete rows. Non-admin sees read-only values.
+  - **Anhänge**: list with filename, size, download (↓), delete (×, admin). Clicking row opens `AttachmentViewer` side panel (click again to close); blob URL lifecycle managed with `useRef` + cancellation token. Admin upload: multi-file label input.
+- `FormTemplateManager` — admin template column editor. Fetches singleton via `useQuery(['veranstaltung-form-template'])`. Displays editable table of columns (label, type); add column form at bottom; save via `PATCH /veranstaltung-form-template`. Note: changes only affect new Veranstaltungen.
 
 
 ## Backend reference
@@ -156,6 +178,8 @@ Default: `http://DEPLOY_SERVER_IP:3000`. Configurable at runtime via the Login s
 | Member Attachments | `/members/:id/attachments` |
 | Member Avatars | `POST/GET/DELETE /members/:id/avatar` |
 | Files | `/files` |
+| Veranstaltungen | `/veranstaltungen` |
+| Veranstaltung Form Template | `/veranstaltung-form-template` |
 
 ### Key constraints Claude Code must respect
 - Access level `0` = any authenticated user (GET routes)
@@ -171,10 +195,11 @@ Default: `http://DEPLOY_SERVER_IP:3000`. Configurable at runtime via the Login s
 - `src/types/member.ts` → `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`
 - `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`, `TransactionAttachment`, `Mitgliedsbeitrag`
 - `src/types/files.ts` → `AppFile`
+- `src/types/veranstaltungen.ts` → `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `AllAttachments`
 
 ### API client pattern
 All requests go through `src/api/client.ts → apiFetch()`.
-New endpoints → add a function to the appropriate API module (`members.ts`, `finance.ts`, `files.ts`).
+New endpoints → add a function to the appropriate API module (`members.ts`, `finance.ts`, `files.ts`, `veranstaltungen.ts`).
 Never call `fetch()` directly from components.
 **Exception:** file upload (`multipart/form-data`) and binary download (Blob/ArrayBuffer/DataURL) bypass `apiFetch` because it hardcodes `Content-Type: application/json` and calls `res.json()`. These use raw `fetch` with the token attached manually — see in `src/api/finance.ts`:
 - `uploadAttachment` — multipart upload
@@ -191,6 +216,18 @@ And in `src/api/members.ts`:
 - `downloadMemberAttachment` — Blob → object URL → browser download
 - `deleteMemberAttachment` — `DELETE /members/:id/attachments/:aid` via `apiFetch`
 - `fetchMemberAttachmentBlob` — returns `{ url: string; mimeType: string }` blob URL (used by `MemberDetail` for `AttachmentViewer` preview)
+
+And in `src/api/veranstaltungen.ts`:
+- `fetchVeranstaltungen` / `fetchVeranstaltung(id)` — list + single event (with transactions, attachments, form)
+- `createVeranstaltung` / `updateVeranstaltung` / `deleteVeranstaltung` — CRUD via `apiFetch`
+- `fetchVeranstaltungFinancials(id)` — `{ einnahmen, ausgaben, saldo }` via `apiFetch`
+- `uploadVeranstaltungAttachment` — multipart upload to `POST /veranstaltungen/:id/attachments`
+- `downloadVeranstaltungAttachment` — Blob → object URL → browser download
+- `fetchVeranstaltungAttachmentBlob` — returns `{ url: string; mimeType: string }` blob URL (used by `VeranstaltungDetail` for `AttachmentViewer` preview)
+- `deleteVeranstaltungAttachment` — `DELETE` via `apiFetch`
+- `fetchVeranstaltungForm(id)` — form columns snapshot + rows
+- `addFormRow` / `updateFormRow` / `deleteFormRow` — form row CRUD via `apiFetch`
+- `fetchFormTemplate` / `updateFormTemplate` — singleton template GET/PATCH via `apiFetch`
 
 And in `src/api/files.ts` (all raw fetch — no `apiFetch`):
 - `uploadFile` — multipart upload to `POST /files/upload`; body fields `path?`, `description?`; returns `AppFile`
