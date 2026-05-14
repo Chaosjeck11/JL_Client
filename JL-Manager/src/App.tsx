@@ -5,6 +5,8 @@ import Members from "./screens/Members";
 import Finance from "./screens/Finance";
 import Mitgliederbeitraege from "./screens/Mitgliederbeitraege";
 import Files from "./screens/Files";
+import Veranstaltungen from "./screens/Veranstaltungen";
+import Kalender from "./screens/Kalender";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
@@ -12,7 +14,7 @@ import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
 
-type Tab = "members" | "finance" | "beitraege" | "files";
+type Tab = "members" | "finance" | "beitraege" | "files" | "veranstaltungen" | "kalender";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -60,12 +62,53 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: "veranstaltungen",
+    label: "Events",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    ),
+  },
+  {
+    id: "kalender",
+    label: "Kalender",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="3" y1="16" x2="21" y2="16"/>
+        <line x1="9" y1="10" x2="9" y2="22"/>
+        <line x1="15" y1="10" x2="15" y2="22"/>
+      </svg>
+    ),
+  },
 ];
+
+const GearIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
 
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(!!getToken());
   const [activeTab, setActiveTab] = useState<Tab>("members");
   const [showProfile, setShowProfile] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [pendingEventId, setPendingEventId] = useState<number | null>(null);
+  const [darkMode, setDarkMode] = useState(() => {
+    const d = localStorage.getItem("dark_mode") === "true";
+    document.documentElement.setAttribute("data-theme", d ? "dark" : "light");
+    return d;
+  });
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -81,6 +124,15 @@ export default function App() {
     queryClient.clear();
     setLoggedIn(false);
     setActiveTab("members");
+  }
+
+  function toggleDarkMode() {
+    setDarkMode(d => {
+      const next = !d;
+      document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+      localStorage.setItem("dark_mode", String(next));
+      return next;
+    });
   }
 
   if (!loggedIn) {
@@ -108,14 +160,89 @@ export default function App() {
     </button>
   );
 
+  const settingsMenu = showSettings && (
+    <>
+      <div onClick={() => setShowSettings(false)} style={{ position: "fixed", inset: 0, zIndex: 199 }} />
+      <div style={{
+        position: "absolute",
+        top: "calc(100% + 6px)",
+        right: 0,
+        background: "var(--c-bg)",
+        border: "1px solid var(--c-border)",
+        borderRadius: 10,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+        padding: "12px 14px",
+        minWidth: 176,
+        zIndex: 200,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--c-text-2)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          Darstellung
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={() => { if (darkMode) toggleDarkMode(); }}
+            style={{
+              flex: 1, padding: "10px 4px", borderRadius: 8,
+              border: "1px solid var(--c-border)",
+              background: !darkMode ? "#1e293b" : "var(--c-bg-2)",
+              color: !darkMode ? "#ffffff" : "var(--c-text-2)",
+              fontSize: 12, cursor: !darkMode ? "default" : "pointer",
+              fontWeight: 600,
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 20 }}>☀️</span>
+            <span>Hell</span>
+          </button>
+          <button
+            onClick={() => { if (!darkMode) toggleDarkMode(); }}
+            style={{
+              flex: 1, padding: "10px 4px", borderRadius: 8,
+              border: "1px solid var(--c-border)",
+              background: darkMode ? "#3b82f6" : "var(--c-bg-2)",
+              color: darkMode ? "#ffffff" : "var(--c-text-2)",
+              fontSize: 12, cursor: darkMode ? "default" : "pointer",
+              fontWeight: 600,
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            }}
+          >
+            <span style={{ fontSize: 20 }}>🌙</span>
+            <span>Dunkel</span>
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  const gearButton = (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setShowSettings(s => !s)}
+        title="Einstellungen"
+        style={{
+          width: 32, height: 32, borderRadius: 6,
+          background: showSettings ? "var(--c-bg-3)" : "var(--c-bg-2)",
+          color: "var(--c-text-2)",
+          border: "1px solid var(--c-border)",
+          cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <GearIcon />
+      </button>
+      {settingsMenu}
+    </div>
+  );
+
   return (
     <div>
       {/* ── Desktop nav (top tabs) ── */}
       {!isMobile && (
         <nav style={{
           display: "flex", alignItems: "center", gap: 4,
-          padding: "0 12px", borderBottom: "1px solid #e2e8f0",
-          height: 44, boxSizing: "border-box", background: "#fff",
+          padding: "0 12px", borderBottom: "1px solid var(--c-border)",
+          height: 44, boxSizing: "border-box", background: "var(--c-nav)",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
         }}>
           {TABS.map(tab => (
@@ -126,8 +253,8 @@ export default function App() {
                 padding: "0 16px", height: "100%", border: "none", background: "transparent",
                 fontSize: 14, cursor: "pointer",
                 fontWeight: activeTab === tab.id ? 700 : 400,
-                color: activeTab === tab.id ? "#1e293b" : "#64748b",
-                borderBottom: activeTab === tab.id ? "2px solid #1e293b" : "2px solid transparent",
+                color: activeTab === tab.id ? "var(--c-text)" : "var(--c-text-2)",
+                borderBottom: activeTab === tab.id ? "2px solid var(--c-text)" : "2px solid transparent",
                 borderTop: "2px solid transparent",
               }}
             >
@@ -135,13 +262,14 @@ export default function App() {
             </button>
           ))}
 
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+            {gearButton}
             {avatarButton}
             <button
               onClick={handleLogout}
               style={{
-                padding: "5px 14px", borderRadius: 6, border: "1px solid #d1d5db",
-                background: "#fff", fontSize: 13, cursor: "pointer", color: "#374151",
+                padding: "5px 14px", borderRadius: 6, border: "1px solid var(--c-border)",
+                background: "var(--c-bg)", fontSize: 13, cursor: "pointer", color: "var(--c-text-2)",
               }}
             >
               Logout
@@ -154,21 +282,22 @@ export default function App() {
       {isMobile && (
         <nav style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "0 16px", borderBottom: "1px solid #e2e8f0",
-          height: 44, boxSizing: "border-box", background: "#fff",
+          padding: "0 16px", borderBottom: "1px solid var(--c-border)",
+          height: 44, boxSizing: "border-box", background: "var(--c-nav)",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
           position: "sticky", top: 0, zIndex: 50,
         }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: "#1e293b", letterSpacing: -0.5 }}>
+          <span style={{ fontSize: 16, fontWeight: 800, color: "var(--c-text)", letterSpacing: -0.5 }}>
             {TABS.find(t => t.id === activeTab)?.label ?? "JL"}
           </span>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {gearButton}
             {avatarButton}
             <button
               onClick={handleLogout}
               style={{
-                padding: "5px 12px", borderRadius: 6, border: "1px solid #d1d5db",
-                background: "#fff", fontSize: 13, cursor: "pointer", color: "#374151",
+                padding: "5px 12px", borderRadius: 6, border: "1px solid var(--c-border)",
+                background: "var(--c-bg)", fontSize: 13, cursor: "pointer", color: "var(--c-text-2)",
               }}
             >
               Logout
@@ -181,7 +310,14 @@ export default function App() {
       {activeTab === "members"   && <Members onLogout={handleLogout} isMobile={isMobile} />}
       {activeTab === "finance"   && <Finance isMobile={isMobile} />}
       {activeTab === "beitraege" && <Mitgliederbeitraege isMobile={isMobile} />}
-      {activeTab === "files"     && <Files isMobile={isMobile} />}
+      {activeTab === "files"          && <Files isMobile={isMobile} />}
+      {activeTab === "veranstaltungen" && <Veranstaltungen isMobile={isMobile} initialSelectedId={pendingEventId} />}
+      {activeTab === "kalender" && (
+        <Kalender
+          isMobile={isMobile}
+          onGoToEvent={(id) => { setPendingEventId(id); setActiveTab("veranstaltungen"); }}
+        />
+      )}
 
       {showProfile && currentMember && (
         <ProfileModal
@@ -203,7 +339,7 @@ export default function App() {
           className="mobile-bottom-nav"
           style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
-            height: 56, background: "#fff", borderTop: "1px solid #e2e8f0",
+            height: 56, background: "var(--c-nav)", borderTop: "1px solid var(--c-border)",
             display: "flex", alignItems: "stretch",
             zIndex: 100, boxShadow: "0 -1px 3px rgba(0,0,0,0.06)",
           }}
@@ -216,8 +352,8 @@ export default function App() {
                 flex: 1, border: "none", background: "transparent",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 gap: 3, cursor: "pointer",
-                color: activeTab === tab.id ? "#1e293b" : "#94a3b8",
-                borderTop: `2px solid ${activeTab === tab.id ? "#1e293b" : "transparent"}`,
+                color: activeTab === tab.id ? "var(--c-text)" : "var(--c-text-3)",
+                borderTop: `2px solid ${activeTab === tab.id ? "var(--c-text)" : "transparent"}`,
                 fontSize: 10, fontWeight: activeTab === tab.id ? 700 : 400,
                 padding: "4px 0",
               }}

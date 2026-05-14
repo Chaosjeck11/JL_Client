@@ -8,6 +8,7 @@ import AttachmentViewer from "../components/AttachmentViewer";
 type Props = {
   transaction: Transaction;
   categories: Category[];
+  veranstaltungen: { id: number; name: string; date: string }[];
   onUpdated: (t: Transaction) => void;
   onDeleted: () => void;
 };
@@ -82,6 +83,7 @@ function TagPill({ tag }: { tag: PaymentTag | null | undefined }) {
 export default function TransactionDetail({
   transaction,
   categories,
+  veranstaltungen,
   onUpdated,
   onDeleted,
 }: Props) {
@@ -91,7 +93,18 @@ export default function TransactionDetail({
   const [description, setDescription] = useState(transaction.description);
   const [categoryId, setCategoryId] = useState(transaction.categoryId);
   const [tag, setTag] = useState<PaymentTag>(transaction.tag ?? "ONLINE");
+  const [veranstaltungId, setVeranstaltungId] = useState<number | null>(transaction.veranstaltung?.id ?? null);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setEdit(false);
+    setDate(transaction.date.substring(0, 10));
+    setDescription(transaction.description);
+    setCategoryId(transaction.categoryId);
+    setTag(transaction.tag ?? "ONLINE");
+    setVeranstaltungId(transaction.veranstaltung?.id ?? null);
+    setError("");
+  }, [transaction.id]);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [attachError, setAttachError] = useState("");
@@ -167,7 +180,7 @@ export default function TransactionDetail({
   async function save() {
     try {
       setSaving(true);
-      const updated = await updateTransaction(transaction.id, { date, description, categoryId, tag });
+      const updated = await updateTransaction(transaction.id, { date, description, categoryId, tag, veranstaltungId });
       onUpdated(updated);
       setEdit(false);
     } catch {
@@ -225,6 +238,9 @@ export default function TransactionDetail({
             </span>
           </InfoRow>
           <InfoRow label="Zahlungsart"><TagPill tag={transaction.tag} /></InfoRow>
+          {transaction.veranstaltung && (
+            <InfoRow label="Event">{transaction.veranstaltung.name}</InfoRow>
+          )}
           {transaction.relatedTransactionId && (
             <InfoRow label="Verknüpfte Buchung">#{transaction.relatedTransactionId}</InfoRow>
           )}
@@ -399,6 +415,24 @@ export default function TransactionDetail({
             ))}
           </div>
         </Field>
+
+        {veranstaltungen.length > 0 && (
+          <Field label="Event (optional)">
+            <select
+              value={veranstaltungId ?? ""}
+              onChange={e => setVeranstaltungId(e.target.value ? Number(e.target.value) : null)}
+              style={inputStyle}
+            >
+              <option value="">— kein Event zuordnen —</option>
+              {veranstaltungen
+                .slice()
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map(v => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+            </select>
+          </Field>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 20 }}>

@@ -382,12 +382,12 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
 
   const section: React.CSSProperties = { marginBottom: 20 };
   const sectionLabel: React.CSSProperties = {
-    fontSize: 12, fontWeight: 700, color: "#374151",
+    fontSize: 12, fontWeight: 700, color: "var(--c-text-2)",
     textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8,
   };
   const checkRow: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 8,
-    padding: "4px 0", cursor: "pointer", fontSize: 13, color: "#1e293b",
+    padding: "4px 0", cursor: "pointer", fontSize: 13, color: "var(--c-text)",
   };
 
   return (
@@ -395,10 +395,10 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: "#fff", borderRadius: 12, padding: 28, width: 520, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+      <div style={{ background: "var(--c-bg)", borderRadius: 12, padding: 28, width: 520, maxWidth: "90vw", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 18, color: "#1e293b" }}>Report erstellen</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>×</button>
+          <h2 style={{ margin: 0, fontSize: 18, color: "var(--c-text)" }}>Report erstellen</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--c-text-3)", lineHeight: 1 }}>×</button>
         </div>
 
         {/* Jahre */}
@@ -408,7 +408,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
             {businessYears.map((y) => (
               <label
                 key={y.id}
-                style={{ ...checkRow, padding: "5px 12px", border: `1px solid ${selectedYearIds.includes(y.id) ? "#3b82f6" : "#d1d5db"}`, borderRadius: 6, background: selectedYearIds.includes(y.id) ? "#eff6ff" : "#fff", color: selectedYearIds.includes(y.id) ? "#1d4ed8" : "#1e293b", fontWeight: selectedYearIds.includes(y.id) ? 600 : 400 }}
+                style={{ ...checkRow, padding: "5px 12px", border: `1px solid ${selectedYearIds.includes(y.id) ? "#3b82f6" : "var(--c-border)"}`, borderRadius: 6, background: selectedYearIds.includes(y.id) ? "#eff6ff" : "var(--c-bg)", color: selectedYearIds.includes(y.id) ? "#1d4ed8" : "var(--c-text)", fontWeight: selectedYearIds.includes(y.id) ? 600 : 400 }}
               >
                 <input type="checkbox" checked={selectedYearIds.includes(y.id)} onChange={() => toggleYear(y.id)} style={{ accentColor: "#3b82f6" }} />
                 {y.year}
@@ -421,7 +421,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
         <div style={section}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <div style={sectionLabel}>Kategorien</div>
-            <span style={{ fontSize: 11, color: "#94a3b8" }}>Nichts ausgewählt = alle</span>
+            <span style={{ fontSize: 11, color: "var(--c-text-3)" }}>Nichts ausgewählt = alle</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 12px" }}>
             {categories.map((c) => (
@@ -444,7 +444,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
             <input type="checkbox" checked={includeAttachments} onChange={(e) => setIncludeAttachments(e.target.checked)} style={{ accentColor: "#3b82f6" }} />
             <span>
               Anhänge einschließen
-              <span style={{ fontSize: 11, color: "#94a3b8", marginLeft: 6 }}>
+              <span style={{ fontSize: 11, color: "var(--c-text-3)", marginLeft: 6 }}>
                 {format === "pdf"
                   ? "(PDF-Seiten + Bilder vollständig eingebettet)"
                   : "(Dateinamen als zusätzliche Spalte)"}
@@ -457,7 +457,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
         <div style={section}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
             <div style={sectionLabel}>Zahlung (Tag)</div>
-            <span style={{ fontSize: 11, color: "#94a3b8" }}>Nichts ausgewählt = alle</span>
+            <span style={{ fontSize: 11, color: "var(--c-text-3)" }}>Nichts ausgewählt = alle</span>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
             {TAG_OPTIONS.map(({ val, label }) => (
@@ -476,7 +476,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
             {(["csv", "pdf"] as ReportFormat[]).map((f) => (
               <label
                 key={f}
-                style={{ ...checkRow, padding: "6px 16px", border: `1px solid ${format === f ? "#3b82f6" : "#d1d5db"}`, borderRadius: 6, background: format === f ? "#eff6ff" : "#fff", color: format === f ? "#1d4ed8" : "#1e293b", fontWeight: format === f ? 600 : 400 }}
+                style={{ ...checkRow, padding: "6px 16px", border: `1px solid ${format === f ? "#3b82f6" : "var(--c-border)"}`, borderRadius: 6, background: format === f ? "#eff6ff" : "var(--c-bg)", color: format === f ? "#1d4ed8" : "var(--c-text)", fontWeight: format === f ? 600 : 400 }}
               >
                 <input type="radio" name="format" value={f} checked={format === f} onChange={() => setFormat(f)} style={{ accentColor: "#3b82f6" }} />
                 {f.toUpperCase()}
@@ -492,7 +492,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
         )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer" }}>
+          <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>
             Abbrechen
           </button>
           <button

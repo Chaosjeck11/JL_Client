@@ -21,7 +21,7 @@ const thStyle: React.CSSProperties = {
   padding: "9px 12px",
   fontSize: 11,
   fontWeight: 700,
-  color: "#94a3b8",
+  color: "var(--c-text-3)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
 };
@@ -89,14 +89,14 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
       }}>
         <header style={{
           display: "flex", flexDirection: "column", gap: 10,
-          padding: "14px 20px", borderBottom: "1px solid #e2e8f0",
-          position: "sticky", top: 0, background: "#fff", zIndex: 1,
+          padding: "14px 20px", borderBottom: "1px solid var(--c-border)",
+          position: "sticky", top: 0, background: "var(--c-bg)", zIndex: 1,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>Mitglieder</h2>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--c-text)" }}>Mitglieder</h2>
               <span style={{
-                background: "#f1f5f9", color: "#64748b",
+                background: "var(--c-bg-3)", color: "var(--c-text-2)",
                 borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600,
               }}>{displayedMembers.length}</span>
             </div>

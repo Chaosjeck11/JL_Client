@@ -62,7 +62,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Exceptions (still use `useEffect`): blob URL lifecycle with cancellation tokens, event listeners, UI-state reactions (not data fetching).
 
 **Auth flow:**
-- `App.tsx` holds `loggedIn` (boolean) and `activeTab` ("members" | "finance" | "beitraege" | "files" | "veranstaltungen") as the only global state. On logout, `queryClient.clear()` wipes the cache.
+- `App.tsx` holds `loggedIn` (boolean), `activeTab` ("members" | "finance" | "beitraege" | "files" | "veranstaltungen" | "kalender"), and `pendingEventId` (number | null) as global state. On logout, `queryClient.clear()` wipes the cache. `pendingEventId` is set when the user clicks an event in the Kalender tab; it is passed as `initialSelectedId` to `Veranstaltungen` so the detail panel opens automatically.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
 - Permission checks in `src/auth/permissions.ts` gate UI elements based on `accessLevel >= 5`:
   - `canEditMembers()`, `canCreateMembers()` — member management
@@ -95,7 +95,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Navigation (App.tsx):**
 - Desktop: sticky top bar with tab buttons + avatar/logout (right).
 - Mobile: slim top bar (active tab name + avatar + logout) + fixed 56px **bottom tab bar** with SVG icons + labels. Bottom nav uses CSS class `mobile-bottom-nav` for safe-area-inset support on notched devices.
-- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`, `Veranstaltungen`.
+- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`, `Veranstaltungen`, `Kalender`.
 
 **Screens (`src/screens/`):**
 - `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `http://DEPLOY_SERVER_IP:3000`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`. **Connectivity indicator**: on mount and 800ms after URL changes, a `fetch` with `mode: "no-cors"` + 3s `AbortController` timeout probes the server; badge shows 🟡 Prüfe… / 🟢 Erreichbar / 🔴 Nicht erreichbar next to the label; "Tailscale aktiv?" hint shown below input when unreachable. **Password visibility toggle**: 👁️/🙈 button inside the password field toggles `type="password"` ↔ `type="text"` (`tabIndex={-1}`, does not steal form focus). **Error detail panel**: on login failure, error box shows HTTP status code in message + collapsible "Details ▼" button that reveals the raw API response body (JSON pretty-printed if parseable, otherwise plain text).
@@ -138,11 +138,23 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Mitgliederbeitraege screen (`src/screens/Mitgliederbeitraege.tsx`):** Prop `isMobile?: boolean`.
 - Uses `height: "var(--content-h)"`. **Mobile**: table shows 3 columns (Mitglied, Offen, Status) — no horizontal scroll; desktop shows all 7 (Mitglied, Beitrag JL, Beitrag KG, Bezahlt JL, Bezahlt KG, Offen, Status). Summary cards: mobile shows only Ausstehend + Gesamt offen; desktop shows all 4.
 
-**Veranstaltungen screen (`src/screens/Veranstaltungen.tsx`):** Prop `isMobile?: boolean`. Tab label: "Events" (calendar icon).
+**Veranstaltungen screen (`src/screens/Veranstaltungen.tsx`):** Props `isMobile?: boolean`, `initialSelectedId?: number | null`. Tab label: "Events" (calendar icon).
 - Split-pane: event list (left, 320px) + right panel. Mobile: stack navigation.
 - Left list: events sorted by date desc; search on name + description; count badges (Buchungen / Anhänge). Toolbar: "Vorlage" button (admin, opens `FormTemplateManager`), "+ Neu" button (admin, opens `VeranstaltungCreate`).
 - Right panel switches between: `VeranstaltungCreate`, `FormTemplateManager`, `VeranstaltungDetail`, or placeholder text.
 - Detail data fetched via `useQuery(['veranstaltungen', id])` → `fetchVeranstaltung(id)` (includes transactions, attachments, form).
+- `initialSelectedId`: when provided (from Kalender tab navigation), sets initial `selectedId` and `rightPanel = "detail"` on mount so the event detail opens immediately.
+
+**Kalender screen (`src/screens/Kalender.tsx`):** Props `isMobile?: boolean`, `onGoToEvent?: (id: number) => void`. Tab label: "Kalender" (calendar grid icon).
+- Monthly calendar grid (Mo–So columns, German locale). Month navigation: ‹ › arrows + "Heute" button.
+- Events fetched via `useQuery(['veranstaltungen'])` — shares cache with Veranstaltungen tab.
+- Desktop: event chips (blue, up to 2 per day, "+N weitere" on overflow). Clicking chip calls `onGoToEvent(id)` → App.tsx sets `pendingEventId` + switches to "veranstaltungen" tab.
+- Mobile: dot indicators on days with events (up to 3 blue dots + grey overflow dot). Event list for current month shown below the grid; tapping calls `onGoToEvent`.
+- **Abonnieren button** (header): opens a dropdown panel with:
+  - The raw iCal URL (`${getApiUrl()}/veranstaltungen/ical`) — monospace display + "Kopieren" button (clipboard, shows "Kopiert!" confirmation for 2 s).
+  - "In Kalender-App öffnen" button — `<a href={webcalUrl}>` where `webcalUrl` replaces `http(s)://` with `webcal://`. Opens the system calendar app for direct subscription.
+  - Backdrop div closes the panel on outside click.
+- iCal feed at `GET /veranstaltungen/ical` is public (no JWT). URL derived from `getApiUrl()` — never hardcoded.
 
 **Veranstaltungen sub-screens (`src/screens/veranstaltungen/`):**
 - `VeranstaltungCreate` — form with name, date (defaults today), description. Creates via `POST /veranstaltungen`; invalidates `['veranstaltungen']`; calls `onCreated` with new event.

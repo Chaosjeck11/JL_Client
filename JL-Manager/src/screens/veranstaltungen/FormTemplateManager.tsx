@@ -4,8 +4,8 @@ import { fetchFormTemplate, updateFormTemplate } from "../../api/veranstaltungen
 import type { FormColumn } from "../../types/veranstaltungen";
 
 const inputStyle: React.CSSProperties = {
-  padding: "6px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
-  fontSize: 13, background: "var(--c-bg)", color: "var(--c-text)", boxSizing: "border-box",
+  padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db",
+  fontSize: 13, background: "#fff", boxSizing: "border-box",
 };
 
 const COLUMN_TYPES = [
@@ -68,34 +68,34 @@ export default function FormTemplateManager() {
   }
 
   if (isLoading) {
-    return <div style={{ padding: 24, color: "var(--c-text-2)" }}>Lädt…</div>;
+    return <div style={{ padding: 24, color: "#64748b" }}>Lädt…</div>;
   }
 
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--c-text)" }}>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
           Formular-Vorlage
         </h2>
-        <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--c-text-2)" }}>
+        <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>
           Spalten gelten nur für neue Veranstaltungen — bestehende Formulare bleiben unverändert.
         </p>
       </div>
 
       {workingCols.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--c-text-3)", marginBottom: 16 }}>Keine Spalten definiert.</p>
+        <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 16 }}>Keine Spalten definiert.</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16, fontSize: 13 }}>
           <thead>
-            <tr style={{ background: "var(--c-bg-2)" }}>
-              <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Bezeichnung</th>
-              <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Typ</th>
-              <th style={{ padding: "8px 6px", borderBottom: "1px solid var(--c-border)", width: 40 }} />
+            <tr style={{ background: "#f8fafc" }}>
+              <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Bezeichnung</th>
+              <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Typ</th>
+              <th style={{ padding: "8px 6px", borderBottom: "1px solid #e2e8f0", width: 40 }} />
             </tr>
           </thead>
           <tbody>
             {workingCols.map(col => (
-              <tr key={col.id} style={{ borderBottom: "1px solid var(--c-border)" }}>
+              <tr key={col.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                 <td style={{ padding: "6px 12px" }}>
                   <input
                     style={{ ...inputStyle, width: "100%" }}

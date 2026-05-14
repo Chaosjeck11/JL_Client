@@ -25,6 +25,14 @@ check() {
   fi
 }
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo "==> Sync src..."
+cp -r src/* JL-Manager/src/
+cp index.html JL-Manager/index.html
+cp -r public/* JL-Manager/public/ 2>/dev/null || true
+
 check pnpm
 check cargo
 check rustup
@@ -114,10 +122,18 @@ fi
 
 echo "=== JL-Manager Installation ==="
 
-# AppImage kopieren
-sudo cp "\$APPIMAGE" /usr/local/bin/jl-manager
+# AppImage nach /usr/local/bin mit versioniertem Namen kopieren
+sudo cp "\$APPIMAGE" /usr/local/bin/$APPIMAGE_NAME
+sudo chmod +x /usr/local/bin/$APPIMAGE_NAME
+echo "  OK: AppImage nach /usr/local/bin/$APPIMAGE_NAME kopiert"
+
+# Wrapper-Script erstellen (löst WebKit GPU-Compositing-Bugs auf allen Maschinen)
+sudo tee /usr/local/bin/jl-manager > /dev/null << 'WRAPPER'
+#!/bin/bash
+WEBKIT_DISABLE_COMPOSITING_MODE=1 exec /usr/local/bin/$APPIMAGE_NAME "\$@"
+WRAPPER
 sudo chmod +x /usr/local/bin/jl-manager
-echo "  OK: AppImage nach /usr/local/bin/jl-manager kopiert"
+echo "  OK: Wrapper /usr/local/bin/jl-manager erstellt"
 
 # Icon kopieren
 if [ -f "\$SCRIPT_DIR/jl-manager.png" ]; then

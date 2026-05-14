@@ -91,7 +91,7 @@ export default function TransactionForm({
         <div
           style={{
             display: "inline-flex",
-            border: "1px solid #ccc",
+            border: "1px solid var(--c-border)",
             borderRadius: 6,
             overflow: "hidden",
           }}
@@ -222,7 +222,7 @@ export default function TransactionForm({
               }}
             />
           </label>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "#666" }}>
+          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--c-text-2)" }}>
             Bitte die ID der zu stornierenden Buchung eingeben
           </p>
           {errors.relatedTransactionId && (

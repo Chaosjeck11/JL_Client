@@ -8,6 +8,7 @@ type Props = {
   defaultBusinessYearId: number | null;
   categories: Category[];
   members: Member[];
+  veranstaltungen: { id: number; name: string; date: string }[];
   onCreated: (transaction: Transaction) => void;
   onCancel: () => void;
 };
@@ -43,6 +44,7 @@ export default function TransactionCreate({
   defaultBusinessYearId,
   categories,
   members,
+  veranstaltungen,
   onCreated,
   onCancel,
 }: Props) {
@@ -64,6 +66,7 @@ export default function TransactionCreate({
     }
   }
   const [memberId, setMemberId] = useState<number | null>(null);
+  const [veranstaltungId, setVeranstaltungId] = useState<number | null>(null);
   const [tag, setTag] = useState<"ONLINE" | "BAR">("ONLINE");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -89,6 +92,7 @@ export default function TransactionCreate({
         businessYearId,
         memberId: showMemberSelector ? memberId : null,
         tag,
+        veranstaltungId,
       });
       onCreated(t);
     } catch {
@@ -222,6 +226,24 @@ export default function TransactionCreate({
             ))}
           </div>
         </Field>
+
+        {veranstaltungen.length > 0 && (
+          <Field label="Event (optional)">
+            <select
+              value={veranstaltungId ?? ""}
+              onChange={e => setVeranstaltungId(e.target.value ? Number(e.target.value) : null)}
+              style={inputStyle}
+            >
+              <option value="">— kein Event zuordnen —</option>
+              {veranstaltungen
+                .slice()
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map(v => (
+                  <option key={v.id} value={v.id}>{v.name}</option>
+                ))}
+            </select>
+          </Field>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 20 }}>

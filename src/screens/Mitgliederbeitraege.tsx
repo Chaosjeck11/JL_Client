@@ -10,7 +10,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 };
 
 function StatusPill({ status }: { status: string }) {
-  const s = STATUS_MAP[status] ?? { label: status, color: "#64748b", bg: "#f1f5f9" };
+  const s = STATUS_MAP[status] ?? { label: status, color: "var(--c-text-2)", bg: "var(--c-bg-3)" };
   return (
     <span style={{
       display: "inline-block", padding: "2px 10px", borderRadius: 12,
@@ -29,15 +29,15 @@ function SummaryCard({
 }) {
   return (
     <div style={{
-      padding: "12px 20px", borderRadius: 10, background: "#fff",
-      border: "1px solid #e2e8f0", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      padding: "12px 20px", borderRadius: 10, background: "var(--c-bg)",
+      border: "1px solid var(--c-border)", boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
       minWidth: 120,
     }}>
-      <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>
+      <div style={{ fontSize: 11, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4 }}>
         {label}
       </div>
       <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 12, color: "var(--c-text-3)", marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -82,13 +82,13 @@ export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: b
     <div style={{ padding: "16px 16px", overflowY: "auto", height: "var(--content-h)", boxSizing: "border-box" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 20, color: "#1e293b" }}>Mitgliederbeiträge</h2>
+        <h2 style={{ margin: 0, fontSize: 20, color: "var(--c-text)" }}>Mitgliederbeiträge</h2>
         <select
           value={effectiveYearId ?? ""}
           onChange={e => setSelectedYearId(Number(e.target.value))}
           style={{
             fontSize: 14, padding: "4px 8px", borderRadius: 6,
-            border: "1px solid #d1d5db", background: "#fff",
+            border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text)",
           }}
         >
           {businessYears.map(y => (
@@ -108,7 +108,7 @@ export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: b
         {!isMobile && <SummaryCard label="Bezahlt"    value={bezahlt}    color="#16a34a" />}
         {!isMobile && <SummaryCard label="Teilweise"  value={teilweise}  color="#d97706" />}
         <SummaryCard label="Ausstehend" value={ausstehend} color="#dc2626" />
-        <SummaryCard label="Gesamt offen" value={`${totalOffen.toFixed(2)} €`} color="#64748b" />
+        <SummaryCard label="Gesamt offen" value={`${totalOffen.toFixed(2)} €`} color="var(--c-text-2)" />
       </div>
 
       {/* Filter bar */}
@@ -118,10 +118,10 @@ export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: b
             key={s}
             onClick={() => setStatusFilter(s)}
             style={{
-              padding: "4px 14px", borderRadius: 20, border: "1px solid #d1d5db",
+              padding: "4px 14px", borderRadius: 20, border: "1px solid var(--c-border)",
               fontSize: 13, cursor: "pointer",
-              background: statusFilter === s ? "#1e293b" : "#fff",
-              color: statusFilter === s ? "#fff" : "#374151",
+              background: statusFilter === s ? "var(--c-text)" : "var(--c-bg)",
+              color: statusFilter === s ? "var(--c-bg)" : "var(--c-text-2)",
               fontWeight: statusFilter === s ? 600 : 400,
             }}
           >
@@ -131,26 +131,26 @@ export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: b
       </div>
 
       {isFetching && beitraege.length === 0 ? (
-        <p style={{ color: "#94a3b8" }}>Lade…</p>
+        <p style={{ color: "var(--c-text-3)" }}>Lade…</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
-        <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden", minWidth: isMobile ? undefined : 600 }}>
+        <div style={{ background: "var(--c-bg)", borderRadius: 10, border: "1px solid var(--c-border)", overflow: "hidden", minWidth: isMobile ? undefined : 600 }}>
           <table style={{ borderCollapse: "collapse", width: "100%" }}>
             <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Mitglied</th>
-                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Beitrag JL</th>}
-                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Beitrag KG</th>}
-                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Bezahlt JL</th>}
-                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Bezahlt KG</th>}
-                <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Offen</th>
-                <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Status</th>
+              <tr style={{ background: "var(--c-bg-2)", borderBottom: "1px solid var(--c-border)" }}>
+                <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Mitglied</th>
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Beitrag JL</th>}
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Beitrag KG</th>}
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Bezahlt JL</th>}
+                {!isMobile && <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Bezahlt KG</th>}
+                <th align="right" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Offen</th>
+                <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={isMobile ? 3 : 7} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                  <td colSpan={isMobile ? 3 : 7} style={{ padding: 24, textAlign: "center", color: "var(--c-text-3)", fontSize: 14 }}>
                     Keine Einträge
                   </td>
                 </tr>
@@ -160,17 +160,17 @@ export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: b
                 return (
                   <tr
                     key={b.id}
-                    style={{ background: idx % 2 === 0 ? "#fff" : "#f8fafc", borderBottom: "1px solid #f1f5f9" }}
+                    style={{ background: idx % 2 === 0 ? "var(--c-bg)" : "var(--c-bg-2)", borderBottom: "1px solid var(--c-border)" }}
                   >
-                    <td style={{ padding: "10px 14px", fontSize: 13, color: "#1e293b" }}>
+                    <td style={{ padding: "10px 14px", fontSize: 13, color: "var(--c-text)" }}>
                       {b.member
                         ? `${b.member.firstname} ${b.member.lastname}${!b.member.active ? " (inaktiv)" : ""}`
                         : `Mitglied #${b.memberId}`}
                     </td>
-                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.betragJL.toFixed(2)} €</td>}
-                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.betragKG.toFixed(2)} €</td>}
-                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.bezahltJL.toFixed(2)} €</td>}
-                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13 }}>{b.bezahltKG.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13, color: "var(--c-text)" }}>{b.betragJL.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13, color: "var(--c-text)" }}>{b.betragKG.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13, color: "var(--c-text)" }}>{b.bezahltJL.toFixed(2)} €</td>}
+                    {!isMobile && <td align="right" style={{ padding: "10px 14px", fontSize: 13, color: "var(--c-text)" }}>{b.bezahltKG.toFixed(2)} €</td>}
                     <td
                       align="right"
                       style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, color: offen > 0 ? "#dc2626" : "#16a34a" }}

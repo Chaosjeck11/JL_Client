@@ -21,7 +21,7 @@ const thStyle: React.CSSProperties = {
   padding: "9px 12px",
   fontSize: 11,
   fontWeight: 700,
-  color: "#94a3b8",
+  color: "var(--c-text-3)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
 };
@@ -89,14 +89,14 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
       }}>
         <header style={{
           display: "flex", flexDirection: "column", gap: 10,
-          padding: "14px 20px", borderBottom: "1px solid #e2e8f0",
-          position: "sticky", top: 0, background: "#fff", zIndex: 1,
+          padding: "14px 20px", borderBottom: "1px solid var(--c-border)",
+          position: "sticky", top: 0, background: "var(--c-bg)", zIndex: 1,
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>Mitglieder</h2>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--c-text)" }}>Mitglieder</h2>
               <span style={{
-                background: "#f1f5f9", color: "#64748b",
+                background: "var(--c-bg-3)", color: "var(--c-text-2)",
                 borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600,
               }}>{displayedMembers.length}</span>
             </div>
@@ -104,7 +104,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               <button
                 onClick={() => setShowExport(true)}
                 style={{
-                  background: "#fff", color: "#374151", border: "1px solid #d1d5db",
+                  background: "var(--c-bg)", color: "var(--c-text-2)", border: "1px solid var(--c-border)",
                   borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}
               >
@@ -133,8 +133,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               onChange={e => setSearch(e.target.value)}
               style={{
                 flex: 1, minWidth: 120, padding: "6px 10px", fontSize: 13,
-                border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
-                color: "#1e293b",
+                border: "1px solid var(--c-border)", borderRadius: 7, outline: "none",
+                color: "var(--c-text)", background: "var(--c-bg)",
               }}
             />
             <select
@@ -142,8 +142,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               onChange={e => setStatusFilter(e.target.value as StatusFilter)}
               style={{
                 padding: "6px 10px", fontSize: 13,
-                border: "1px solid #d1d5db", borderRadius: 7,
-                background: "#fff", color: "#374151", cursor: "pointer",
+                border: "1px solid var(--c-border)", borderRadius: 7,
+                background: "var(--c-bg)", color: "var(--c-text-2)", cursor: "pointer",
               }}
             >
               <option value="all">Alle</option>
@@ -155,8 +155,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               onChange={e => setSortField(e.target.value as SortField)}
               style={{
                 padding: "6px 10px", fontSize: 13,
-                border: "1px solid #d1d5db", borderRadius: 7,
-                background: "#fff", color: "#374151", cursor: "pointer",
+                border: "1px solid var(--c-border)", borderRadius: 7,
+                background: "var(--c-bg)", color: "var(--c-text-2)", cursor: "pointer",
               }}
             >
               <option value="lastname">Nachname</option>
@@ -168,8 +168,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               title={sortDir === "asc" ? "aufsteigend" : "absteigend"}
               style={{
                 padding: "6px 12px", fontSize: 13, fontWeight: 600,
-                border: "1px solid #d1d5db", borderRadius: 7,
-                background: "#fff", color: "#374151", cursor: "pointer",
+                border: "1px solid var(--c-border)", borderRadius: 7,
+                background: "var(--c-bg)", color: "var(--c-text-2)", cursor: "pointer",
                 whiteSpace: "nowrap",
               }}
             >
@@ -178,26 +178,26 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
           </div>
           {/* Beitrittsdatum filter row */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "#64748b", whiteSpace: "nowrap" }}>Beitritt:</span>
+            <span style={{ fontSize: 12, color: "var(--c-text-2)", whiteSpace: "nowrap" }}>Beitritt:</span>
             <input
               type="date"
               value={joinedFrom}
               onChange={e => setJoinedFrom(e.target.value)}
               style={{
                 padding: "5px 8px", fontSize: 13,
-                border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
-                color: "#1e293b", background: "#fff",
+                border: "1px solid var(--c-border)", borderRadius: 7, outline: "none",
+                color: "var(--c-text)", background: "var(--c-bg)",
               }}
             />
-            <span style={{ fontSize: 12, color: "#64748b" }}>–</span>
+            <span style={{ fontSize: 12, color: "var(--c-text-2)" }}>–</span>
             <input
               type="date"
               value={joinedTo}
               onChange={e => setJoinedTo(e.target.value)}
               style={{
                 padding: "5px 8px", fontSize: 13,
-                border: "1px solid #d1d5db", borderRadius: 7, outline: "none",
-                color: "#1e293b", background: "#fff",
+                border: "1px solid var(--c-border)", borderRadius: 7, outline: "none",
+                color: "var(--c-text)", background: "var(--c-bg)",
               }}
             />
             {(joinedFrom || joinedTo) && (
@@ -205,8 +205,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                 onClick={() => { setJoinedFrom(""); setJoinedTo(""); }}
                 style={{
                   padding: "5px 10px", fontSize: 12,
-                  border: "1px solid #d1d5db", borderRadius: 7,
-                  background: "#fff", color: "#6b7280", cursor: "pointer",
+                  border: "1px solid var(--c-border)", borderRadius: 7,
+                  background: "var(--c-bg)", color: "var(--c-text-2)", cursor: "pointer",
                 }}
               >
                 ✕
@@ -226,16 +226,16 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                 onClick={() => { setSelected(m); setCreating(false); }}
                 style={{
                   display: "flex", alignItems: "center", gap: 12,
-                  padding: "13px 16px", borderBottom: "1px solid #f1f5f9",
+                  padding: "13px 16px", borderBottom: "1px solid var(--c-border)",
                   cursor: "pointer",
                   borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
-                  background: selected?.id === m.id ? "#eff6ff" : "#fff",
+                  background: selected?.id === m.id ? "#eff6ff" : "var(--c-bg)",
                 }}
               >
                 <div style={{
                   width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                  background: m.active ? "#dbeafe" : "#f1f5f9",
-                  color: m.active ? "#1d4ed8" : "#94a3b8",
+                  background: m.active ? "#dbeafe" : "var(--c-bg-3)",
+                  color: m.active ? "#1d4ed8" : "var(--c-text-3)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 13, fontWeight: 700, overflow: "hidden",
                 }}>
@@ -244,18 +244,18 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                     : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 15, color: "#1e293b", marginBottom: 2 }}>
+                  <div style={{ fontWeight: 600, fontSize: 15, color: "var(--c-text)", marginBottom: 2 }}>
                     {m.firstname} {m.lastname}
                   </div>
-                  <div style={{ fontSize: 13, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 13, color: "var(--c-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {m.email}
                   </div>
                 </div>
                 <span style={{
                   flexShrink: 0, padding: "3px 10px", borderRadius: 20,
                   fontSize: 12, fontWeight: 600,
-                  background: m.active ? "#dcfce7" : "#f1f5f9",
-                  color: m.active ? "#166534" : "#64748b",
+                  background: m.active ? "#dcfce7" : "var(--c-bg-3)",
+                  color: m.active ? "#166534" : "var(--c-text-2)",
                 }}>
                   {m.active ? "Aktiv" : "Inaktiv"}
                 </span>
@@ -266,7 +266,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
           /* Desktop: table */
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+              <tr style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-bg-2)" }}>
                 <th align="left" style={{ ...thStyle, paddingLeft: 20 }}>Name</th>
                 <th align="left" style={thStyle}>E-Mail</th>
                 <th align="left" style={thStyle}>Adresse</th>
@@ -280,7 +280,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                   onClick={() => { setSelected(m); setCreating(false); }}
                   style={{
                     cursor: "pointer",
-                    borderBottom: "1px solid #f1f5f9",
+                    borderBottom: "1px solid var(--c-border)",
                     borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
                     background: selected?.id === m.id ? "#eff6ff" : "transparent",
                   }}
@@ -289,8 +289,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{
                         width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: m.active ? "#dbeafe" : "#f1f5f9",
-                        color: m.active ? "#1d4ed8" : "#94a3b8",
+                        background: m.active ? "#dbeafe" : "var(--c-bg-3)",
+                        color: m.active ? "#1d4ed8" : "var(--c-text-3)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 12, fontWeight: 700, overflow: "hidden",
                       }}>
@@ -298,19 +298,19 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                           ? <img src={`${getApiUrl()}/${m.avatarPath}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           : `${m.firstname.charAt(0).toUpperCase()}${m.lastname.charAt(0).toUpperCase()}`}
                       </div>
-                      <span style={{ fontWeight: 500, fontSize: 14, color: "#1e293b" }}>
+                      <span style={{ fontWeight: 500, fontSize: 14, color: "var(--c-text)" }}>
                         {m.firstname} {m.lastname}
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: "10px 12px", fontSize: 13, color: "#475569" }}>{m.email}</td>
-                  <td style={{ padding: "10px 12px", fontSize: 13, color: "#64748b" }}>{m.address ?? "–"}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.email}</td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.address ?? "–"}</td>
                   <td style={{ padding: "10px 20px 10px 12px" }}>
                     <span style={{
                       display: "inline-block", padding: "3px 10px", borderRadius: 20,
                       fontSize: 12, fontWeight: 600,
-                      background: m.active ? "#dcfce7" : "#f1f5f9",
-                      color: m.active ? "#166534" : "#64748b",
+                      background: m.active ? "#dcfce7" : "var(--c-bg-3)",
+                      color: m.active ? "#166534" : "var(--c-text-2)",
                     }}>
                       {m.active ? "Aktiv" : "Inaktiv"}
                     </span>
@@ -325,8 +325,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
       {/* RIGHT: DETAIL */}
       <div style={{
         flex: 1, overflowY: "auto",
-        borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
-        background: "#f8fafc",
+        borderLeft: isMobile ? "none" : "1px solid var(--c-border)",
+        background: "var(--c-bg-2)",
         display: isMobile && !showDetailPanel ? "none" : "block",
       }}>
         {isMobile && showDetailPanel && (
@@ -335,8 +335,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
             style={{
               display: "flex", alignItems: "center", gap: 6,
               width: "100%", padding: "12px 16px",
-              border: "none", borderBottom: "1px solid #e2e8f0",
-              background: "#fff", cursor: "pointer",
+              border: "none", borderBottom: "1px solid var(--c-border)",
+              background: "var(--c-bg)", cursor: "pointer",
               color: "#2563eb", fontSize: 14, fontWeight: 600,
             }}
           >
@@ -370,7 +370,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
         ) : (
           !isMobile && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-              <p style={{ margin: 0, fontSize: 14, color: "#94a3b8" }}>Mitglied auswählen…</p>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--c-text-3)" }}>Mitglied auswählen…</p>
             </div>
           )
         )}

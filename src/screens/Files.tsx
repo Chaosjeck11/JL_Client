@@ -175,15 +175,16 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
   const showPanel = creating || !!selectedFile;
 
   const inputStyle: React.CSSProperties = {
-    padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db",
+    padding: "6px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
     fontSize: 13, width: "100%", boxSizing: "border-box", outline: "none",
+    background: "var(--c-bg)", color: "var(--c-text)",
   };
   const labelStyle: React.CSSProperties = {
-    fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4, display: "block",
+    fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", marginBottom: 4, display: "block",
   };
 
   return (
-    <div style={{ display: "flex", height: "var(--content-h)", background: "#f8fafc" }}>
+    <div style={{ display: "flex", height: "var(--content-h)", background: "var(--c-bg-2)" }}>
 
       {/* ── LEFT: FILE BROWSER ── */}
       <div style={{
@@ -196,10 +197,10 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
         {/* Folder sidebar — desktop only; mobile uses pill bar below */}
         {!isMobile && <div style={{
           width: 180, flexShrink: 0, overflowY: "auto",
-          borderRight: "1px solid #e2e8f0", background: "#f1f5f9",
+          borderRight: "1px solid var(--c-border)", background: "var(--c-bg-3)",
           paddingTop: 16,
         }}>
-          <div style={{ padding: "0 14px 8px", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.5 }}>
+          <div style={{ padding: "0 14px 8px", fontSize: 11, fontWeight: 700, color: "var(--c-text-3)", textTransform: "uppercase", letterSpacing: 0.5 }}>
             Ordner
           </div>
           {([{ label: "Alle Dateien", value: null as string | null }, ...folders.map(f => ({ label: f || "(Kein Ordner)", value: f }))]).map(entry => (
@@ -211,7 +212,7 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                 padding: "7px 16px", border: "none", cursor: "pointer",
                 background: selectedFolder === entry.value ? "#dbeafe" : "transparent",
                 borderLeft: `3px solid ${selectedFolder === entry.value ? "#3b82f6" : "transparent"}`,
-                color: selectedFolder === entry.value ? "#1d4ed8" : "#374151",
+                color: selectedFolder === entry.value ? "#1d4ed8" : "var(--c-text-2)",
                 fontWeight: selectedFolder === entry.value ? 600 : 400,
                 fontSize: 13,
               }}
@@ -225,7 +226,7 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
         {isMobile && (
           <div style={{
             display: "flex", gap: 8, overflowX: "auto", padding: "10px 16px",
-            borderBottom: "1px solid #e2e8f0", background: "#f8fafc",
+            borderBottom: "1px solid var(--c-border)", background: "var(--c-bg-2)",
             flexShrink: 0,
           }}>
             {[{ label: "Alle", value: null as string | null }, ...folders.map(f => ({ label: f || "(Kein Ordner)", value: f }))].map(entry => (
@@ -234,9 +235,9 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                 onClick={() => { setSelectedFolder(entry.value); setSelectedFile(null); setCreating(false); }}
                 style={{
                   flexShrink: 0, padding: "5px 14px", borderRadius: 20,
-                  border: selectedFolder === entry.value ? "none" : "1px solid #d1d5db",
-                  background: selectedFolder === entry.value ? "#1e293b" : "#fff",
-                  color: selectedFolder === entry.value ? "#fff" : "#374151",
+                  border: selectedFolder === entry.value ? "none" : "1px solid var(--c-border)",
+                  background: selectedFolder === entry.value ? "#1e293b" : "var(--c-bg)",
+                  color: selectedFolder === entry.value ? "#fff" : "var(--c-text-2)",
                   fontWeight: selectedFolder === entry.value ? 600 : 400,
                   fontSize: 13, cursor: "pointer",
                   whiteSpace: "nowrap",
@@ -252,14 +253,14 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
           <header style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "14px 20px", borderBottom: "1px solid #e2e8f0",
-            position: "sticky", top: 0, background: "#fff", zIndex: 1, gap: 10, flexWrap: "wrap",
+            padding: "14px 20px", borderBottom: "1px solid var(--c-border)",
+            position: "sticky", top: 0, background: "var(--c-bg)", zIndex: 1, gap: 10, flexWrap: "wrap",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--c-text)" }}>
                 {selectedFolder ?? "Alle Dateien"}
               </h2>
-              <span style={{ background: "#f1f5f9", color: "#64748b", borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600 }}>
+              <span style={{ background: "var(--c-bg-3)", color: "var(--c-text-2)", borderRadius: 20, padding: "2px 9px", fontSize: 12, fontWeight: 600 }}>
                 {filteredFiles.length}
               </span>
             </div>
@@ -269,7 +270,7 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                 placeholder="Suchen…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ padding: "6px 10px", fontSize: 13, border: "1px solid #d1d5db", borderRadius: 7, outline: "none", color: "#1e293b", width: 160 }}
+                style={{ padding: "6px 10px", fontSize: 13, border: "1px solid var(--c-border)", borderRadius: 7, outline: "none", color: "var(--c-text)", background: "var(--c-bg)", width: 160 }}
               />
               {isAdmin && (
                 <button
@@ -295,20 +296,20 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
             </div>
           )}
 
-          <div style={{ background: "#fff", flex: 1 }}>
+          <div style={{ background: "var(--c-bg)", flex: 1 }}>
             <table style={{ borderCollapse: "collapse", width: "100%" }}>
               <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                  <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Name</th>
-                  {!isMobile && <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Größe</th>}
-                  <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Datum</th>
-                  {!isMobile && <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>Beschreibung</th>}
+                <tr style={{ background: "var(--c-bg-2)", borderBottom: "1px solid var(--c-border)" }}>
+                  <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Name</th>
+                  {!isMobile && <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Größe</th>}
+                  <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Datum</th>
+                  {!isMobile && <th align="left" style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>Beschreibung</th>}
                 </tr>
               </thead>
               <tbody>
                 {filteredFiles.length === 0 && (
                   <tr>
-                    <td colSpan={isMobile ? 2 : 4} style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+                    <td colSpan={isMobile ? 2 : 4} style={{ padding: 24, textAlign: "center", color: "var(--c-text-3)", fontSize: 14 }}>
                       Keine Dateien
                     </td>
                   </tr>
@@ -316,8 +317,8 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                 {filteredFiles.map((f, idx) => {
                   const isSel = selectedFile?.id === f.id;
                   const isHov = hoveredId === f.id;
-                  let bg = idx % 2 === 0 ? "#fff" : "#f8fafc";
-                  if (isHov) bg = "#f1f5f9";
+                  let bg = idx % 2 === 0 ? "var(--c-bg)" : "var(--c-bg-2)";
+                  if (isHov) bg = "var(--c-bg-3)";
                   if (isSel) bg = "#eff6ff";
                   return (
                     <tr
@@ -325,12 +326,12 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                       onClick={() => { setSelectedFile(f); setCreating(false); }}
                       onMouseEnter={() => setHoveredId(f.id)}
                       onMouseLeave={() => setHoveredId(null)}
-                      style={{ cursor: "pointer", background: bg, borderBottom: "1px solid #f1f5f9", borderLeft: isSel ? "3px solid #3b82f6" : "3px solid transparent", transition: "background 0.1s" }}
+                      style={{ cursor: "pointer", background: bg, borderBottom: "1px solid var(--c-border)", borderLeft: isSel ? "3px solid #3b82f6" : "3px solid transparent", transition: "background 0.1s" }}
                     >
-                      <td style={{ padding: "9px 14px", fontSize: 13, color: "#1e293b", fontWeight: 500, wordBreak: "break-word" }}>{f.filename}</td>
-                      {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtSize(f.size)}</td>}
-                      <td style={{ padding: "9px 14px", fontSize: 13, color: "#64748b", whiteSpace: "nowrap" }}>{fmtDate(f.uploadedAt)}</td>
-                      {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "#94a3b8" }}>{f.description ?? "–"}</td>}
+                      <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text)", fontWeight: 500, wordBreak: "break-word" }}>{f.filename}</td>
+                      {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text-2)", whiteSpace: "nowrap" }}>{fmtSize(f.size)}</td>}
+                      <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text-2)", whiteSpace: "nowrap" }}>{fmtDate(f.uploadedAt)}</td>
+                      {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text-3)" }}>{f.description ?? "–"}</td>}
                     </tr>
                   );
                 })}
@@ -345,8 +346,8 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
         <div style={{
           flex: isMobile ? 1 : 2,
           padding: isMobile ? "0" : "20px 24px",
-          overflowY: "auto", background: "#fff",
-          borderLeft: isMobile ? "none" : "1px solid #e2e8f0",
+          overflowY: "auto", background: "var(--c-bg)",
+          borderLeft: isMobile ? "none" : "1px solid var(--c-border)",
           display: "flex", flexDirection: "column", gap: isMobile ? 0 : 16,
         }}>
           {isMobile && (
@@ -355,8 +356,8 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
               style={{
                 display: "flex", alignItems: "center", gap: 6,
                 width: "100%", padding: "12px 16px",
-                border: "none", borderBottom: "1px solid #e2e8f0",
-                background: "#fff", cursor: "pointer",
+                border: "none", borderBottom: "1px solid var(--c-border)",
+                background: "var(--c-bg)", cursor: "pointer",
                 color: "#2563eb", fontSize: 14, fontWeight: 600,
                 flexShrink: 0,
               }}
@@ -368,14 +369,14 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
           {creating ? (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h3 style={{ margin: 0, fontSize: 16, color: "#1e293b" }}>Datei hochladen</h3>
-                <button onClick={() => setCreating(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#94a3b8", lineHeight: 1 }}>×</button>
+                <h3 style={{ margin: 0, fontSize: 16, color: "var(--c-text)" }}>Datei hochladen</h3>
+                <button onClick={() => setCreating(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--c-text-3)", lineHeight: 1 }}>×</button>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
                   <label style={labelStyle}>Datei *</label>
-                  <input type="file" onChange={e => setUploadFileVal(e.target.files?.[0] ?? null)} style={{ fontSize: 13, cursor: "pointer" }} />
+                  <input type="file" onChange={e => setUploadFileVal(e.target.files?.[0] ?? null)} style={{ fontSize: 13, cursor: "pointer", color: "var(--c-text)" }} />
                 </div>
                 <div>
                   <label style={labelStyle}>Ordner / Pfad</label>
@@ -397,11 +398,11 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                 <button
                   onClick={handleUpload}
                   disabled={!uploadFileVal || uploading}
-                  style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: uploadFileVal && !uploading ? "#1e293b" : "#94a3b8", color: "#fff", fontSize: 13, fontWeight: 600, cursor: uploadFileVal && !uploading ? "pointer" : "not-allowed" }}
+                  style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: uploadFileVal && !uploading ? "#1e293b" : "var(--c-text-3)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: uploadFileVal && !uploading ? "pointer" : "not-allowed" }}
                 >
                   {uploading ? "Wird hochgeladen…" : "Hochladen"}
                 </button>
-                <button onClick={() => setCreating(false)} style={{ padding: "8px 18px", borderRadius: 7, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer" }}>
+                <button onClick={() => setCreating(false)} style={{ padding: "8px 18px", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>
                   Abbrechen
                 </button>
               </div>
@@ -410,19 +411,19 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "#1e293b", wordBreak: "break-all" }}>{selectedFile.filename}</h3>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>{selectedFile.mimeType}</div>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 15, color: "var(--c-text)", wordBreak: "break-all" }}>{selectedFile.filename}</h3>
+                  <div style={{ fontSize: 12, color: "var(--c-text-3)" }}>{selectedFile.mimeType}</div>
                 </div>
-                <button onClick={() => setSelectedFile(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#94a3b8", lineHeight: 1, flexShrink: 0, marginLeft: 8 }}>×</button>
+                <button onClick={() => setSelectedFile(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--c-text-3)", lineHeight: 1, flexShrink: 0, marginLeft: 8 }}>×</button>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 13, alignItems: "center" }}>
-                <span style={{ color: "#64748b", fontWeight: 600 }}>Größe</span>
-                <span style={{ color: "#1e293b" }}>{fmtSize(selectedFile.size)}</span>
-                <span style={{ color: "#64748b", fontWeight: 600 }}>Hochgeladen</span>
-                <span style={{ color: "#1e293b" }}>{fmtDate(selectedFile.uploadedAt)}</span>
-                <span style={{ color: "#64748b", fontWeight: 600 }}>Von</span>
-                <span style={{ color: "#1e293b" }}>{memberName(selectedFile.uploadedBy)}</span>
+                <span style={{ color: "var(--c-text-2)", fontWeight: 600 }}>Größe</span>
+                <span style={{ color: "var(--c-text)" }}>{fmtSize(selectedFile.size)}</span>
+                <span style={{ color: "var(--c-text-2)", fontWeight: 600 }}>Hochgeladen</span>
+                <span style={{ color: "var(--c-text)" }}>{fmtDate(selectedFile.uploadedAt)}</span>
+                <span style={{ color: "var(--c-text-2)", fontWeight: 600 }}>Von</span>
+                <span style={{ color: "var(--c-text)" }}>{memberName(selectedFile.uploadedBy)}</span>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -431,7 +432,7 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                   {isAdmin ? (
                     <input type="text" value={editDesc} onChange={e => setEditDesc(e.target.value)} style={inputStyle} placeholder="Keine Beschreibung" />
                   ) : (
-                    <div style={{ fontSize: 13, color: "#1e293b" }}>{selectedFile.description ?? "–"}</div>
+                    <div style={{ fontSize: 13, color: "var(--c-text)" }}>{selectedFile.description ?? "–"}</div>
                   )}
                 </div>
                 <div>
@@ -439,7 +440,7 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                   {isAdmin ? (
                     <input type="text" value={editPath} onChange={e => setEditPath(e.target.value)} style={inputStyle} placeholder="(Kein Ordner)" />
                   ) : (
-                    <div style={{ fontSize: 13, color: "#1e293b" }}>{selectedFile.path || "–"}</div>
+                    <div style={{ fontSize: 13, color: "var(--c-text)" }}>{selectedFile.path || "–"}</div>
                   )}
                 </div>
               </div>
@@ -453,7 +454,7 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <button
                   onClick={() => downloadFile(selectedFile.id, selectedFile.filename)}
-                  style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer", color: "#374151" }}
+                  style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-bg)", fontSize: 13, cursor: "pointer", color: "var(--c-text-2)" }}
                 >
                   Herunterladen
                 </button>
@@ -477,14 +478,14 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                 )}
               </div>
 
-              <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 16 }}>
+              <div style={{ borderTop: "1px solid var(--c-border)", paddingTop: 16 }}>
                 {previewLoading && (
-                  <div style={{ fontSize: 13, color: "#94a3b8", textAlign: "center", padding: 24 }}>
+                  <div style={{ fontSize: 13, color: "var(--c-text-3)", textAlign: "center", padding: 24 }}>
                     Vorschau wird geladen…
                   </div>
                 )}
                 {!previewLoading && previewUrl && selectedFile.mimeType.startsWith("image/") && (
-                  <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                  <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid var(--c-border)" }}>
                     <img src={previewUrl} alt={selectedFile.filename} style={{ width: "100%", display: "block" }} />
                   </div>
                 )}
@@ -492,18 +493,18 @@ export default function Files({ isMobile = false }: { isMobile?: boolean }) {
                   <iframe
                     src={previewUrl}
                     title={selectedFile.filename}
-                    style={{ width: "100%", height: 600, border: "1px solid #e2e8f0", borderRadius: 8 }}
+                    style={{ width: "100%", height: 600, border: "1px solid var(--c-border)", borderRadius: 8 }}
                   />
                 )}
                 {!previewLoading && !previewUrl && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "32px 24px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, textAlign: "center" }}>
-                    <div style={{ width: 48, height: 48, background: "#e2e8f0", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: 0.5 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "32px 24px", background: "var(--c-bg-2)", border: "1px solid var(--c-border)", borderRadius: 8, textAlign: "center" }}>
+                    <div style={{ width: 48, height: 48, background: "var(--c-border)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--c-text-2)", letterSpacing: 0.5 }}>
                       {selectedFile.filename.split(".").pop()?.toUpperCase() ?? "FILE"}
                     </div>
-                    <div style={{ fontSize: 13, color: "#64748b" }}>Keine Vorschau verfügbar</div>
+                    <div style={{ fontSize: 13, color: "var(--c-text-2)" }}>Keine Vorschau verfügbar</div>
                     <button
                       onClick={() => downloadFile(selectedFile.id, selectedFile.filename)}
-                      style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer", color: "#374151" }}
+                      style={{ padding: "7px 16px", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-bg)", fontSize: 13, cursor: "pointer", color: "var(--c-text-2)" }}
                     >
                       Herunterladen
                     </button>
