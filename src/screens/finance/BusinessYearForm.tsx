@@ -52,7 +52,7 @@ export default function BusinessYearForm({ onCreated, onCancel }: Props) {
         </label>
       </div>
 
-      <p style={{ fontSize: 13, color: "#666", margin: "0 0 16px" }}>
+      <p style={{ fontSize: 13, color: "var(--c-text-3)", margin: "0 0 16px" }}>
         Der Übertrag wird automatisch aus dem Vorjahr berechnet.
       </p>
 

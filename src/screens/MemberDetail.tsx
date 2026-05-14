@@ -27,9 +27,9 @@ function toDateInput(dateStr?: string | null): string {
 function SectionHeader({ label }: { label: string }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 700, color: "#94a3b8",
+      fontSize: 11, fontWeight: 700, color: "var(--c-text-3)",
       textTransform: "uppercase" as const, letterSpacing: "0.07em",
-      margin: "18px 0 8px", paddingBottom: 6, borderBottom: "1px solid #e2e8f0",
+      margin: "18px 0 8px", paddingBottom: 6, borderBottom: "1px solid var(--c-border)",
     }}>
       {label}
     </div>
@@ -39,10 +39,10 @@ function SectionHeader({ label }: { label: string }) {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", padding: "4px 0", gap: 8, alignItems: "flex-start" }}>
-      <span style={{ width: 155, flexShrink: 0, fontSize: 13, color: "#94a3b8", fontWeight: 500, paddingTop: 1 }}>
+      <span style={{ width: 155, flexShrink: 0, fontSize: 13, color: "var(--c-text-3)", fontWeight: 500, paddingTop: 1 }}>
         {label}
       </span>
-      <span style={{ fontSize: 13, color: "#1e293b" }}>{children}</span>
+      <span style={{ fontSize: 13, color: "var(--c-text)" }}>{children}</span>
     </div>
   );
 }
@@ -52,8 +52,8 @@ function Chip({ label, active }: { label: string; active: boolean }) {
     <span style={{
       display: "inline-block", padding: "3px 10px", borderRadius: 20,
       fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 4,
-      background: active ? "#dbeafe" : "#f1f5f9",
-      color: active ? "#1d4ed8" : "#94a3b8",
+      background: active ? "#dbeafe" : "var(--c-bg-3)",
+      color: active ? "#1d4ed8" : "var(--c-text-3)",
     }}>
       {label}
     </span>
@@ -66,7 +66,7 @@ function StatusBadge({ status }: { status: string }) {
     TEILWEISE: { label: "Teilweise",  bg: "#fef9c3", color: "#854d0e" },
     AUSSTEHEND:{ label: "Ausstehend", bg: "#fee2e2", color: "#991b1b" },
   };
-  const s = map[status] ?? { label: status, bg: "#f1f5f9", color: "#64748b" };
+  const s = map[status] ?? { label: status, bg: "var(--c-bg-3)", color: "var(--c-text-2)" };
   return (
     <span style={{
       display: "inline-block", padding: "2px 8px", borderRadius: 20,
@@ -80,7 +80,7 @@ function StatusBadge({ status }: { status: string }) {
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ width: 170, flexShrink: 0, fontSize: 13, color: "#475569" }}>{label}</span>
+      <span style={{ width: 170, flexShrink: 0, fontSize: 13, color: "var(--c-text-2)" }}>{label}</span>
       {children}
     </label>
   );
@@ -88,7 +88,8 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 
 const inputStyle: React.CSSProperties = {
   flex: 1, padding: "6px 10px", borderRadius: 6,
-  border: "1px solid #d1d5db", fontSize: 13,
+  border: "1px solid var(--c-border)", fontSize: 13,
+  background: "var(--c-bg)", color: "var(--c-text)",
 };
 
 const btnPrimary: React.CSSProperties = {
@@ -97,7 +98,7 @@ const btnPrimary: React.CSSProperties = {
 };
 
 const btnSecondary: React.CSSProperties = {
-  background: "#fff", color: "#374151", border: "1px solid #d1d5db",
+  background: "var(--c-bg)", color: "var(--c-text-2)", border: "1px solid var(--c-border)",
   borderRadius: 7, padding: "8px 18px", fontSize: 13, cursor: "pointer",
 };
 
@@ -322,8 +323,8 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 4 }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%", flexShrink: 0,
-            background: member.active ? "#dbeafe" : "#f1f5f9",
-            color: member.active ? "#1d4ed8" : "#94a3b8",
+            background: member.active ? "#dbeafe" : "var(--c-bg-3)",
+            color: member.active ? "#1d4ed8" : "var(--c-text-3)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 20, fontWeight: 700, overflow: "hidden",
           }}>
@@ -332,14 +333,14 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
               : `${member.firstname.charAt(0).toUpperCase()}${member.lastname.charAt(0).toUpperCase()}`}
           </div>
           <div>
-            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+            <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>
               {member.firstname} {member.lastname}
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {member.role && (
                 <span style={{
                   display: "inline-block", padding: "2px 8px", borderRadius: 20,
-                  fontSize: 11, fontWeight: 600, background: "#f1f5f9", color: "#475569",
+                  fontSize: 11, fontWeight: 600, background: "var(--c-bg-3)", color: "var(--c-text-2)",
                 }}>
                   {member.role.name}
                 </span>
@@ -347,8 +348,8 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
               <span style={{
                 display: "inline-block", padding: "2px 8px", borderRadius: 20,
                 fontSize: 11, fontWeight: 600,
-                background: member.active ? "#dcfce7" : "#f1f5f9",
-                color: member.active ? "#166534" : "#64748b",
+                background: member.active ? "#dcfce7" : "var(--c-bg-3)",
+                color: member.active ? "#166534" : "var(--c-text-2)",
               }}>
                 {member.active ? "Aktiv" : "Inaktiv"}
               </span>
@@ -381,23 +382,23 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
             <SectionHeader label="Mitgliedsbeiträge" />
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <th align="left"  style={{ padding: "5px 8px 5px 0", color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Jahr</th>
-                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>JL</th>
-                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>KG</th>
-                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bez. JL</th>
-                  <th align="right" style={{ padding: "5px 4px",       color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bez. KG</th>
-                  <th align="left"  style={{ padding: "5px 0 5px 8px", color: "#94a3b8", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
+                <tr style={{ borderBottom: "1px solid var(--c-border)" }}>
+                  <th align="left"  style={{ padding: "5px 8px 5px 0", color: "var(--c-text-3)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Jahr</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "var(--c-text-3)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>JL</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "var(--c-text-3)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>KG</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "var(--c-text-3)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bez. JL</th>
+                  <th align="right" style={{ padding: "5px 4px",       color: "var(--c-text-3)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Bez. KG</th>
+                  <th align="left"  style={{ padding: "5px 0 5px 8px", color: "var(--c-text-3)", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {member.mitgliedsbeitraege.map(b => (
-                  <tr key={b.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "6px 8px 6px 0", color: "#1e293b", fontWeight: 500 }}>{b.businessYear?.year ?? b.businessYearId}</td>
-                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.betragJL} €</td>
-                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.betragKG} €</td>
-                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.bezahltJL} €</td>
-                    <td align="right" style={{ padding: "6px 4px", color: "#475569" }}>{b.bezahltKG} €</td>
+                  <tr key={b.id} style={{ borderBottom: "1px solid var(--c-border)" }}>
+                    <td style={{ padding: "6px 8px 6px 0", color: "var(--c-text)", fontWeight: 500 }}>{b.businessYear?.year ?? b.businessYearId}</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "var(--c-text-2)" }}>{b.betragJL} €</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "var(--c-text-2)" }}>{b.betragKG} €</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "var(--c-text-2)" }}>{b.bezahltJL} €</td>
+                    <td align="right" style={{ padding: "6px 4px", color: "var(--c-text-2)" }}>{b.bezahltKG} €</td>
                     <td style={{ padding: "6px 0 6px 8px" }}><StatusBadge status={b.status} /></td>
                   </tr>
                 ))}
@@ -415,7 +416,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         )}
 
         {attachments.length === 0 && (
-          <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 8 }}>Keine Anhänge</div>
+          <div style={{ fontSize: 13, color: "var(--c-text-3)", marginBottom: 8 }}>Keine Anhänge</div>
         )}
 
         {attachments.map(a => {
@@ -426,7 +427,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
               key={a.id}
               style={{
                 display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
-                borderBottom: "1px solid #f1f5f9", borderRadius: 6,
+                borderBottom: "1px solid var(--c-border)", borderRadius: 6,
                 background: isActive ? "#eff6ff" : "transparent",
               }}
             >
@@ -435,18 +436,18 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
                 title="Vorschau"
                 style={{
                   flex: 1, textAlign: "left", background: "none", border: "none", padding: 0,
-                  fontSize: 13, color: isActive ? "#1d4ed8" : "#1e293b",
+                  fontSize: 13, color: isActive ? "#1d4ed8" : "var(--c-text)",
                   overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   cursor: "pointer", fontWeight: isActive ? 600 : 400,
                 }}
               >
                 {isLoading ? "Lädt…" : a.filename}
               </button>
-              <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
+              <span style={{ fontSize: 12, color: "var(--c-text-3)", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
               <button
                 onClick={e => { e.stopPropagation(); downloadMemberAttachment(member.id, a.id, a.filename); }}
                 title="Herunterladen"
-                style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #d1d5db", background: "#fff", fontSize: 12, cursor: "pointer" }}
+                style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--c-border)", background: "var(--c-bg)", fontSize: 12, cursor: "pointer", color: "var(--c-text-2)" }}
               >
                 ↓
               </button>
@@ -476,9 +477,9 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
               onClick={() => fileInputRef.current?.click()}
               disabled={attachUploading}
               style={{
-                padding: "6px 14px", borderRadius: 6, border: "1px dashed #94a3b8",
-                background: "#f8fafc", fontSize: 13, cursor: attachUploading ? "not-allowed" : "pointer",
-                color: "#475569", opacity: attachUploading ? 0.6 : 1,
+                padding: "6px 14px", borderRadius: 6, border: "1px dashed var(--c-text-3)",
+                background: "var(--c-bg-2)", fontSize: 13, cursor: attachUploading ? "not-allowed" : "pointer",
+                color: "var(--c-text-2)", opacity: attachUploading ? 0.6 : 1,
               }}
             >
               {attachUploading ? "Wird hochgeladen…" : "+ Anhang hinzufügen"}
@@ -506,7 +507,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
   // ── EDIT MODE ─────────────────────────────────────────────────────────────
   return (
     <div>
-      <h3 style={{ marginTop: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Mitglied bearbeiten</h3>
+      <h3 style={{ marginTop: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Mitglied bearbeiten</h3>
       {error && <p style={{ color: "#dc2626", margin: "0 0 10px", fontSize: 13 }}>{error}</p>}
 
       <SectionHeader label="Persönliche Daten" />

@@ -7,6 +7,7 @@ import {
   fetchRunningBalance,
 } from "../api/finance";
 import { fetchMembers } from "../api/members";
+import { fetchVeranstaltungen } from "../api/veranstaltungen";
 import { canManageFinance } from "../auth/permissions";
 import type { PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
 import BusinessYearForm from "./finance/BusinessYearForm";
@@ -28,7 +29,7 @@ function TypePill({ type }: { type: Transaction["type"] }) {
     AUSZAHLUNG:   { label: "Auszahlung",  color: "#dc2626", bg: "#fef2f2" },
     RUECKBUCHUNG: { label: "Rückbuchung", color: "#d97706", bg: "#fffbeb" },
   };
-  const s = map[type] ?? { label: type, color: "#64748b", bg: "#f1f5f9" };
+  const s = map[type] ?? { label: type, color: "var(--c-text-2)", bg: "var(--c-bg-3)" };
   return (
     <span style={{
       display: "inline-block", padding: "1px 8px", borderRadius: 10,
@@ -44,7 +45,7 @@ function TagPill({ tag }: { tag: PaymentTag | null | undefined }) {
   if (!tag) return null;
   const map: Record<PaymentTag, { label: string; color: string; bg: string }> = {
     ONLINE: { label: "Online", color: "#1d4ed8", bg: "#eff6ff" },
-    BAR:    { label: "Bar",    color: "#374151", bg: "#f1f5f9" },
+    BAR:    { label: "Bar",    color: "var(--c-text-2)", bg: "var(--c-bg-3)" },
   };
   const s = map[tag];
   return (
@@ -61,8 +62,8 @@ function TagPill({ tag }: { tag: PaymentTag | null | undefined }) {
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{
-      padding: "10px 16px", borderRadius: 8, background: "#fff",
-      border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      padding: "10px 16px", borderRadius: 8, background: "var(--c-bg)",
+      border: "1px solid var(--c-border)", boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
       minWidth: 140,
     }}>
       <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
@@ -116,6 +117,11 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const { data: members = [] } = useQuery({
     queryKey: ["members"],
     queryFn: fetchMembers,
+  });
+
+  const { data: veranstaltungen = [] } = useQuery({
+    queryKey: ["veranstaltungen"],
+    queryFn: fetchVeranstaltungen,
   });
 
   const effectiveYearId = selectedYearId ?? businessYears[0]?.id ?? null;
@@ -319,10 +325,11 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
         {/* Stats cards */}
         {yearDetail && (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {!isMobile && <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />}
+            <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />
             <StatCard label="Einnahmen"  value={`+${totalIncome.toFixed(2)} €`}  color="#16a34a" />
-            {!isMobile && <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />}
-            <StatCard label="Kontostand" value={`${finalBalance.toFixed(2)} €`}   color={finalBalance >= 0 ? "#1e293b" : "#dc2626"} />
+            <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />
+            {(() => { const g = totalIncome - totalExpenses; return <StatCard label="Gewinn" value={`${g >= 0 ? "+" : ""}${g.toFixed(2)} €`} color={g >= 0 ? "#16a34a" : "#dc2626"} />; })()}
+            {!isMobile && <StatCard label="Kontostand" value={`${finalBalance.toFixed(2)} €`}   color={finalBalance >= 0 ? "#1e293b" : "#dc2626"} />}
           </div>
         )}
 
@@ -701,6 +708,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
               defaultBusinessYearId={effectiveYearId}
               categories={categories}
               members={members}
+              veranstaltungen={veranstaltungen}
               onCreated={t => {
                 reloadYear();
                 setSelected(t);
@@ -712,6 +720,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
             <TransactionDetail
               transaction={selected}
               categories={categories}
+              veranstaltungen={veranstaltungen}
               onUpdated={updated => {
                 reloadYear();
                 setSelected(updated);

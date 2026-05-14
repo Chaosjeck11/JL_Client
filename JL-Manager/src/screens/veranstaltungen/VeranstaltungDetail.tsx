@@ -33,7 +33,7 @@ function fmtDate(d: string): string {
 }
 
 function fmtAmount(n: number, type?: string): React.ReactNode {
-  const color = type === "AUSZAHLUNG" ? "#dc2626" : type === "EINZAHLUNG" ? "#16a34a" : "var(--c-text)";
+  const color = type === "AUSZAHLUNG" ? "#dc2626" : type === "EINZAHLUNG" ? "#16a34a" : "#1e293b";
   const prefix = type === "AUSZAHLUNG" ? "–" : type === "EINZAHLUNG" ? "+" : "";
   return (
     <span style={{ color, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
@@ -49,13 +49,13 @@ function fmtBytes(n: number): string {
 }
 
 const inputStyle: React.CSSProperties = {
-  padding: "7px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
-  fontSize: 14, background: "var(--c-bg)", color: "var(--c-text)", width: "100%", boxSizing: "border-box",
+  padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db",
+  fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
 };
 
 const colInputStyle: React.CSSProperties = {
-  padding: "5px 8px", borderRadius: 6, border: "1px solid var(--c-border)",
-  fontSize: 13, background: "var(--c-bg)", color: "var(--c-text)", boxSizing: "border-box",
+  padding: "5px 8px", borderRadius: 6, border: "1px solid #d1d5db",
+  fontSize: 13, background: "#fff", boxSizing: "border-box",
 };
 
 const COLUMN_TYPES = [
@@ -72,14 +72,14 @@ function uid(): string {
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{
-      padding: "10px 16px", borderRadius: 8, background: "var(--c-bg)",
-      border: "1px solid var(--c-border)", boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      padding: "10px 16px", borderRadius: 8, background: "#fff",
+      border: "1px solid #e2e8f0", boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
       flex: 1,
     }}>
-      <div style={{ fontSize: 11, color: "var(--c-text-3)", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
+      <div style={{ fontSize: 11, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 3 }}>
         {label}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: color ?? "var(--c-text)" }}>{value}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: color ?? "#1e293b" }}>{value}</div>
     </div>
   );
 }
@@ -87,9 +87,9 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 700, color: "var(--c-text-3)", textTransform: "uppercase",
+      fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase",
       letterSpacing: 0.8, paddingTop: 20, paddingBottom: 8,
-      borderTop: "1px solid var(--c-border)", marginTop: 8,
+      borderTop: "1px solid #f1f5f9", marginTop: 8,
     }}>
       {children}
     </div>
@@ -448,7 +448,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
             autoFocus
           />
         ) : (
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--c-text)", flex: 1 }}>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1e293b", flex: 1 }}>
             {veranstaltung.name}
           </h2>
         )}
@@ -471,8 +471,8 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                 <button
                   onClick={() => { setEditing(false); setMetaError(""); }}
                   style={{
-                    padding: "6px 12px", borderRadius: 6, border: "1px solid var(--c-border)",
-                    background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer",
+                    padding: "6px 12px", borderRadius: 6, border: "1px solid #d1d5db",
+                    background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer",
                   }}
                 >
                   Abbrechen
@@ -483,8 +483,8 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                 <button
                   onClick={() => setEditing(true)}
                   style={{
-                    padding: "6px 14px", borderRadius: 6, border: "1px solid var(--c-border)",
-                    background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer",
+                    padding: "6px 14px", borderRadius: 6, border: "1px solid #d1d5db",
+                    background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer",
                   }}
                 >
                   Bearbeiten
@@ -493,7 +493,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                   onClick={handleDelete}
                   style={{
                     padding: "6px 12px", borderRadius: 6, border: "1px solid #fca5a5",
-                    background: "var(--c-bg)", color: "#dc2626", fontSize: 13, cursor: "pointer",
+                    background: "#fff", color: "#dc2626", fontSize: 13, cursor: "pointer",
                   }}
                 >
                   Löschen
@@ -508,18 +508,18 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
       {editing ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Datum</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Datum</label>
             <input type="date" style={{ ...inputStyle, width: "auto" }} value={editDate} onChange={e => setEditDate(e.target.value)} />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Beschreibung</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, display: "block", marginBottom: 4 }}>Beschreibung</label>
             <textarea style={{ ...inputStyle, minHeight: 60, resize: "vertical" }} value={editDesc} onChange={e => setEditDesc(e.target.value)} />
           </div>
           {metaError && <div style={{ color: "#dc2626", fontSize: 13 }}>{metaError}</div>}
         </div>
       ) : (
-        <div style={{ marginTop: 6, color: "var(--c-text-2)", fontSize: 13 }}>
-          <span style={{ fontWeight: 500, color: "var(--c-text-2)" }}>{fmtDate(veranstaltung.date)}</span>
+        <div style={{ marginTop: 6, color: "#64748b", fontSize: 13 }}>
+          <span style={{ fontWeight: 500, color: "#374151" }}>{fmtDate(veranstaltung.date)}</span>
           {veranstaltung.description && (
             <span style={{ marginLeft: 12 }}>{veranstaltung.description}</span>
           )}
@@ -549,23 +549,23 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
       {/* Linked Transactions */}
       <SectionHeader>Buchungen ({transactions.length})</SectionHeader>
       {transactions.length === 0 ? (
-        <p style={{ fontSize: 13, color: "var(--c-text-3)", margin: 0 }}>Keine verknüpften Buchungen.</p>
+        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Keine verknüpften Buchungen.</p>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ background: "var(--c-bg-2)" }}>
-              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Datum</th>
-              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Beschreibung</th>
-              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Kategorie</th>
-              <th style={{ padding: "6px 10px", textAlign: "right", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Betrag</th>
+            <tr style={{ background: "#f8fafc" }}>
+              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Datum</th>
+              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Beschreibung</th>
+              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Kategorie</th>
+              <th style={{ padding: "6px 10px", textAlign: "right", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Betrag</th>
             </tr>
           </thead>
           <tbody>
             {transactions.map(tx => (
-              <tr key={tx.id} style={{ borderBottom: "1px solid var(--c-border)" }}>
-                <td style={{ padding: "6px 10px", color: "var(--c-text-2)", whiteSpace: "nowrap" }}>{fmtDate(tx.date)}</td>
-                <td style={{ padding: "6px 10px", color: "var(--c-text)" }}>{tx.description}</td>
-                <td style={{ padding: "6px 10px", color: "var(--c-text-2)" }}>{tx.category?.name ?? "–"}</td>
+              <tr key={tx.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                <td style={{ padding: "6px 10px", color: "#64748b", whiteSpace: "nowrap" }}>{fmtDate(tx.date)}</td>
+                <td style={{ padding: "6px 10px", color: "#1e293b" }}>{tx.description}</td>
+                <td style={{ padding: "6px 10px", color: "#64748b" }}>{tx.category?.name ?? "–"}</td>
                 <td style={{ padding: "6px 10px", textAlign: "right" }}>
                   {fmtAmount(tx.amount, tx.type)}
                 </td>
@@ -578,7 +578,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
       {/* Formular */}
       <SectionHeader>Formular</SectionHeader>
       {formLoading ? (
-        <p style={{ fontSize: 13, color: "var(--c-text-3)", margin: 0 }}>Lädt…</p>
+        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Lädt…</p>
       ) : (
         <>
           {/* Column editor (admin) */}
@@ -588,34 +588,34 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                 <button
                   onClick={openColEditor}
                   style={{
-                    padding: "5px 12px", borderRadius: 6, border: "1px solid var(--c-border)",
-                    background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 12, cursor: "pointer",
+                    padding: "5px 12px", borderRadius: 6, border: "1px solid #d1d5db",
+                    background: "#fff", color: "#374151", fontSize: 12, cursor: "pointer",
                   }}
                 >
                   Spalten bearbeiten
                 </button>
               ) : (
                 <div style={{
-                  padding: 12, borderRadius: 8, border: "1px solid var(--c-border)",
-                  background: "var(--c-bg-2)",
+                  padding: 12, borderRadius: 8, border: "1px solid #e2e8f0",
+                  background: "#f8fafc",
                 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: "var(--c-text-2)", marginBottom: 10 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: "#374151", marginBottom: 10 }}>
                     Spalten bearbeiten
                   </div>
                   {(colDraft ?? []).length === 0 ? (
-                    <p style={{ fontSize: 13, color: "var(--c-text-3)", margin: "0 0 10px" }}>Keine Spalten.</p>
+                    <p style={{ fontSize: 13, color: "#94a3b8", margin: "0 0 10px" }}>Keine Spalten.</p>
                   ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10, fontSize: 13 }}>
                       <thead>
-                        <tr style={{ background: "var(--c-bg)" }}>
-                          <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Bezeichnung</th>
-                          <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 600, color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)" }}>Typ</th>
-                          <th style={{ padding: "5px 4px", borderBottom: "1px solid var(--c-border)", width: 32 }} />
+                        <tr style={{ background: "#fff" }}>
+                          <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Bezeichnung</th>
+                          <th style={{ padding: "5px 8px", textAlign: "left", fontWeight: 600, color: "#64748b", borderBottom: "1px solid #e2e8f0" }}>Typ</th>
+                          <th style={{ padding: "5px 4px", borderBottom: "1px solid #e2e8f0", width: 32 }} />
                         </tr>
                       </thead>
                       <tbody>
                         {(colDraft ?? []).map(col => (
-                          <tr key={col.id} style={{ borderBottom: "1px solid var(--c-border)" }}>
+                          <tr key={col.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                             <td style={{ padding: "4px 8px" }}>
                               <input
                                 style={{ ...colInputStyle, width: "100%" }}
@@ -694,8 +694,8 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                     <button
                       onClick={() => { setEditingCols(false); setColDraft(null); setColError(""); }}
                       style={{
-                        padding: "6px 12px", borderRadius: 6, border: "1px solid var(--c-border)",
-                        background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer",
+                        padding: "6px 12px", borderRadius: 6, border: "1px solid #d1d5db",
+                        background: "#fff", color: "#374151", fontSize: 13, cursor: "pointer",
                       }}
                     >
                       Abbrechen
@@ -708,28 +708,28 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
 
           {/* Row table */}
           {columns.length === 0 ? (
-            <p style={{ fontSize: 13, color: "var(--c-text-3)", margin: 0 }}>Keine Spalten definiert.</p>
+            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Keine Spalten definiert.</p>
           ) : (
             <>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: "var(--c-bg-2)" }}>
+                    <tr style={{ background: "#f8fafc" }}>
                       {columns.map(col => (
                         <th key={col.id} style={{
                           padding: "6px 10px", textAlign: "left", fontWeight: 600,
-                          color: "var(--c-text-2)", borderBottom: "1px solid var(--c-border)", whiteSpace: "nowrap",
+                          color: "#64748b", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap",
                         }}>
                           {col.label}
                         </th>
                       ))}
-                      {isAdmin && <th style={{ padding: "6px 6px", borderBottom: "1px solid var(--c-border)", width: 80 }} />}
+                      {isAdmin && <th style={{ padding: "6px 6px", borderBottom: "1px solid #e2e8f0", width: 80 }} />}
                     </tr>
                   </thead>
                   <tbody>
                     {rows.length === 0 && (
                       <tr>
-                        <td colSpan={columns.length + (isAdmin ? 1 : 0)} style={{ padding: "12px 10px", color: "var(--c-text-3)", textAlign: "center" }}>
+                        <td colSpan={columns.length + (isAdmin ? 1 : 0)} style={{ padding: "12px 10px", color: "#94a3b8", textAlign: "center" }}>
                           Keine Einträge.
                         </td>
                       </tr>
@@ -738,7 +738,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                       const hasDraft = !!rowDrafts[row.id] && Object.keys(rowDrafts[row.id]).length > 0;
                       const saving = savingRows.has(row.id);
                       return (
-                        <tr key={row.id} style={{ borderBottom: "1px solid var(--c-border)" }}>
+                        <tr key={row.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                           {columns.map(col => (
                             <td key={col.id} style={{ padding: "4px 8px" }}>
                               {isAdmin ? (
@@ -748,7 +748,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                                   onChange={v => setRowDraft(row.id, col.id, v)}
                                 />
                               ) : (
-                                <span style={{ fontSize: 13, color: "var(--c-text)" }}>
+                                <span style={{ fontSize: 13, color: "#1e293b" }}>
                                   {displayCellValue(col, row.cells[col.id])}
                                 </span>
                               )}
@@ -794,8 +794,8 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                   disabled={addingRow}
                   style={{
                     marginTop: 8, padding: "6px 14px", borderRadius: 6,
-                    border: "1px dashed var(--c-text-3)", background: "var(--c-bg)",
-                    color: "var(--c-text-2)", fontSize: 13, cursor: addingRow ? "not-allowed" : "pointer",
+                    border: "1px dashed #94a3b8", background: "#fff",
+                    color: "#64748b", fontSize: 13, cursor: addingRow ? "not-allowed" : "pointer",
                   }}
                 >
                   {addingRow ? "…" : "+ Zeile hinzufügen"}
@@ -809,7 +809,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
       {/* Direct Attachments */}
       <SectionHeader>Anhänge ({directAttachments.length})</SectionHeader>
       {directAttachments.length === 0 && !isAdmin && (
-        <p style={{ fontSize: 13, color: "var(--c-text-3)", margin: 0 }}>Keine Anhänge.</p>
+        <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Keine Anhänge.</p>
       )}
       {directAttachments.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 8 }}>
@@ -820,14 +820,14 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                 <tr
                   key={att.id}
                   style={{
-                    borderBottom: "1px solid var(--c-border)",
+                    borderBottom: "1px solid #f1f5f9",
                     background: isActive ? "#eff6ff" : "transparent",
                     cursor: "pointer",
                   }}
                   onClick={() => openDirectViewer(att)}
                 >
-                  <td style={{ padding: "7px 10px", color: "var(--c-text)" }}>{att.filename}</td>
-                  <td style={{ padding: "7px 10px", color: "var(--c-text-3)", whiteSpace: "nowrap" }}>{fmtBytes(att.size)}</td>
+                  <td style={{ padding: "7px 10px", color: "#1e293b" }}>{att.filename}</td>
+                  <td style={{ padding: "7px 10px", color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtBytes(att.size)}</td>
                   <td style={{ padding: "7px 6px", textAlign: "right", whiteSpace: "nowrap" }}>
                     <button
                       onClick={e => { e.stopPropagation(); downloadVeranstaltungAttachment(veranstaltung.id, att.id, att.filename); }}
@@ -857,7 +857,7 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
           <label
             style={{
               display: "inline-block", padding: "6px 14px", borderRadius: 6,
-              border: "1px dashed var(--c-text-3)", background: "var(--c-bg)", color: "var(--c-text-2)",
+              border: "1px dashed #94a3b8", background: "#fff", color: "#64748b",
               fontSize: 13, cursor: uploading ? "not-allowed" : "pointer",
             }}
           >
@@ -888,21 +888,21 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
                   <tr
                     key={att.id}
                     style={{
-                      borderBottom: "1px solid var(--c-border)",
+                      borderBottom: "1px solid #f1f5f9",
                       background: isActive ? "#eff6ff" : "transparent",
                       cursor: "pointer",
                     }}
                     onClick={() => openTxViewer(att)}
                   >
-                    <td style={{ padding: "7px 10px", color: "var(--c-text)" }}>
+                    <td style={{ padding: "7px 10px", color: "#1e293b" }}>
                       <div>{att.filename}</div>
                       {att.transaction && (
-                        <div style={{ fontSize: 11, color: "var(--c-text-3)" }}>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
                           {fmtDate(att.transaction.date)} · {att.transaction.description}
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: "7px 10px", color: "var(--c-text-3)", whiteSpace: "nowrap" }}>{fmtBytes(att.size)}</td>
+                    <td style={{ padding: "7px 10px", color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtBytes(att.size)}</td>
                     <td style={{ padding: "7px 6px", textAlign: "right", whiteSpace: "nowrap" }}>
                       <button
                         onClick={e => { e.stopPropagation(); downloadAttachment(att.transactionId, att.id, att.filename); }}

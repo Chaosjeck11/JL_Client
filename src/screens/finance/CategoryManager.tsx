@@ -67,11 +67,11 @@ export default function CategoryManager({ onCategoriesChanged }: Props) {
   return (
     <div
       style={{
-        border: "1px solid #ccc",
+        border: "1px solid var(--c-border)",
         borderRadius: 6,
         padding: 16,
         margin: "12px 0",
-        background: "#fafafa",
+        background: "var(--c-bg-2)",
       }}
     >
       <h4 style={{ margin: "0 0 12px" }}>Kategorien verwalten</h4>
@@ -89,7 +89,7 @@ export default function CategoryManager({ onCategoriesChanged }: Props) {
         <tbody>
           {categories.length === 0 && (
             <tr>
-              <td colSpan={3} style={{ color: "#888", fontStyle: "italic" }}>
+              <td colSpan={3} style={{ color: "var(--c-text-3)", fontStyle: "italic" }}>
                 Keine Kategorien vorhanden
               </td>
             </tr>
@@ -97,7 +97,7 @@ export default function CategoryManager({ onCategoriesChanged }: Props) {
           {categories.map((cat) => (
             <tr key={cat.id}>
               <td>{cat.name}</td>
-              <td style={{ color: "#666" }}>{cat.description ?? "—"}</td>
+              <td style={{ color: "var(--c-text-2)" }}>{cat.description ?? "—"}</td>
               <td align="right">
                 <button
                   onClick={() => handleDelete(cat)}
