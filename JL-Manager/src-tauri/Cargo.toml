@@ -1,6 +1,6 @@
 [package]
-name = "jl-manager_v1"
-version = "0.1.0"
+name = "Junge Löwen"
+version = "1.0.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"

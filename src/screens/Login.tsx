@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { login } from "../auth/auth";
 
-const DEFAULT_API_URL = "http://100.91.210.125:3000";
+const DEFAULT_API_URL = "https://jl_manage.ct-2514.de";
 
 type Props = {
   onSuccess: () => void;
@@ -37,6 +37,27 @@ export default function Login({ onSuccess }: Props) {
   );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [connectivity, setConnectivity] = useState<"idle" | "checking" | "ok" | "error">("idle");
+  const connectivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (connectivityTimer.current) clearTimeout(connectivityTimer.current);
+    setConnectivity("checking");
+    connectivityTimer.current = setTimeout(async () => {
+      const url = apiUrl.trim().replace(/\/$/, "") || DEFAULT_API_URL;
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 3000);
+      try {
+        await fetch(url, { mode: "no-cors", signal: ctrl.signal });
+        setConnectivity("ok");
+      } catch {
+        setConnectivity("error");
+      } finally {
+        clearTimeout(timeout);
+      }
+    }, 800);
+    return () => { if (connectivityTimer.current) clearTimeout(connectivityTimer.current); };
+  }, [apiUrl]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -165,7 +186,18 @@ export default function Login({ onSuccess }: Props) {
             borderTop: "1px solid #f1f5f9",
             paddingTop: 18,
           }}>
-            <label style={{ ...labelStyle, color: "#94a3b8" }}>Server-Adresse</label>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Server-Adresse</label>
+              <span style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: connectivity === "ok" ? "#22c55e" : connectivity === "error" ? "#ef4444" : "#f59e0b",
+                display: "inline-block",
+                boxShadow: connectivity === "ok" ? "0 0 4px #22c55e80" : connectivity === "error" ? "0 0 4px #ef444480" : "none",
+                transition: "background 0.3s",
+              }} title={connectivity === "ok" ? "Erreichbar" : connectivity === "error" ? "Nicht erreichbar" : "Prüfe…"} />
+            </div>
             <input
               type="text"
               value={apiUrl}

@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://100.91.210.125:3000";
+const DEFAULT_API_URL = "https://jl_manage.ct-2514.de";
 
 export function getApiUrl(): string {
   return (localStorage.getItem("api_base_url") ?? DEFAULT_API_URL).replace(/\/$/, "");
