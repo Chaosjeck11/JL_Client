@@ -13,7 +13,7 @@ type Props = {
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span style={{ width: 180, flexShrink: 0, fontSize: 13, color: "#555" }}>{label}</span>
+      <span style={{ width: 180, flexShrink: 0, fontSize: 13, color: "var(--c-text-2)" }}>{label}</span>
       {children}
     </label>
   );
@@ -122,7 +122,7 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: "#fff", borderRadius: 8, padding: 24,
+        background: "var(--c-bg)", borderRadius: 8, padding: 24,
         minWidth: 380, maxWidth: 500, maxHeight: "90vh", overflowY: "auto",
         boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
       }}>
@@ -176,10 +176,10 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
               </button>
             )}
           </div>
-          <h3 style={{ margin: 0 }}>Mein Profil</h3>
+          <h3 style={{ margin: 0, color: "var(--c-text)" }}>Mein Profil</h3>
         </div>
 
-        {error && <p style={{ color: "red", margin: "0 0 8px" }}>{error}</p>}
+        {error && <p style={{ color: "#dc2626", margin: "0 0 8px" }}>{error}</p>}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <FormField label="Vorname">
@@ -215,10 +215,10 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
         </div>
 
         <div style={{
-          marginTop: 16, paddingTop: 14, borderTop: "1px solid #e2e8f0",
+          marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--c-border)",
           display: "flex", flexDirection: "column", gap: 10,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--c-text-3)", textTransform: "uppercase", letterSpacing: "0.07em" }}>
             Passwort ändern
           </div>
           <FormField label="Neues Passwort">

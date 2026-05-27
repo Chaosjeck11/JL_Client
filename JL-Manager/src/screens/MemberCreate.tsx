@@ -11,9 +11,9 @@ type Props = {
 function SectionHeader({ label }: { label: string }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 700, color: "#94a3b8",
+      fontSize: 11, fontWeight: 700, color: "var(--c-text-3)",
       textTransform: "uppercase" as const, letterSpacing: "0.07em",
-      margin: "18px 0 8px", paddingBottom: 6, borderBottom: "1px solid #e2e8f0",
+      margin: "18px 0 8px", paddingBottom: 6, borderBottom: "1px solid var(--c-border)",
     }}>
       {label}
     </div>
@@ -23,7 +23,7 @@ function SectionHeader({ label }: { label: string }) {
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <span style={{ width: 170, flexShrink: 0, fontSize: 13, color: "#475569" }}>{label}</span>
+      <span style={{ width: 170, flexShrink: 0, fontSize: 13, color: "var(--c-text-2)" }}>{label}</span>
       {children}
     </label>
   );
@@ -31,7 +31,8 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 
 const inputStyle: React.CSSProperties = {
   flex: 1, padding: "6px 10px", borderRadius: 6,
-  border: "1px solid #d1d5db", fontSize: 13,
+  border: "1px solid var(--c-border)", fontSize: 13,
+  background: "var(--c-bg)", color: "var(--c-text)",
 };
 
 const btnPrimary: React.CSSProperties = {
@@ -40,7 +41,7 @@ const btnPrimary: React.CSSProperties = {
 };
 
 const btnSecondary: React.CSSProperties = {
-  background: "#fff", color: "#374151", border: "1px solid #d1d5db",
+  background: "var(--c-bg)", color: "var(--c-text-2)", border: "1px solid var(--c-border)",
   borderRadius: 7, padding: "8px 18px", fontSize: 13, cursor: "pointer",
 };
 
@@ -100,7 +101,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
 
   return (
     <div>
-      <h3 style={{ marginTop: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Neues Mitglied</h3>
+      <h3 style={{ marginTop: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Neues Mitglied</h3>
       {error && <p style={{ color: "#dc2626", margin: "0 0 10px", fontSize: 13 }}>{error}</p>}
 
       <SectionHeader label="Persönliche Daten" />
@@ -119,7 +120,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
             readOnly
             value={form.firstname && form.lastname ? generatedPassword : ""}
             placeholder="wird aus Vor- und Nachname generiert"
-            style={{ ...inputStyle, background: "#f8fafc", color: "#64748b", cursor: "default" }}
+            style={{ ...inputStyle, background: "var(--c-bg-2)", color: "var(--c-text-2)", cursor: "default" }}
           />
         </FormField>
         <FormField label="Adresse">

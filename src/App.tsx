@@ -7,6 +7,7 @@ import Mitgliederbeitraege from "./screens/Mitgliederbeitraege";
 import Files from "./screens/Files";
 import Veranstaltungen from "./screens/Veranstaltungen";
 import Kalender from "./screens/Kalender";
+import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
@@ -14,7 +15,7 @@ import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
 
-type Tab = "members" | "finance" | "beitraege" | "files" | "veranstaltungen" | "kalender";
+type Tab = "members" | "finance" | "beitraege" | "strafen" | "files" | "veranstaltungen" | "kalender";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -50,6 +51,16 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
         <line x1="3" y1="6" x2="3.01" y2="6"/>
         <line x1="3" y1="12" x2="3.01" y2="12"/>
         <line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+    ),
+  },
+  {
+    id: "strafen",
+    label: "Strafen",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+        <line x1="4" y1="22" x2="4" y2="15"/>
       </svg>
     ),
   },
@@ -310,6 +321,7 @@ export default function App() {
       {activeTab === "members"   && <Members onLogout={handleLogout} isMobile={isMobile} />}
       {activeTab === "finance"   && <Finance isMobile={isMobile} />}
       {activeTab === "beitraege" && <Mitgliederbeitraege isMobile={isMobile} />}
+      {activeTab === "strafen"         && <Strafen isMobile={isMobile} />}
       {activeTab === "files"          && <Files isMobile={isMobile} />}
       {activeTab === "veranstaltungen" && <Veranstaltungen isMobile={isMobile} initialSelectedId={pendingEventId} />}
       {activeTab === "kalender" && (

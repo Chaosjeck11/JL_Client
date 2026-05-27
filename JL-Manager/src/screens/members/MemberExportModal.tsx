@@ -181,12 +181,12 @@ export default function MemberExportModal({ members, onClose }: Props) {
 
   const section: React.CSSProperties = { marginBottom: 20 };
   const sectionLabel: React.CSSProperties = {
-    fontSize: 12, fontWeight: 700, color: "#374151",
+    fontSize: 12, fontWeight: 700, color: "var(--c-text-2)",
     textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8,
   };
   const checkRow: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 8,
-    padding: "4px 0", cursor: "pointer", fontSize: 13, color: "#1e293b",
+    padding: "4px 0", cursor: "pointer", fontSize: 13, color: "var(--c-text)",
   };
 
   return (
@@ -195,13 +195,13 @@ export default function MemberExportModal({ members, onClose }: Props) {
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: "#fff", borderRadius: 12, padding: 28, width: 560,
+        background: "var(--c-bg)", borderRadius: 12, padding: 28, width: 560,
         maxWidth: "90vw", maxHeight: "88vh", overflowY: "auto",
         boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 18, color: "#1e293b" }}>Mitgliederliste exportieren</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>×</button>
+          <h2 style={{ margin: 0, fontSize: 18, color: "var(--c-text)" }}>Mitgliederliste exportieren</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--c-text-3)", lineHeight: 1 }}>×</button>
         </div>
 
         {/* Felder */}
@@ -217,7 +217,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
               </button>
               <button
                 onClick={() => setSelectedFields([])}
-                style={{ fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                style={{ fontSize: 11, color: "var(--c-text-3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 Keine
               </button>
@@ -228,8 +228,8 @@ export default function MemberExportModal({ members, onClose }: Props) {
             const allSelected = group.fields.every(f => selectedFields.includes(f));
             const someSelected = group.fields.some(f => selectedFields.includes(f));
             return (
-              <div key={group.label} style={{ marginBottom: 12, padding: "10px 12px", background: "#f8fafc", borderRadius: 8 }}>
-                <label style={{ ...checkRow, marginBottom: 6, fontWeight: 600, color: "#374151" }}>
+              <div key={group.label} style={{ marginBottom: 12, padding: "10px 12px", background: "var(--c-bg-2)", borderRadius: 8 }}>
+                <label style={{ ...checkRow, marginBottom: 6, fontWeight: 600, color: "var(--c-text-2)" }}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -266,10 +266,10 @@ export default function MemberExportModal({ members, onClose }: Props) {
                 key={val}
                 style={{
                   ...checkRow, padding: "5px 14px",
-                  border: `1px solid ${statusFilter === val ? "#3b82f6" : "#d1d5db"}`,
+                  border: `1px solid ${statusFilter === val ? "#3b82f6" : "var(--c-border)"}`,
                   borderRadius: 6,
-                  background: statusFilter === val ? "#eff6ff" : "#fff",
-                  color: statusFilter === val ? "#1d4ed8" : "#1e293b",
+                  background: statusFilter === val ? "#eff6ff" : "var(--c-bg)",
+                  color: statusFilter === val ? "#1d4ed8" : "var(--c-text)",
                   fontWeight: statusFilter === val ? 600 : 400,
                 }}
               >
@@ -285,7 +285,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
               </label>
             ))}
           </div>
-          <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+          <div style={{ marginTop: 6, fontSize: 12, color: "var(--c-text-2)" }}>
             {filteredMembers.length} Mitglied{filteredMembers.length !== 1 ? "er" : ""} werden exportiert
           </div>
         </div>
@@ -299,10 +299,10 @@ export default function MemberExportModal({ members, onClose }: Props) {
                 key={f}
                 style={{
                   ...checkRow, padding: "6px 16px",
-                  border: `1px solid ${format === f ? "#3b82f6" : "#d1d5db"}`,
+                  border: `1px solid ${format === f ? "#3b82f6" : "var(--c-border)"}`,
                   borderRadius: 6,
-                  background: format === f ? "#eff6ff" : "#fff",
-                  color: format === f ? "#1d4ed8" : "#1e293b",
+                  background: format === f ? "#eff6ff" : "var(--c-bg)",
+                  color: format === f ? "#1d4ed8" : "var(--c-text)",
                   fontWeight: format === f ? 600 : 400,
                 }}
               >
@@ -333,7 +333,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button
             onClick={onClose}
-            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer" }}
+            style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}
           >
             Abbrechen
           </button>
@@ -342,7 +342,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
             disabled={loading}
             style={{
               padding: "8px 20px", borderRadius: 6, border: "none",
-              background: loading ? "#94a3b8" : "#1e293b",
+              background: loading ? "var(--c-text-3)" : "#1e293b",
               color: "#fff", fontSize: 13, fontWeight: 600,
               cursor: loading ? "not-allowed" : "pointer",
             }}

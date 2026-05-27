@@ -29,7 +29,6 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
     queryFn: fetchVeranstaltungen,
   });
 
-  // Fetch full detail for selected event (includes transactions, attachments, form)
   const { data: selectedDetail } = useQuery({
     queryKey: ["veranstaltungen", selectedId],
     queryFn: () => fetchVeranstaltung(selectedId!),
@@ -74,23 +73,23 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
       display: "flex",
       height: "var(--content-h)",
       overflow: "hidden",
-      background: "#f8fafc",
+      background: "var(--c-bg-2)",
     }}>
       {/* ── Left panel: list ── */}
       {showList && (
         <div style={{
           width: isMobile ? "100%" : 320,
           minWidth: isMobile ? undefined : 260,
-          borderRight: isMobile ? "none" : "1px solid #e2e8f0",
+          borderRight: isMobile ? "none" : "1px solid var(--c-border)",
           display: "flex",
           flexDirection: "column",
-          background: "#fff",
+          background: "var(--c-bg)",
           overflow: "hidden",
         }}>
           {/* Toolbar */}
           <div style={{
             padding: "10px 12px",
-            borderBottom: "1px solid #e2e8f0",
+            borderBottom: "1px solid var(--c-border)",
             display: "flex",
             gap: 6,
             alignItems: "center",
@@ -103,8 +102,8 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
-                flex: 1, minWidth: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0",
-                fontSize: 13, outline: "none", background: "#f8fafc",
+                flex: 1, minWidth: 120, padding: "6px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+                fontSize: 13, outline: "none", background: "var(--c-bg-2)", color: "var(--c-text)",
               }}
             />
             {isAdmin && (
@@ -112,9 +111,9 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
                 onClick={() => { setRightPanel("template"); setSelectedId(null); if (isMobile) setMobileShowDetail(true); }}
                 title="Formular-Vorlage"
                 style={{
-                  padding: "6px 10px", borderRadius: 6, border: "1px solid #e2e8f0",
-                  background: rightPanel === "template" ? "#f1f5f9" : "#fff",
-                  color: "#374151", fontSize: 12, cursor: "pointer", flexShrink: 0,
+                  padding: "6px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+                  background: rightPanel === "template" ? "var(--c-bg-3)" : "var(--c-bg)",
+                  color: "var(--c-text-2)", fontSize: 12, cursor: "pointer", flexShrink: 0,
                   fontWeight: rightPanel === "template" ? 600 : 400,
                 }}
               >
@@ -139,10 +138,10 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
           {/* List */}
           <div style={{ flex: 1, overflowY: "auto" }}>
             {isLoading && (
-              <div style={{ padding: 20, color: "#94a3b8", fontSize: 13 }}>Lädt…</div>
+              <div style={{ padding: 20, color: "var(--c-text-3)", fontSize: 13 }}>Lädt…</div>
             )}
             {!isLoading && filtered.length === 0 && (
-              <div style={{ padding: 20, color: "#94a3b8", fontSize: 13 }}>
+              <div style={{ padding: 20, color: "var(--c-text-3)", fontSize: 13 }}>
                 {search ? "Keine Treffer." : "Keine Veranstaltungen."}
               </div>
             )}
@@ -154,20 +153,20 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
                   onClick={() => selectEvent(v)}
                   style={{
                     padding: "12px 14px",
-                    borderBottom: "1px solid #f1f5f9",
+                    borderBottom: "1px solid var(--c-border)",
                     cursor: "pointer",
                     background: isSelected ? "#eff6ff" : "transparent",
                     borderLeft: isSelected ? "3px solid #3b82f6" : "3px solid transparent",
                   }}
                 >
                   <div style={{
-                    fontWeight: 600, fontSize: 14, color: "#1e293b",
+                    fontWeight: 600, fontSize: 14, color: "var(--c-text)",
                     marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                   }}>
                     {v.name}
                   </div>
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <span style={{ fontSize: 12, color: "#64748b" }}>{fmtDate(v.date)}</span>
+                    <span style={{ fontSize: 12, color: "var(--c-text-2)" }}>{fmtDate(v.date)}</span>
                     {v._count && (
                       <div style={{ display: "flex", gap: 6 }}>
                         {v._count.transactions > 0 && (
@@ -191,7 +190,7 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
                   </div>
                   {v.description && (
                     <div style={{
-                      fontSize: 12, color: "#94a3b8", marginTop: 3,
+                      fontSize: 12, color: "var(--c-text-3)", marginTop: 3,
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     }}>
                       {v.description}
@@ -211,11 +210,11 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          background: "#fff",
+          background: "var(--c-bg)",
         }}>
           {/* Mobile back button */}
           {isMobile && (
-            <div style={{ padding: "10px 16px", borderBottom: "1px solid #e2e8f0", flexShrink: 0 }}>
+            <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--c-border)", flexShrink: 0 }}>
               <button
                 onClick={() => { setMobileShowDetail(false); }}
                 style={{
@@ -244,12 +243,12 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
               />
             )}
             {rightPanel === "detail" && !selectedDetail && selectedId !== null && (
-              <div style={{ padding: 24, color: "#94a3b8", fontSize: 13 }}>Lädt…</div>
+              <div style={{ padding: 24, color: "var(--c-text-3)", fontSize: 13 }}>Lädt…</div>
             )}
             {rightPanel === null && (
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                height: "100%", color: "#94a3b8", fontSize: 14,
+                height: "100%", color: "var(--c-text-3)", fontSize: 14,
               }}>
                 Veranstaltung auswählen
               </div>
