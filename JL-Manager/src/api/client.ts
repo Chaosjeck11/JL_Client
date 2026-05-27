@@ -38,7 +38,11 @@ export async function apiFetch(
   });
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}`);
+    const text = await res.text().catch(() => "");
+    const err = new Error(`API error ${res.status}`) as Error & { status: number; body: string };
+    err.status = res.status;
+    err.body = text;
+    throw err;
   }
 
   if (res.status === 204 || res.headers.get("content-length") === "0") {

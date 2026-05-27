@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   fetchStrafen, createStrafe, updateStrafe, deleteStrafe,
-  fetchEintraege, createEintrag, updateEintrag, deleteEintrag,
+  fetchEintraege, createEintrag, deleteEintrag,
+  bezahlenEintrag, stornierenEintrag,
 } from "../api/strafen";
 import { fetchMembers } from "../api/members";
 import { fetchBusinessYears } from "../api/finance";
@@ -179,6 +180,93 @@ function AssignModal({
             <button onClick={onClose} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>Abbrechen</button>
             <button onClick={handleSubmit} disabled={saving} style={{ padding: "7px 16px", borderRadius: 6, border: "none", background: saving ? "#94a3b8" : "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
               {saving ? "Speichere…" : "Zuweisen"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Bezahlen Modal ────────────────────────────────────────────────────────────
+function BezahlenModal({
+  eintrag,
+  onClose,
+  onDone,
+}: {
+  eintrag: import("../types/strafen").StrafeEintrag;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [datum, setDatum] = useState(todayStr());
+  const [tag, setTag] = useState<"ONLINE" | "BAR">("BAR");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const strafe = eintrag.strafe;
+  const member = eintrag.member;
+
+  async function handleSubmit() {
+    setSaving(true);
+    setError("");
+    try {
+      await bezahlenEintrag(eintrag.id, { datum, tag });
+      onDone();
+      onClose();
+    } catch (err) {
+      setError(apiErrMsg(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 999 }} />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: 12,
+        padding: 24, width: 380, maxWidth: "calc(100vw - 32px)", zIndex: 1000,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Strafe bezahlen</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-text-3)", fontSize: 22 }}>×</button>
+        </div>
+        <div style={{ marginBottom: 18, padding: "10px 14px", borderRadius: 8, background: "var(--c-bg-2)", border: "1px solid var(--c-border)", fontSize: 13 }}>
+          <div style={{ fontWeight: 600, color: "var(--c-text)" }}>{strafe?.name ?? "–"} — {(strafe?.betrag ?? 0).toFixed(2)} €</div>
+          {member && <div style={{ color: "var(--c-text-2)", marginTop: 2 }}>{member.firstname} {member.lastname}</div>}
+          {eintrag.grund && <div style={{ color: "var(--c-text-3)", marginTop: 2, fontStyle: "italic" }}>„{eintrag.grund}"</div>}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Datum</div>
+            <input type="date" value={datum} onChange={e => setDatum(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Zahlungsart</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["BAR", "ONLINE"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTag(t)}
+                  style={{
+                    flex: 1, padding: "8px 0", borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                    border: `2px solid ${tag === t ? "#1e293b" : "var(--c-border)"}`,
+                    background: tag === t ? "#1e293b" : "var(--c-bg)",
+                    color: tag === t ? "#fff" : "var(--c-text-2)",
+                  }}
+                >
+                  {t === "BAR" ? "Bar" : "Online"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {error && <div style={{ color: "#dc2626", fontSize: 13, padding: "6px 10px", background: "#fef2f2", borderRadius: 6 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button onClick={onClose} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>Abbrechen</button>
+            <button onClick={handleSubmit} disabled={saving || !datum} style={{ padding: "7px 16px", borderRadius: 6, border: "none", background: saving || !datum ? "#94a3b8" : "#16a34a", color: "#fff", fontSize: 13, fontWeight: 600, cursor: saving || !datum ? "not-allowed" : "pointer" }}>
+              {saving ? "Speichere…" : "Als bezahlt buchen"}
             </button>
           </div>
         </div>
@@ -400,12 +488,13 @@ function MeineEintraege({ memberId, businessYears, isMobile }: { memberId: numbe
 }
 
 // ── Alle Einträge (admin) ─────────────────────────────────────────────────────
-function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]; businessYears: BusinessYear[]; isMobile: boolean }) {
+function AlleEintraege({ members, businessYears, isMobile, isAdmin, onAdd }: { members: Member[]; businessYears: BusinessYear[]; isMobile: boolean; isAdmin?: boolean; onAdd?: () => void }) {
   const queryClient = useQueryClient();
   const sortedYears = useMemo(() => [...businessYears].sort((a, b) => b.year - a.year), [businessYears]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [bezahlenEintragData, setBezahlenEintragData] = useState<import("../types/strafen").StrafeEintrag | null>(null);
 
   const effectiveYearId = selectedYearId ?? sortedYears[0]?.id ?? null;
   const queryFilters = { businessYearId: effectiveYearId ?? undefined, memberId: selectedMemberId ?? undefined };
@@ -420,21 +509,28 @@ function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]
 
   const totalOffen = eintraege.filter(e => !e.bezahlt).reduce((s, e) => s + (e.strafe?.betrag ?? 0), 0);
 
-  async function toggleBezahlt(e: StrafeEintrag) {
+  async function handleToggleBezahlt(e: StrafeEintrag) {
+    if (!e.bezahlt) {
+      setBezahlenEintragData(e);
+      return;
+    }
     setTogglingId(e.id);
     try {
-      await updateEintrag(e.id, { bezahlt: !e.bezahlt });
+      await stornierenEintrag(e.id);
       queryClient.invalidateQueries({ queryKey: ["strafen-eintraege"] });
+      queryClient.invalidateQueries({ queryKey: ["running-balance"] });
     } catch (err) { alert(apiErrMsg(err)); }
     finally { setTogglingId(null); }
   }
 
   async function handleDelete(e: StrafeEintrag) {
     const name = e.member ? `${e.member.firstname} ${e.member.lastname}` : `#${e.memberId}`;
-    if (!confirm(`Strafe für ${name} löschen?`)) return;
+    const hint = e.bezahlt ? " (Rückbuchung wird automatisch erstellt)" : "";
+    if (!confirm(`Strafe für ${name} löschen?${hint}`)) return;
     try {
       await deleteEintrag(e.id);
       queryClient.invalidateQueries({ queryKey: ["strafen-eintraege"] });
+      if (e.bezahlt) queryClient.invalidateQueries({ queryKey: ["running-balance"] });
     } catch (err) { alert(apiErrMsg(err)); }
   }
 
@@ -442,6 +538,11 @@ function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Alle Strafen</h3>
+        {isAdmin && onAdd && (
+          <button onClick={onAdd} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Eintrag
+          </button>
+        )}
         <select value={effectiveYearId ?? ""} onChange={e => setSelectedYearId(Number(e.target.value))} style={{ fontSize: 14, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text)" }}>
           {sortedYears.map(y => <option key={y.id} value={y.id}>{y.year}</option>)}
         </select>
@@ -490,11 +591,11 @@ function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]
                     <td style={{ padding: "10px 14px" }}>
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                         <button
-                          onClick={() => toggleBezahlt(e)}
+                          onClick={() => handleToggleBezahlt(e)}
                           disabled={togglingId === e.id}
                           style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${e.bezahlt ? "#fca5a5" : "#86efac"}`, background: "var(--c-bg)", color: e.bezahlt ? "#dc2626" : "#16a34a", fontSize: 12, cursor: togglingId === e.id ? "not-allowed" : "pointer", opacity: togglingId === e.id ? 0.5 : 1 }}
                         >
-                          {e.bezahlt ? "Offen" : "Bezahlt"}
+                          {e.bezahlt ? "Stornieren" : "Bezahlen"}
                         </button>
                         <button onClick={() => handleDelete(e)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "var(--c-bg)", color: "#dc2626", fontSize: 12, cursor: "pointer" }}>×</button>
                       </div>
@@ -506,17 +607,35 @@ function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]
           </div>
         </div>
       )}
+      {bezahlenEintragData && (
+        <BezahlenModal
+          eintrag={bezahlenEintragData}
+          onClose={() => setBezahlenEintragData(null)}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ["strafen-eintraege"] });
+            queryClient.invalidateQueries({ queryKey: ["running-balance"] });
+          }}
+        />
+      )}
     </div>
   );
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export default function Strafen({ isMobile = false }: { isMobile?: boolean }) {
+export default function Strafen({
+  isMobile = false,
+  initialSubTab,
+  hideSubTabBar = false,
+}: {
+  isMobile?: boolean;
+  initialSubTab?: SubTab;
+  hideSubTabBar?: boolean;
+}) {
   const isAdmin = canManageFinance();
   const currentUser = getCurrentUser();
   const queryClient = useQueryClient();
 
-  const [subTab, setSubTab] = useState<SubTab>("katalog");
+  const [subTab, setSubTab] = useState<SubTab>(initialSubTab ?? "katalog");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigningStrafe, setAssigningStrafe] = useState<Strafe | null>(null);
 
@@ -540,39 +659,34 @@ export default function Strafen({ isMobile = false }: { isMobile?: boolean }) {
 
   return (
     <div style={{ padding: "16px 16px", overflowY: "auto", height: "var(--content-h)", boxSizing: "border-box" }}>
-      {/* Subtab bar */}
-      <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--c-border)", marginBottom: 20 }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            style={{
-              padding: "8px 18px", border: "none",
-              borderBottom: `2px solid ${subTab === tab.id ? "var(--c-text)" : "transparent"}`,
-              background: "transparent", fontSize: 14,
-              fontWeight: subTab === tab.id ? 700 : 400,
-              color: subTab === tab.id ? "var(--c-text)" : "var(--c-text-2)",
-              cursor: "pointer", marginBottom: -1,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-        {isAdmin && subTab === "alle" && (
-          <div style={{ marginLeft: "auto" }}>
-            <button onClick={openAssignGeneral} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              + Eintrag
+      {/* Subtab bar — hidden when parent nav handles tab switching */}
+      {!hideSubTabBar && (
+        <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--c-border)", marginBottom: 20 }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSubTab(tab.id)}
+              style={{
+                padding: "8px 18px", border: "none",
+                borderBottom: `2px solid ${subTab === tab.id ? "var(--c-text)" : "transparent"}`,
+                background: "transparent", fontSize: 14,
+                fontWeight: subTab === tab.id ? 700 : 400,
+                color: subTab === tab.id ? "var(--c-text)" : "var(--c-text-2)",
+                cursor: "pointer", marginBottom: -1,
+              }}
+            >
+              {tab.label}
             </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {subTab === "katalog" && <KatalogTab isAdmin={isAdmin} onAssign={openAssign} />}
       {subTab === "meine" && currentUser && (
         <MeineEintraege memberId={currentUser.sub} businessYears={businessYears} isMobile={isMobile} />
       )}
       {subTab === "alle" && isAdmin && (
-        <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} />
+        <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} isAdmin={isAdmin} onAdd={openAssignGeneral} />
       )}
 
       {showAssignModal && (

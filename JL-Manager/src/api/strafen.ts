@@ -45,6 +45,14 @@ export function updateEintrag(id: number, data: { bezahlt?: boolean; grund?: str
   return apiFetch(`/strafen/eintraege/${id}`, { method: "PATCH", body: JSON.stringify(data) });
 }
 
+export function bezahlenEintrag(id: number, data: { datum: string; tag: "ONLINE" | "BAR" }): Promise<StrafeEintrag> {
+  return apiFetch(`/strafen/eintraege/${id}/bezahlen`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export function stornierenEintrag(id: number): Promise<StrafeEintrag> {
+  return apiFetch(`/strafen/eintraege/${id}/stornieren`, { method: "POST" });
+}
+
 export function deleteEintrag(id: number): Promise<void> {
   return apiFetch(`/strafen/eintraege/${id}`, { method: "DELETE" });
 }

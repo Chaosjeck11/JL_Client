@@ -15,6 +15,7 @@ export interface StrafeEintrag {
   businessYearId: number;
   grund?: string | null;
   bezahlt: boolean;
+  transactionId?: number | null;
   createdAt: string;
   updatedAt: string;
   member?: { id: number; firstname: string; lastname: string; active?: boolean };
