@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import {
   fetchStrafen, createStrafe, updateStrafe, deleteStrafe,
-  fetchEintraege, createEintrag, updateEintrag, deleteEintrag,
+  fetchEintraege, createEintrag, deleteEintrag,
   bezahlenEintrag, stornierenEintrag,
 } from "../api/strafen";
 import { fetchMembers } from "../api/members";
