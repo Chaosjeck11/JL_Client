@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createTransaction } from "../api/finance";
+import { fetchEintraege, updateEintrag } from "../api/strafen";
 import type { BusinessYear, Category, Transaction } from "../types/finance";
 import type { Member } from "../types/member";
+import type { StrafeEintrag } from "../types/strafen";
 
 type Props = {
   businessYears: BusinessYear[];
@@ -35,9 +38,14 @@ function businessYearForDate(dateStr: string, years: BusinessYear[]): number | n
   if (parts.length < 2) return null;
   const y = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10);
-  // GJ Y läuft Feb Y – Jan Y+1; Januar gehört also noch zu GJ des Vorjahres
   const gjYear = m === 1 ? y - 1 : y;
   return years.find(by => by.year === gjYear)?.id ?? null;
+}
+
+function fmtDate(d: string): string {
+  if (!d) return "–";
+  const [y, m, day] = d.substring(0, 10).split("-");
+  return `${day}.${m}.${y}`;
 }
 
 export default function TransactionCreate({
@@ -58,6 +66,15 @@ export default function TransactionCreate({
   const [businessYearId, setBusinessYearId] = useState<number>(
     defaultBusinessYearId ?? businessYears[0]?.id ?? 0,
   );
+  const [memberId, setMemberId] = useState<number | null>(null);
+  const [veranstaltungId, setVeranstaltungId] = useState<number | null>(null);
+  const [tag, setTag] = useState<"ONLINE" | "BAR">("ONLINE");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  // Strafe-specific state
+  const [selectedStrafeEintragId, setSelectedStrafeEintragId] = useState<number | null>(null);
+  const [markStrafeAlsBezahlt, setMarkStrafeAlsBezahlt] = useState(true);
 
   function handleDateChange(newDate: string) {
     setDate(newDate);
@@ -66,14 +83,42 @@ export default function TransactionCreate({
       if (matched !== null) setBusinessYearId(matched);
     }
   }
-  const [memberId, setMemberId] = useState<number | null>(null);
-  const [veranstaltungId, setVeranstaltungId] = useState<number | null>(null);
-  const [tag, setTag] = useState<"ONLINE" | "BAR">("ONLINE");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
   const selectedCategory = categories.find(c => c.id === categoryId);
-  const showMemberSelector = type === "EINZAHLUNG" && selectedCategory?.isMitgliedsbeitrag === true;
+  const isStrafenKategorie = useMemo(
+    () => !!selectedCategory && selectedCategory.name.toLowerCase().includes("strafe") && !selectedCategory.isMitgliedsbeitrag,
+    [selectedCategory],
+  );
+  const showMemberSelector =
+    (type === "EINZAHLUNG" && selectedCategory?.isMitgliedsbeitrag === true) ||
+    isStrafenKategorie;
+
+  // Fetch unbezahlte StrafeEintraege for selected member when strafe category
+  const { data: offeneStrafen = [] } = useQuery<StrafeEintrag[]>({
+    queryKey: ["strafen-eintraege", "offen-for-member", memberId],
+    queryFn: () => fetchEintraege({ memberId: memberId!, bezahlt: false }),
+    enabled: isStrafenKategorie && memberId !== null,
+    staleTime: 20_000,
+  });
+
+  const selectedEintrag = offeneStrafen.find(e => e.id === selectedStrafeEintragId) ?? null;
+
+  // Auto-check "als bezahlt markieren" when amount >= Strafe betrag
+  useEffect(() => {
+    if (selectedEintrag?.strafe) {
+      const amt = parseFloat(amount);
+      setMarkStrafeAlsBezahlt(!isNaN(amt) && amt >= selectedEintrag.strafe.betrag);
+    }
+  }, [amount, selectedEintrag]);
+
+  // Auto-fill amount when a Strafe entry is selected
+  function handleStrafeEintragChange(id: number | null) {
+    setSelectedStrafeEintragId(id);
+    if (id) {
+      const e = offeneStrafen.find(x => x.id === id);
+      if (e?.strafe) setAmount(String(e.strafe.betrag));
+    }
+  }
 
   async function submit() {
     if (!description.trim()) { setError("Beschreibung ist erforderlich"); return; }
@@ -95,6 +140,14 @@ export default function TransactionCreate({
         tag,
         veranstaltungId,
       });
+      // Mark linked StrafeEintrag as bezahlt if requested
+      if (isStrafenKategorie && selectedStrafeEintragId && markStrafeAlsBezahlt) {
+        try {
+          await updateEintrag(selectedStrafeEintragId, { bezahlt: true });
+        } catch {
+          // Transaction created; silently ignore the eintrag update failure
+        }
+      }
       onCreated(t);
     } catch {
       setError("Anlegen fehlgeschlagen");
@@ -179,7 +232,11 @@ export default function TransactionCreate({
         <Field label="Kategorie">
           <select
             value={categoryId}
-            onChange={e => { setCategoryId(Number(e.target.value)); setMemberId(null); }}
+            onChange={e => {
+              setCategoryId(Number(e.target.value));
+              setMemberId(null);
+              setSelectedStrafeEintragId(null);
+            }}
             style={inputStyle}
           >
             {categories.map(c => (
@@ -189,10 +246,13 @@ export default function TransactionCreate({
         </Field>
 
         {showMemberSelector && (
-          <Field label="Mitglied (optional)">
+          <Field label={isStrafenKategorie ? "Mitglied" : "Mitglied (optional)"}>
             <select
               value={memberId ?? ""}
-              onChange={e => setMemberId(e.target.value ? Number(e.target.value) : null)}
+              onChange={e => {
+                setMemberId(e.target.value ? Number(e.target.value) : null);
+                setSelectedStrafeEintragId(null);
+              }}
               style={inputStyle}
             >
               <option value="">— kein Mitglied zuordnen —</option>
@@ -206,6 +266,55 @@ export default function TransactionCreate({
                 ))}
             </select>
           </Field>
+        )}
+
+        {/* Strafe entry selector (only when strafe category + member selected) */}
+        {isStrafenKategorie && memberId !== null && (
+          <>
+            <Field label="Strafe (optional)">
+              <select
+                value={selectedStrafeEintragId ?? ""}
+                onChange={e => handleStrafeEintragChange(e.target.value ? Number(e.target.value) : null)}
+                style={inputStyle}
+              >
+                <option value="">— keine Strafe verknüpfen —</option>
+                {offeneStrafen.length === 0 ? (
+                  <option disabled value="">Keine offenen Strafen</option>
+                ) : (
+                  offeneStrafen.map(e => (
+                    <option key={e.id} value={e.id}>
+                      {e.strafe?.name ?? `#${e.strafeId}`}
+                      {" — "}
+                      {(e.strafe?.betrag ?? 0).toFixed(2)} €
+                      {e.grund ? ` (${e.grund})` : ""}
+                      {e.businessYear ? ` GJ ${e.businessYear.year}` : ""}
+                      {" · "}
+                      {fmtDate(e.createdAt)}
+                    </option>
+                  ))
+                )}
+              </select>
+            </Field>
+
+            {selectedStrafeEintragId !== null && selectedEintrag && (
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={markStrafeAlsBezahlt}
+                  onChange={e => setMarkStrafeAlsBezahlt(e.target.checked)}
+                  style={{ width: 15, height: 15, accentColor: "#16a34a", cursor: "pointer" }}
+                />
+                <span style={{ color: "var(--c-text)" }}>
+                  Strafe als bezahlt markieren
+                  {selectedEintrag.strafe && parseFloat(amount || "0") < selectedEintrag.strafe.betrag && (
+                    <span style={{ color: "#d97706", marginLeft: 6, fontSize: 12 }}>
+                      (Teilzahlung — {amount || "0"} / {selectedEintrag.strafe.betrag.toFixed(2)} €)
+                    </span>
+                  )}
+                </span>
+              </label>
+            )}
+          </>
         )}
 
         <Field label="Zahlungsart">

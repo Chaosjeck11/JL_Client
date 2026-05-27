@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createTransaction,
   fetchBusinessYear,
   fetchBusinessYears,
   fetchCategories,
@@ -9,7 +10,7 @@ import {
 import { fetchMembers } from "../api/members";
 import { fetchVeranstaltungen } from "../api/veranstaltungen";
 import { canManageFinance } from "../auth/permissions";
-import type { PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
+import type { BusinessYear, PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
 import BusinessYearForm from "./finance/BusinessYearForm";
 import CategoryManager from "./finance/CategoryManager";
 import ImportModal from "./finance/ImportModal";
@@ -21,6 +22,15 @@ function fmtDate(d: string): string {
   if (!d) return "–";
   const [y, m, day] = d.substring(0, 10).split("-");
   return `${day}.${m}.${y}`;
+}
+
+function businessYearForDate(dateStr: string, years: BusinessYear[]): number | null {
+  const parts = dateStr.split("-");
+  if (parts.length < 2) return null;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const gjYear = m === 1 ? y - 1 : y;
+  return years.find(by => by.year === gjYear)?.id ?? null;
 }
 
 function TypePill({ type }: { type: Transaction["type"] }) {
@@ -74,6 +84,104 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   );
 }
 
+// ── Kassenstransfer Modal ────────────────────────────────────────────────────
+type KasseKontoDirection = "ein" | "aus";
+
+function KasseKontoModal({
+  direction,
+  kassenstransferKatId,
+  businessYears,
+  onCreated,
+  onClose,
+}: {
+  direction: KasseKontoDirection;
+  kassenstransferKatId: number;
+  businessYears: BusinessYear[];
+  onCreated: () => void;
+  onClose: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(today);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const isEin = direction === "ein";
+  const title = isEin ? "Einzahlen (Kasse → Konto)" : "Auszahlen (Konto → Kasse)";
+
+  const inputSt: React.CSSProperties = {
+    padding: "7px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+    fontSize: 14, background: "var(--c-bg)", color: "var(--c-text)",
+    width: "100%", boxSizing: "border-box",
+  };
+
+  async function submit() {
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) { setError("Gültigen Betrag eingeben"); return; }
+    const byId = businessYearForDate(date, businessYears);
+    if (!byId) { setError("Kein Geschäftsjahr für dieses Datum"); return; }
+    setSaving(true); setError("");
+    try {
+      const desc = isEin ? "Kassenstransfer: Einzahlung" : "Kassenstransfer: Auszahlung";
+      await createTransaction({
+        date, description: desc, type: "EINZAHLUNG", amount: amt,
+        categoryId: kassenstransferKatId, businessYearId: byId,
+        tag: isEin ? "ONLINE" : "BAR",
+      });
+      await createTransaction({
+        date, description: desc, type: "AUSZAHLUNG", amount: amt,
+        categoryId: kassenstransferKatId, businessYearId: byId,
+        tag: isEin ? "BAR" : "ONLINE",
+      });
+      onCreated();
+      onClose();
+    } catch {
+      setError("Anlegen fehlgeschlagen");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 999 }} />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: 12,
+        padding: 24, width: 360, maxWidth: "calc(100vw - 32px)", zIndex: 1000,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>{title}</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-text-3)", fontSize: 22 }}>×</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Betrag (€)</div>
+            <input
+              type="number" min="0.01" step="0.01"
+              value={amount} onChange={e => setAmount(e.target.value)}
+              placeholder="0,00" autoFocus
+              style={inputSt}
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Datum</div>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputSt} />
+          </div>
+          {error && <div style={{ color: "#dc2626", fontSize: 13, padding: "6px 10px", background: "#fef2f2", borderRadius: 6 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button onClick={onClose} style={{ padding: "7px 16px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>Abbrechen</button>
+            <button onClick={submit} disabled={saving} style={{ padding: "7px 16px", borderRadius: 6, border: "none", background: saving ? "#94a3b8" : "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}>
+              {saving ? "Anlegen…" : "Buchen"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 type ActiveFilter = "date" | "desc" | "cat" | "tag" | null;
 
 export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
@@ -87,6 +195,8 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const [showImport, setShowImport] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [showStornos, setShowStornos] = useState(false);
+  const [showTransfers, setShowTransfers] = useState(false);
+  const [kasseKontoModal, setKasseKontoModal] = useState<{ direction: KasseKontoDirection } | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -164,14 +274,28 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
     );
   }
 
+  // Transfer detection
+  const kassenstransferKat = categories.find(c => c.name.toLowerCase().includes("kassenstransfer"));
+  const transferIds = useMemo(
+    () => kassenstransferKat
+      ? new Set(entries.filter(e => e.transaction.categoryId === kassenstransferKat.id).map(e => e.transaction.id))
+      : new Set<number>(),
+    [kassenstransferKat, entries],
+  );
+
   const stornoIds = new Set(
     entries
       .filter(e => e.transaction.type === "RUECKBUCHUNG" && e.transaction.relatedTransactionId != null)
       .map(e => e.transaction.relatedTransactionId!)
   );
+
   const baseEntries = showStornos
-    ? entries
-    : entries.filter(e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id));
+    ? (showTransfers ? entries : entries.filter(e => !transferIds.has(e.transaction.id)))
+    : entries.filter(e => {
+        if (e.transaction.type === "RUECKBUCHUNG" || stornoIds.has(e.transaction.id)) return false;
+        if (!showTransfers && transferIds.has(e.transaction.id)) return false;
+        return true;
+      });
 
   const visibleEntries = baseEntries.filter(e => {
     const t = e.transaction;
@@ -187,12 +311,21 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
     return true;
   });
 
+  // Stats exclude stornos and transfers (transfers cancel out, would inflate income+expenses)
   const statsEntries = entries.filter(
-    e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id)
+    e => e.transaction.type !== "RUECKBUCHUNG"
+      && !stornoIds.has(e.transaction.id)
+      && !transferIds.has(e.transaction.id),
   );
   const totalIncome   = statsEntries.filter(e => e.transaction.type === "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
   const totalExpenses = statsEntries.filter(e => e.transaction.type !== "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
   const finalBalance  = entries.length > 0 ? entries[entries.length - 1].runningBalance : (yearDetail?.carryOver ?? 0);
+
+  // Kasse = net of BAR-tagged non-storno transactions; Konto = remainder
+  const kasseBalance = entries
+    .filter(e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id) && e.transaction.tag === "BAR")
+    .reduce((s, e) => s + (e.transaction.type === "EINZAHLUNG" ? e.transaction.amount : -e.transaction.amount), 0);
+  const kontoBalance = finalBalance - kasseBalance;
 
   const hasDateFilter = !!(filterDateFrom || filterDateTo);
   const hasDescFilter = !!filterKeywords;
@@ -243,7 +376,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
         flexDirection: "column", gap: 16,
       }}>
 
-        {/* Toolbar */}
+        {/* Toolbar row 1: year + admin buttons */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h2 style={{ margin: 0, fontSize: 20, color: "var(--c-text)" }}>Kassenbuch</h2>
@@ -264,7 +397,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             {isAdmin && (
               <button
                 onClick={() => setShowCategoryManager(v => !v)}
@@ -290,6 +423,34 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
             >
               Rückbuchungen {showStornos ? "▲" : "▼"}
             </button>
+            <button
+              onClick={() => setShowTransfers(v => !v)}
+              style={{
+                padding: "5px 12px", borderRadius: 6,
+                border: showTransfers ? "1px solid #818cf8" : "1px solid var(--c-border)",
+                background: showTransfers ? "#eef2ff" : "var(--c-bg)",
+                color: showTransfers ? "#4f46e5" : "var(--c-text-2)",
+                fontSize: 13, fontWeight: showTransfers ? 600 : 400, cursor: "pointer",
+              }}
+            >
+              Transfers {showTransfers ? "▲" : "▼"}
+            </button>
+            {isAdmin && kassenstransferKat && (
+              <>
+                <button
+                  onClick={() => setKasseKontoModal({ direction: "ein" })}
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}
+                >
+                  Einzahlen
+                </button>
+                <button
+                  onClick={() => setKasseKontoModal({ direction: "aus" })}
+                  style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}
+                >
+                  Auszahlen
+                </button>
+              </>
+            )}
             <button
               onClick={() => setShowReport(true)}
               style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}
@@ -323,11 +484,13 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
         {/* Stats cards */}
         {yearDetail && (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />
+            {!isMobile && <StatCard label="Übertrag"   value={`${yearDetail.carryOver.toFixed(2)} €`} />}
             <StatCard label="Einnahmen"  value={`+${totalIncome.toFixed(2)} €`}  color="#16a34a" />
-            <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />
-            {(() => { const g = totalIncome - totalExpenses; return <StatCard label="Gewinn" value={`${g >= 0 ? "+" : ""}${g.toFixed(2)} €`} color={g >= 0 ? "#16a34a" : "#dc2626"} />; })()}
-            {!isMobile && <StatCard label="Kontostand" value={`${finalBalance.toFixed(2)} €`} color={finalBalance >= 0 ? "var(--c-text)" : "#dc2626"} />}
+            {!isMobile && <StatCard label="Ausgaben"   value={`-${totalExpenses.toFixed(2)} €`} color="#dc2626" />}
+            {!isMobile && (() => { const g = totalIncome - totalExpenses; return <StatCard label="Gewinn" value={`${g >= 0 ? "+" : ""}${g.toFixed(2)} €`} color={g >= 0 ? "#16a34a" : "#dc2626"} />; })()}
+            <StatCard label="Kontostand" value={`${finalBalance.toFixed(2)} €`} color={finalBalance >= 0 ? "var(--c-text)" : "#dc2626"} />
+            <StatCard label="Geld in Kasse" value={`${kasseBalance.toFixed(2)} €`} color={kasseBalance >= 0 ? "var(--c-text)" : "#dc2626"} />
+            <StatCard label="Geld in Konto" value={`${kontoBalance.toFixed(2)} €`} color={kontoBalance >= 0 ? "var(--c-text)" : "#dc2626"} />
           </div>
         )}
 
@@ -497,10 +660,12 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                 const isHovered   = hoveredId === t.id;
                 const isRueck     = t.type === "RUECKBUCHUNG";
                 const isStorniert = stornoIds.has(t.id);
+                const isTransfer  = transferIds.has(t.id);
                 const amtColor    = t.type === "EINZAHLUNG" ? "#16a34a" : t.type === "AUSZAHLUNG" ? "#dc2626" : "#d97706";
 
                 let rowBg = idx % 2 === 0 ? "var(--c-bg)" : "var(--c-bg-2)";
                 if (isRueck || isStorniert) rowBg = idx % 2 === 0 ? "#fffbeb" : "#fef9ec";
+                if (isTransfer) rowBg = idx % 2 === 0 ? "#eef2ff" : "#e8edff";
                 if (isHovered) rowBg = "var(--c-bg-3)";
                 if (isSelected) rowBg = "#eff6ff";
 
@@ -514,7 +679,10 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                       cursor: "pointer",
                       background: rowBg,
                       borderBottom: "1px solid var(--c-border)",
-                      borderLeft: isSelected ? "3px solid #3b82f6" : (isRueck || isStorniert) ? "3px solid #d97706" : "3px solid transparent",
+                      borderLeft: isSelected ? "3px solid #3b82f6"
+                        : isTransfer ? "3px solid #818cf8"
+                        : (isRueck || isStorniert) ? "3px solid #d97706"
+                        : "3px solid transparent",
                       opacity: isStorniert ? 0.6 : 1,
                       transition: "background 0.1s",
                     }}
@@ -571,6 +739,16 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
 
       {showImport && (
         <ImportModal businessYears={businessYears} categories={categories} onImported={reloadYear} onClose={() => setShowImport(false)} />
+      )}
+
+      {kasseKontoModal && kassenstransferKat && (
+        <KasseKontoModal
+          direction={kasseKontoModal.direction}
+          kassenstransferKatId={kassenstransferKat.id}
+          businessYears={businessYears}
+          onCreated={reloadYear}
+          onClose={() => setKasseKontoModal(null)}
+        />
       )}
 
       {/* ── RIGHT: DETAIL / CREATE PANEL ── */}

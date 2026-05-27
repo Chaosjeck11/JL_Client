@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchVeranstaltungen } from "../api/veranstaltungen";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchVeranstaltungen, createVeranstaltung } from "../api/veranstaltungen";
+import { canManageFinance } from "../auth/permissions";
 import { getApiUrl } from "../api/client";
 import type { Veranstaltung } from "../types/veranstaltungen";
 
@@ -15,13 +16,108 @@ interface Props {
   onGoToEvent?: (id: number) => void;
 }
 
+function fmtDateLong(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+function CreateEventModal({
+  date,
+  onClose,
+  onCreated,
+}: {
+  date: string;
+  onClose: () => void;
+  onCreated: (id: number) => void;
+}) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+
+  async function handleSubmit() {
+    if (!name.trim()) { setError("Name erforderlich."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const ev = await createVeranstaltung({ name: name.trim(), date });
+      queryClient.invalidateQueries({ queryKey: ["veranstaltungen"] });
+      onCreated(ev.id);
+    } catch (err) {
+      const e = err as Error & { body?: string };
+      if (e.body) {
+        try { const p = JSON.parse(e.body); setError(p.message ?? e.body); return; }
+        catch { setError(e.body); return; }
+      }
+      setError(e.message ?? "Fehler beim Erstellen.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 999 }} />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: 12,
+        padding: 24, width: 340, maxWidth: "calc(100vw - 32px)", zIndex: 1000,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Neues Event</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--c-text-3)", fontSize: 22, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 6, background: "var(--c-bg-2)", border: "1px solid var(--c-border)", fontSize: 13, color: "var(--c-text-2)" }}>
+          {fmtDateLong(date)}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <input
+            autoFocus
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
+            placeholder="Eventname *"
+            style={{
+              padding: "8px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+              fontSize: 14, background: "var(--c-bg)", color: "var(--c-text)",
+              width: "100%", boxSizing: "border-box",
+            }}
+          />
+          {error && <div style={{ color: "#dc2626", fontSize: 13, padding: "6px 10px", background: "#fef2f2", borderRadius: 6 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button onClick={onClose} style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>
+              Abbrechen
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving || !name.trim()}
+              style={{
+                padding: "7px 14px", borderRadius: 6, border: "none",
+                background: saving || !name.trim() ? "#94a3b8" : "#1e293b",
+                color: "#fff", fontSize: 13, fontWeight: 600,
+                cursor: saving || !name.trim() ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? "Erstelle…" : "Erstellen"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [showSubscribe, setShowSubscribe] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [createForDate, setCreateForDate] = useState<string | null>(null);
 
+  const isAdmin = canManageFinance();
   const icalUrl = `${getApiUrl()}/veranstaltungen/ical`;
   const webcalUrl = icalUrl.replace(/^https?:\/\//, "webcal://");
 
@@ -284,10 +380,12 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
             const isWeekend = i % 7 >= 5;
             const maxChips = 2;
             const overflow = dayEvents.length > maxChips;
+            const clickable = isAdmin && cell.inMonth;
 
             return (
               <div
                 key={`${cell.dateStr}-${i}`}
+                onClick={clickable ? () => setCreateForDate(cell.dateStr) : undefined}
                 style={{
                   minHeight: isMobile ? 56 : 108,
                   padding: isMobile ? "6px 4px" : "8px 8px",
@@ -297,6 +395,8 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
                   borderRight: (i + 1) % 7 !== 0 ? "1px solid var(--c-border)" : undefined,
                   borderBottom: "1px solid var(--c-border)",
                   boxSizing: "border-box",
+                  cursor: clickable ? "pointer" : "default",
+                  transition: clickable ? "background 0.1s" : undefined,
                 }}
               >
                 <div style={{
@@ -322,7 +422,7 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
                 {!isMobile && dayEvents.slice(0, maxChips).map(ev => (
                   <div
                     key={ev.id}
-                    onClick={() => onGoToEvent?.(ev.id)}
+                    onClick={e => { e.stopPropagation(); onGoToEvent?.(ev.id); }}
                     title={ev.name}
                     style={{
                       background: "var(--c-event)",
@@ -358,6 +458,11 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
                     )}
                   </div>
                 )}
+
+                {/* "+" hint for admin on empty days */}
+                {isAdmin && cell.inMonth && dayEvents.length === 0 && (
+                  <div style={{ fontSize: 10, color: "var(--c-text-3)", lineHeight: 1, marginTop: 2 }}>+</div>
+                )}
               </div>
             );
           })}
@@ -373,6 +478,7 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
           {monthEvents.length === 0 && (
             <div style={{ color: "var(--c-text-3)", fontSize: 13, textAlign: "center", padding: "16px 0" }}>
               Keine Events in diesem Monat.
+              {isAdmin && <div style={{ marginTop: 6, fontSize: 12 }}>Tag antippen um Event hinzuzufügen.</div>}
             </div>
           )}
           {monthEvents.map(ev => {
@@ -411,6 +517,18 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
             );
           })}
         </div>
+      )}
+
+      {/* Create event modal */}
+      {createForDate && (
+        <CreateEventModal
+          date={createForDate}
+          onClose={() => setCreateForDate(null)}
+          onCreated={(id) => {
+            setCreateForDate(null);
+            onGoToEvent?.(id);
+          }}
+        />
       )}
     </div>
   );

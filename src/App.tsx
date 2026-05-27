@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Login from "./screens/Login";
 import Members from "./screens/Members";
@@ -11,11 +11,15 @@ import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
+import { canManageFinance } from "./auth/permissions";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
 
-type Tab = "members" | "finance" | "beitraege" | "strafen" | "files" | "veranstaltungen" | "kalender";
+type Tab = "members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender";
+
+const FINANCE_GROUP: Tab[] = ["finance", "beitraege", "strafen", "meine_strafen", "alle_strafen"];
+const EVENTS_GROUP: Tab[] = ["veranstaltungen", "kalender"];
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -102,6 +106,14 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+// Mobile bottom nav: 4 grouped items
+const MOBILE_NAV_ITEMS = [
+  { tab: TABS[0], groupTabs: null as Tab[] | null },
+  { tab: TABS[1], groupTabs: FINANCE_GROUP },
+  { tab: TABS[4], groupTabs: null as Tab[] | null },
+  { tab: TABS[5], groupTabs: EVENTS_GROUP },
+];
+
 const GearIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"/>
@@ -123,7 +135,26 @@ export default function App() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
+  const isFinanceGroup = (FINANCE_GROUP as string[]).includes(activeTab);
+  const isEventsGroup = (EVENTS_GROUP as string[]).includes(activeTab);
+
+  // Update --content-h when subtab bar appears/disappears on mobile
+  useEffect(() => {
+    if (!isMobile) {
+      document.documentElement.style.removeProperty("--content-h");
+      return;
+    }
+    const hasSubtabs = isFinanceGroup || isEventsGroup;
+    document.documentElement.style.setProperty(
+      "--content-h",
+      hasSubtabs
+        ? "calc(100vh - 44px - 40px - 56px)"
+        : "calc(100vh - 44px - 56px)",
+    );
+  }, [isMobile, isFinanceGroup, isEventsGroup]);
+
   const currentUser = loggedIn ? getCurrentUser() : null;
+  const isAdmin = loggedIn ? canManageFinance() : false;
   const { data: currentMember = null } = useQuery({
     queryKey: ["members", currentUser?.sub],
     queryFn: () => fetchMember(currentUser!.sub),
@@ -246,6 +277,18 @@ export default function App() {
     </div>
   );
 
+  const mobileTitle = isFinanceGroup ? "Finanzen"
+    : isEventsGroup ? "Events"
+    : TABS.find(t => t.id === activeTab)?.label ?? "JL";
+
+  const subtabBtnStyle = (isActive: boolean): React.CSSProperties => ({
+    flex: 1, border: "none", background: "transparent", fontSize: 13,
+    fontWeight: isActive ? 700 : 400,
+    color: isActive ? "var(--c-text)" : "var(--c-text-2)",
+    borderBottom: `2px solid ${isActive ? "var(--c-text)" : "transparent"}`,
+    cursor: "pointer", padding: "0 4px",
+  });
+
   return (
     <div>
       {/* ── Desktop nav (top tabs) ── */}
@@ -299,7 +342,7 @@ export default function App() {
           position: "sticky", top: 0, zIndex: 50,
         }}>
           <span style={{ fontSize: 16, fontWeight: 800, color: "var(--c-text)", letterSpacing: -0.5 }}>
-            {TABS.find(t => t.id === activeTab)?.label ?? "JL"}
+            {mobileTitle}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {gearButton}
@@ -317,11 +360,64 @@ export default function App() {
         </nav>
       )}
 
+      {/* ── Mobile Finance subtab bar ── */}
+      {isMobile && isFinanceGroup && (
+        <div style={{
+          display: "flex", height: 40, alignItems: "stretch",
+          borderBottom: "1px solid var(--c-border)",
+          background: "var(--c-bg)", position: "sticky", top: 44, zIndex: 49,
+          overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
+        }}>
+          {([
+            { id: "finance" as Tab, label: "Kassenbuch" },
+            { id: "beitraege" as Tab, label: "Beiträge" },
+            { id: "strafen" as Tab, label: "Strafen" },
+            { id: "meine_strafen" as Tab, label: "Deine Str." },
+            ...(isAdmin ? [{ id: "alle_strafen" as Tab, label: "Alle Str." }] : []),
+          ] as { id: Tab; label: string }[]).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                flex: "none", border: "none", background: "transparent",
+                fontSize: 13, padding: "0 14px", whiteSpace: "nowrap",
+                fontWeight: activeTab === t.id ? 700 : 400,
+                color: activeTab === t.id ? "var(--c-text)" : "var(--c-text-2)",
+                borderBottom: `2px solid ${activeTab === t.id ? "var(--c-text)" : "transparent"}`,
+                cursor: "pointer",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Mobile Events subtab bar ── */}
+      {isMobile && isEventsGroup && (
+        <div style={{
+          display: "flex", height: 40, alignItems: "stretch",
+          borderBottom: "1px solid var(--c-border)",
+          background: "var(--c-bg)", position: "sticky", top: 44, zIndex: 49,
+        }}>
+          {[
+            { id: "veranstaltungen" as Tab, label: "Events" },
+            { id: "kalender" as Tab, label: "Kalender" },
+          ].map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} style={subtabBtnStyle(activeTab === t.id)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Screen content ── */}
       {activeTab === "members"   && <Members onLogout={handleLogout} isMobile={isMobile} />}
       {activeTab === "finance"   && <Finance isMobile={isMobile} />}
       {activeTab === "beitraege" && <Mitgliederbeitraege isMobile={isMobile} />}
-      {activeTab === "strafen"         && <Strafen isMobile={isMobile} />}
+      {activeTab === "strafen"         && <Strafen isMobile={isMobile} hideSubTabBar={isMobile} />}
+      {activeTab === "meine_strafen"   && <Strafen isMobile={isMobile} initialSubTab="meine" hideSubTabBar />}
+      {activeTab === "alle_strafen"    && isAdmin && <Strafen isMobile={isMobile} initialSubTab="alle" hideSubTabBar />}
       {activeTab === "files"          && <Files isMobile={isMobile} />}
       {activeTab === "veranstaltungen" && <Veranstaltungen isMobile={isMobile} initialSelectedId={pendingEventId} />}
       {activeTab === "kalender" && (
@@ -345,7 +441,7 @@ export default function App() {
         />
       )}
 
-      {/* ── Mobile bottom nav ── */}
+      {/* ── Mobile bottom nav (4 grouped items) ── */}
       {isMobile && (
         <nav
           className="mobile-bottom-nav"
@@ -356,24 +452,32 @@ export default function App() {
             zIndex: 100, boxShadow: "0 -1px 3px rgba(0,0,0,0.06)",
           }}
         >
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                flex: 1, border: "none", background: "transparent",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 3, cursor: "pointer",
-                color: activeTab === tab.id ? "var(--c-text)" : "var(--c-text-3)",
-                borderTop: `2px solid ${activeTab === tab.id ? "var(--c-text)" : "transparent"}`,
-                fontSize: 10, fontWeight: activeTab === tab.id ? 700 : 400,
-                padding: "4px 0",
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+          {MOBILE_NAV_ITEMS.map(({ tab, groupTabs }) => {
+            const isActive = groupTabs
+              ? (groupTabs as string[]).includes(activeTab)
+              : activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (groupTabs && isActive) return;
+                  setActiveTab(tab.id);
+                }}
+                style={{
+                  flex: 1, border: "none", background: "transparent",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 3, cursor: "pointer",
+                  color: isActive ? "var(--c-text)" : "var(--c-text-3)",
+                  borderTop: `2px solid ${isActive ? "var(--c-text)" : "transparent"}`,
+                  fontSize: 10, fontWeight: isActive ? 700 : 400,
+                  padding: "4px 0",
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            );
+          })}
         </nav>
       )}
     </div>

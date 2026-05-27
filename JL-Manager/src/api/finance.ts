@@ -185,3 +185,13 @@ export function fetchMitgliedsbeitraege(filters?: {
   const query = params.size > 0 ? `?${params}` : "";
   return apiFetch(`/finance/mitgliedsbeitraege${query}`);
 }
+
+export function updateMitgliedsbeitrag(
+  id: number,
+  data: { bezahltJL?: number; bezahltKG?: number },
+): Promise<Mitgliedsbeitrag> {
+  return apiFetch(`/finance/mitgliedsbeitraege/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}

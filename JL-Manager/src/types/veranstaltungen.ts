@@ -71,6 +71,16 @@ export type VeranstaltungFormTemplate = {
   updatedAt: string;
 };
 
+export type VeranstaltungKategorie = {
+  id: number;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { veranstaltungen: number };
+};
+
 export type AllAttachments = {
   direct: VeranstaltungAttachment[];
   fromTransactions: Array<{

@@ -488,7 +488,7 @@ function MeineEintraege({ memberId, businessYears, isMobile }: { memberId: numbe
 }
 
 // ── Alle Einträge (admin) ─────────────────────────────────────────────────────
-function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]; businessYears: BusinessYear[]; isMobile: boolean }) {
+function AlleEintraege({ members, businessYears, isMobile, isAdmin, onAdd }: { members: Member[]; businessYears: BusinessYear[]; isMobile: boolean; isAdmin?: boolean; onAdd?: () => void }) {
   const queryClient = useQueryClient();
   const sortedYears = useMemo(() => [...businessYears].sort((a, b) => b.year - a.year), [businessYears]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
@@ -538,6 +538,11 @@ function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Alle Strafen</h3>
+        {isAdmin && onAdd && (
+          <button onClick={onAdd} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Eintrag
+          </button>
+        )}
         <select value={effectiveYearId ?? ""} onChange={e => setSelectedYearId(Number(e.target.value))} style={{ fontSize: 14, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text)" }}>
           {sortedYears.map(y => <option key={y.id} value={y.id}>{y.year}</option>)}
         </select>
@@ -617,12 +622,20 @@ function AlleEintraege({ members, businessYears, isMobile }: { members: Member[]
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export default function Strafen({ isMobile = false }: { isMobile?: boolean }) {
+export default function Strafen({
+  isMobile = false,
+  initialSubTab,
+  hideSubTabBar = false,
+}: {
+  isMobile?: boolean;
+  initialSubTab?: SubTab;
+  hideSubTabBar?: boolean;
+}) {
   const isAdmin = canManageFinance();
   const currentUser = getCurrentUser();
   const queryClient = useQueryClient();
 
-  const [subTab, setSubTab] = useState<SubTab>("katalog");
+  const [subTab, setSubTab] = useState<SubTab>(initialSubTab ?? "katalog");
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assigningStrafe, setAssigningStrafe] = useState<Strafe | null>(null);
 
@@ -646,39 +659,34 @@ export default function Strafen({ isMobile = false }: { isMobile?: boolean }) {
 
   return (
     <div style={{ padding: "16px 16px", overflowY: "auto", height: "var(--content-h)", boxSizing: "border-box" }}>
-      {/* Subtab bar */}
-      <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--c-border)", marginBottom: 20 }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setSubTab(tab.id)}
-            style={{
-              padding: "8px 18px", border: "none",
-              borderBottom: `2px solid ${subTab === tab.id ? "var(--c-text)" : "transparent"}`,
-              background: "transparent", fontSize: 14,
-              fontWeight: subTab === tab.id ? 700 : 400,
-              color: subTab === tab.id ? "var(--c-text)" : "var(--c-text-2)",
-              cursor: "pointer", marginBottom: -1,
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-        {isAdmin && subTab === "alle" && (
-          <div style={{ marginLeft: "auto" }}>
-            <button onClick={openAssignGeneral} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              + Eintrag
+      {/* Subtab bar — hidden when parent nav handles tab switching */}
+      {!hideSubTabBar && (
+        <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid var(--c-border)", marginBottom: 20 }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSubTab(tab.id)}
+              style={{
+                padding: "8px 18px", border: "none",
+                borderBottom: `2px solid ${subTab === tab.id ? "var(--c-text)" : "transparent"}`,
+                background: "transparent", fontSize: 14,
+                fontWeight: subTab === tab.id ? 700 : 400,
+                color: subTab === tab.id ? "var(--c-text)" : "var(--c-text-2)",
+                cursor: "pointer", marginBottom: -1,
+              }}
+            >
+              {tab.label}
             </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {subTab === "katalog" && <KatalogTab isAdmin={isAdmin} onAssign={openAssign} />}
       {subTab === "meine" && currentUser && (
         <MeineEintraege memberId={currentUser.sub} businessYears={businessYears} isMobile={isMobile} />
       )}
       {subTab === "alle" && isAdmin && (
-        <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} />
+        <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} isAdmin={isAdmin} onAdd={openAssignGeneral} />
       )}
 
       {showAssignModal && (

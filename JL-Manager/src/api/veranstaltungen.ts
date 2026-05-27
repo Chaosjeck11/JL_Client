@@ -8,6 +8,7 @@ import type {
   VeranstaltungForm,
   VeranstaltungFormRow,
   VeranstaltungFormTemplate,
+  VeranstaltungKategorie,
 } from "../types/veranstaltungen";
 
 export function fetchVeranstaltungen(): Promise<Veranstaltung[]> {
@@ -155,4 +156,27 @@ export function updateFormTemplate(columns: FormColumn[]): Promise<Veranstaltung
     method: "PATCH",
     body: JSON.stringify({ columns }),
   });
+}
+
+export function fetchVeranstaltungKategorien(): Promise<VeranstaltungKategorie[]> {
+  return apiFetch("/veranstaltung-kategorien");
+}
+
+export function createVeranstaltungKategorie(data: {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+}): Promise<VeranstaltungKategorie> {
+  return apiFetch("/veranstaltung-kategorien", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateVeranstaltungKategorie(
+  id: number,
+  data: { name?: string; description?: string | null; color?: string | null },
+): Promise<VeranstaltungKategorie> {
+  return apiFetch(`/veranstaltung-kategorien/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function deleteVeranstaltungKategorie(id: number): Promise<void> {
+  return apiFetch(`/veranstaltung-kategorien/${id}`, { method: "DELETE" });
 }
