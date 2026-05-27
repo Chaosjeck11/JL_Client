@@ -1,0 +1,18 @@
+{
+  "name": "JL-Manager",
+  "short_name": "JL-Manager",
+  "description": "Mitgliederverwaltung JL-Manager",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "/512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

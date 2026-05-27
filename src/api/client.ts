@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://DEPLOY_SERVER_IP:3000";
+const DEFAULT_API_URL = "https://your-backend-domain.de";
 
 export function getApiUrl(): string {
   return (localStorage.getItem("api_base_url") ?? DEFAULT_API_URL).replace(/\/$/, "");
