@@ -7,11 +7,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 After significant changes to the codebase, update this CLAUDE.md 
 to reflect new architecture, added services, or changed conventions.
 
+## Wichtig — Verzeichnisstruktur
+
+**Bearbeite immer `/home/ben/DevLocal/JL_Client/src/` — niemals `JL-Manager/src/`.**
+
+`test_run.sh` führt `cp -r src/* JL-Manager/src/` aus, bevor es `npm run tauri dev` startet. Das bedeutet: alle Edits in `JL-Manager/src/` werden bei jedem `test_run.sh`-Aufruf überschrieben. `JL-Manager/` ist ein Build-Artefakt, kein Quellverzeichnis.
 
 ## Commands
 
 ```bash
-npm run dev       # Start dev server (Vite, HMR)
+# Entwicklung (Tauri Android/Desktop live):
+./test_run.sh     # sync src/ → JL-Manager/src/, dann tauri dev
+
+# Nur Web-Dev (kein Tauri):
+cd JL-Manager && npm run dev
+
 npm run build     # Type-check + production build (tsc -b && vite build)
 npm run lint      # ESLint
 npm run preview   # Preview production build
@@ -59,10 +69,13 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - `['veranstaltung-form', id]`
   - `['veranstaltung-financials', id]`
   - `['veranstaltung-form-template']`
+  - `['veranstaltung-kategorien']`
+  - `['strafen']`
+  - `['strafen-eintraege', 'meine', memberId, yearId]` / `['strafen-eintraege', 'alle', filters]`
 - Exceptions (still use `useEffect`): blob URL lifecycle with cancellation tokens, event listeners, UI-state reactions (not data fetching).
 
 **Auth flow:**
-- `App.tsx` holds `loggedIn` (boolean), `activeTab` ("members" | "finance" | "beitraege" | "files" | "veranstaltungen" | "kalender"), and `pendingEventId` (number | null) as global state. On logout, `queryClient.clear()` wipes the cache. `pendingEventId` is set when the user clicks an event in the Kalender tab; it is passed as `initialSelectedId` to `Veranstaltungen` so the detail panel opens automatically.
+- `App.tsx` holds `loggedIn` (boolean), `activeTab` ("members" | "finance" | "beitraege" | "strafen" | "files" | "veranstaltungen" | "kalender"), and `pendingEventId` (number | null) as global state. On logout, `queryClient.clear()` wipes the cache. `pendingEventId` is set when the user clicks an event in the Kalender tab; it is passed as `initialSelectedId` to `Veranstaltungen` so the detail panel opens automatically.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
 - Permission checks in `src/auth/permissions.ts` gate UI elements based on `accessLevel >= 5`:
   - `canEditMembers()`, `canCreateMembers()` — member management
@@ -75,13 +88,15 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `src/api/members.ts` — `/members` endpoints (list, single, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
 - `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, mitgliedsbeitraege, transaction attachments (upload/download/delete/preview).
 - `src/api/files.ts` — `/files` endpoints: `fetchFiles(path?)`, `fetchFolders()`, `uploadFile` (raw fetch/FormData), `downloadFile` (Blob → objectURL), `previewFile` (Blob → objectURL, inline), `updateFile`, `deleteFile`.
-- `src/api/veranstaltungen.ts` — `/veranstaltungen` + `/veranstaltung-form-template` endpoints: full CRUD, financials, form rows (add/update/delete), attachment upload/download/delete/blob-preview, template get/update. Attachment uploads use raw `fetch`/`FormData`; downloads return Blob → objectURL.
+- `src/api/veranstaltungen.ts` — `/veranstaltungen` + `/veranstaltung-form-template` + `/veranstaltung-kategorien` endpoints: full CRUD, financials, form rows (add/update/delete), attachment upload/download/delete/blob-preview, template get/update, kategorie CRUD. Attachment uploads use raw `fetch`/`FormData`; downloads return Blob → objectURL.
+- `src/api/strafen.ts` — `/strafen` + `/strafen/eintraege` endpoints: catalog CRUD (`fetchStrafen`, `createStrafe`, `updateStrafe`, `deleteStrafe`) and entry CRUD (`fetchEintraege`, `createEintrag`, `updateEintrag`, `deleteEintrag`). All via `apiFetch`. `fetchEintraege` accepts optional filter object `{ memberId?, strafeId?, businessYearId?, bezahlt? }`.
 
 **Types:**
 - `src/types/member.ts` — `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
 - `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`, `Mitgliedsbeitrag`.
 - `src/types/files.ts` — `AppFile`.
-- `src/types/veranstaltungen.ts` — `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `AllAttachments`.
+- `src/types/veranstaltungen.ts` — `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `VeranstaltungKategorie`, `AllAttachments`.
+- `src/types/strafen.ts` — `Strafe`, `StrafeEintrag`.
 
 **Responsive design:**
 - Mobile breakpoint: **768px**. Hook: `src/hooks/useIsMobile.ts` → `useIsMobile()` returns boolean, updates on resize.
@@ -93,9 +108,10 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Split-pane screens (Members, Finance, Files, Veranstaltungen) implement **stack navigation** on mobile: list panel OR detail panel visible at a time; detail panel shows a "← Zurück" button to return to the list.
 
 **Navigation (App.tsx):**
-- Desktop: sticky top bar with tab buttons + avatar/logout (right).
-- Mobile: slim top bar (active tab name + avatar + logout) + fixed 56px **bottom tab bar** with SVG icons + labels. Bottom nav uses CSS class `mobile-bottom-nav` for safe-area-inset support on notched devices.
-- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`, `Veranstaltungen`, `Kalender`.
+- Desktop: sticky top bar with tab buttons + settings gear (⚙) + avatar (right).
+- Mobile: slim top bar (active tab name + settings gear + avatar) + fixed 56px **bottom tab bar** with SVG icons + labels. Bottom nav uses CSS class `mobile-bottom-nav` for safe-area-inset support on notched devices.
+- **Settings menu**: gear icon opens an absolutely-positioned dropdown with a backdrop overlay (click outside to dismiss). Contains **dark mode toggle** — state stored in `localStorage('darkMode')`; toggling adds/removes class `dark` on `document.documentElement`; initialized from localStorage on mount.
+- `isMobile` computed from `useIsMobile()` in `App.tsx`; passed as prop to `Members`, `Finance`, `Files`, `Mitgliederbeitraege`, `Strafen`, `Veranstaltungen`, `Kalender`.
 
 **Screens (`src/screens/`):**
 - `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `http://100.91.210.125:3000`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`. **Connectivity indicator**: on mount and 800ms after URL changes, a `fetch` with `mode: "no-cors"` + 3s `AbortController` timeout probes the server; badge shows 🟡 Prüfe… / 🟢 Erreichbar / 🔴 Nicht erreichbar next to the label; "Tailscale aktiv?" hint shown below input when unreachable. **Password visibility toggle**: 👁️/🙈 button inside the password field toggles `type="password"` ↔ `type="text"` (`tabIndex={-1}`, does not steal form focus). **Error detail panel**: on login failure, error box shows HTTP status code in message + collapsible "Details ▼" button that reveals the raw API response body (JSON pretty-printed if parseable, otherwise plain text).
@@ -135,6 +151,14 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Blob URL lifecycle: `previewUrlRef` tracks current URL for revocation on file switch and unmount; cancellation token prevents stale state when switching files during a pending preview fetch.
 - Types: `src/types/files.ts` → `AppFile`. API functions: `src/api/files.ts` (`fetchFiles`, `fetchFolders`, `uploadFile`, `downloadFile`, `previewFile`, `updateFile`, `deleteFile`).
 
+**Strafen screen (`src/screens/Strafen.tsx`):** Props `isMobile?: boolean`. Tab label: "Strafen" (flag icon).
+- Three subtabs: **Strafen** (catalog), **Deine Strafen** (own entries), **Alle Strafen** (admin only).
+- **Strafen subtab** (`KatalogTab`): table of all catalog entries. Admin: inline edit, delete (blocked if `_count.eintraege > 0`), "+ Neue Strafe" form, and "+" button per row that opens `AssignModal`. `staleTime: 30_000` (no loading flash on tab switch).
+- **Deine Strafen** (`MeineEintraege`): year filter, own entries table. Uses `placeholderData: keepPreviousData` + `enabled: effectiveYearId !== null` to avoid flash on mount.
+- **Alle Strafen** (`AlleEintraege`, admin only): year + member filter, all entries table with toggle-bezahlt / delete per row. "+ Eintrag" button in subtab bar toolbar. Same caching as MeineEintraege.
+- **AssignModal**: member dropdown (active only), date (default today), auto-detected Geschäftsjahr displayed inline (month Jan → year−1, month Feb–Dec → current year), optional Grund. Error messages read from `err.body` via `apiErrMsg()`.
+- Business year auto-detection shared helper: `detectBusinessYearId(dateStr, businessYears)`.
+
 **Mitgliederbeitraege screen (`src/screens/Mitgliederbeitraege.tsx`):** Prop `isMobile?: boolean`.
 - Uses `height: "var(--content-h)"`. **Mobile**: table shows 3 columns (Mitglied, Offen, Status) — no horizontal scroll; desktop shows all 7 (Mitglied, Beitrag JL, Beitrag KG, Bezahlt JL, Bezahlt KG, Offen, Status). Summary cards: mobile shows only Ausstehend + Gesamt offen; desktop shows all 4.
 
@@ -157,7 +181,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - iCal feed at `GET /veranstaltungen/ical` is public (no JWT). URL derived from `getApiUrl()` — never hardcoded.
 
 **Veranstaltungen sub-screens (`src/screens/veranstaltungen/`):**
-- `VeranstaltungCreate` — form with name, date (defaults today), description. Creates via `POST /veranstaltungen`; invalidates `['veranstaltungen']`; calls `onCreated` with new event.
+- `VeranstaltungCreate` — form with name, date (defaults today), description, and optional category multi-select (toggle buttons). Fetches available categories via `useQuery(['veranstaltung-kategorien'])`. Creates via `POST /veranstaltungen` with optional `kategorieIds`; invalidates `['veranstaltungen']`; calls `onCreated` with new event.
 - `VeranstaltungDetail` — detail/edit view. Sections:
   - **Metadata** (name, date, description): inline edit toggle (admin); "Bearbeiten" / "Speichern" / "Abbrechen" buttons. Delete button with confirmation (admin).
   - **Finanzen**: 3 stat cards (Einnahmen, Ausgaben, Saldo) fetched via `useQuery(['veranstaltung-financials', id])`.
@@ -165,6 +189,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - **Formular**: table rendered from the event's `form.columns` snapshot. Admin can edit cells inline (input type matches `column.type`: text/number/date/checkbox), save per-row via PATCH, add rows, delete rows. Non-admin sees read-only values.
   - **Anhänge**: list with filename, size, download (↓), delete (×, admin). Clicking row opens `AttachmentViewer` side panel (click again to close); blob URL lifecycle managed with `useRef` + cancellation token. Admin upload: multi-file label input.
 - `FormTemplateManager` — admin template column editor. Fetches singleton via `useQuery(['veranstaltung-form-template'])`. Displays editable table of columns (label, type); add column form at bottom; save via `PATCH /veranstaltung-form-template`. Note: changes only affect new Veranstaltungen.
+- `VeranstaltungKategorienManager` — admin category CRUD panel. Fetches via `useQuery(['veranstaltung-kategorien'])`. List with color dot, name, description, usage count; inline edit row; create form with color picker (presets + custom color input). Delete blocked client-side if `_count.veranstaltungen > 0`. Exports `KategoriePill` (colored pill chip used in list + detail views).
 
 
 ## Backend reference
@@ -192,6 +217,9 @@ Default: `http://100.91.210.125:3000`. Configurable at runtime via the Login scr
 | Files | `/files` |
 | Veranstaltungen | `/veranstaltungen` |
 | Veranstaltung Form Template | `/veranstaltung-form-template` |
+| Veranstaltung Kategorien | `/veranstaltung-kategorien` |
+| Strafen (catalog) | `/strafen` |
+| Strafen (entries) | `/strafen/eintraege` |
 
 ### Key constraints Claude Code must respect
 - Access level `0` = any authenticated user (GET routes)
@@ -240,6 +268,12 @@ And in `src/api/veranstaltungen.ts`:
 - `fetchVeranstaltungForm(id)` — form columns snapshot + rows
 - `addFormRow` / `updateFormRow` / `deleteFormRow` — form row CRUD via `apiFetch`
 - `fetchFormTemplate` / `updateFormTemplate` — singleton template GET/PATCH via `apiFetch`
+- `fetchVeranstaltungKategorien` / `createVeranstaltungKategorie` / `updateVeranstaltungKategorie` / `deleteVeranstaltungKategorie` — kategorie CRUD via `apiFetch`
+
+And in `src/api/strafen.ts`:
+- `fetchStrafen` / `createStrafe` / `updateStrafe` / `deleteStrafe` — catalog CRUD via `apiFetch`
+- `fetchEintraege(filters?)` — list entries, optional `{ memberId?, strafeId?, businessYearId?, bezahlt? }` filter
+- `createEintrag` / `updateEintrag` / `deleteEintrag` — entry CRUD via `apiFetch`
 
 And in `src/api/files.ts` (all raw fetch — no `apiFetch`):
 - `uploadFile` — multipart upload to `POST /files/upload`; body fields `path?`, `description?`; returns `AppFile`
@@ -255,3 +289,12 @@ Config lives in `src-tauri/gen/android/app/src/main/`.
 **Permissions** (`AndroidManifest.xml`): `INTERNET` + `ACCESS_NETWORK_STATE`.
 
 **Network security** (`AndroidManifest.xml` → `android:networkSecurityConfig="@xml/network_security_config"`): `res/xml/network_security_config.xml` sets `cleartextTrafficPermitted="true"` globally so HTTP traffic to `100.91.210.125` (Tailscale) works without TLS. `android:usesCleartextTraffic` is also set via Tauri's build variable `${usesCleartextTraffic}`.
+
+## Progressive Web App (PWA)
+
+Static files in `public/` — served as-is by Vite, no build step needed.
+
+- `public/manifest.json` — Web App Manifest (`name: "JL Manager"`, `theme_color: "#1a1a2e"`, 192 × 512 icons, `purpose: "any maskable"` for adaptive icon support)
+- `public/sw.js` — service worker with **network-first** strategy; cache name `jl-manager-v1`; old caches purged on `activate` event
+- `public/192x192.png` / `public/512x512.png` — app icons
+- `index.html` — registers the service worker + iOS `apple-mobile-web-app-*` meta tags for standalone install on Safari

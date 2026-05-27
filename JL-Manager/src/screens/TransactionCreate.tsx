@@ -16,7 +16,7 @@ type Props = {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>
+      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>
         {label}
       </label>
       {children}
@@ -25,8 +25,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputStyle: React.CSSProperties = {
-  padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db",
-  fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
+  padding: "7px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+  fontSize: 14, background: "var(--c-bg)", color: "var(--c-text)",
+  width: "100%", boxSizing: "border-box",
 };
 
 function businessYearForDate(dateStr: string, years: BusinessYear[]): number | null {
@@ -104,7 +105,7 @@ export default function TransactionCreate({
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 20px", fontSize: 16, color: "#1e293b" }}>Neue Buchung</h3>
+      <h3 style={{ margin: "0 0 20px", fontSize: 16, color: "var(--c-text)" }}>Neue Buchung</h3>
 
       {error && (
         <div style={{ padding: "8px 12px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 13, marginBottom: 14 }}>
@@ -152,9 +153,9 @@ export default function TransactionCreate({
                 style={{
                   flex: 1, padding: "7px 0", borderRadius: 6, border: "1px solid",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  borderColor: type === t ? (t === "EINZAHLUNG" ? "#16a34a" : "#dc2626") : "#d1d5db",
-                  background: type === t ? (t === "EINZAHLUNG" ? "#f0fdf4" : "#fef2f2") : "#fff",
-                  color: type === t ? (t === "EINZAHLUNG" ? "#16a34a" : "#dc2626") : "#374151",
+                  borderColor: type === t ? (t === "EINZAHLUNG" ? "#16a34a" : "#dc2626") : "var(--c-border)",
+                  background: type === t ? (t === "EINZAHLUNG" ? "#f0fdf4" : "#fef2f2") : "var(--c-bg)",
+                  color: type === t ? (t === "EINZAHLUNG" ? "#16a34a" : "#dc2626") : "var(--c-text-2)",
                 }}
               >
                 {t === "EINZAHLUNG" ? "Einzahlung" : "Auszahlung"}
@@ -216,9 +217,9 @@ export default function TransactionCreate({
                 style={{
                   flex: 1, padding: "7px 0", borderRadius: 6, border: "1px solid",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  borderColor: tag === t ? "#3b82f6" : "#d1d5db",
-                  background: tag === t ? "#eff6ff" : "#fff",
-                  color: tag === t ? "#1d4ed8" : "#374151",
+                  borderColor: tag === t ? "#3b82f6" : "var(--c-border)",
+                  background: tag === t ? "#eff6ff" : "var(--c-bg)",
+                  color: tag === t ? "#1d4ed8" : "var(--c-text-2)",
                 }}
               >
                 {t === "ONLINE" ? "Online" : "Bar"}
@@ -262,8 +263,8 @@ export default function TransactionCreate({
           onClick={onCancel}
           disabled={saving}
           style={{
-            padding: "8px 16px", borderRadius: 6, border: "1px solid #d1d5db",
-            background: "#fff", fontSize: 14, cursor: "pointer",
+            padding: "8px 16px", borderRadius: 6, border: "1px solid var(--c-border)",
+            background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 14, cursor: "pointer",
           }}
         >
           Abbrechen

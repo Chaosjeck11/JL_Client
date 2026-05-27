@@ -193,27 +193,27 @@ export default function ImportModal({ businessYears, categories, onImported, onC
     if (ok > 0) onImported();
   }
 
-  const sectionLabel: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 };
+  const sectionLabel: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 };
 
   return (
     <div
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: "#fff", borderRadius: 12, padding: 28, width: 780, maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ background: "var(--c-bg)", borderRadius: 12, padding: 28, width: 780, maxWidth: "95vw", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: 0, fontSize: 18, color: "#1e293b" }}>Buchungen importieren</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#94a3b8", lineHeight: 1 }}>×</button>
+          <h2 style={{ margin: 0, fontSize: 18, color: "var(--c-text)" }}>Buchungen importieren</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--c-text-3)", lineHeight: 1 }}>×</button>
         </div>
 
         {/* Vorlage */}
-        <div style={{ padding: "12px 16px", background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, color: "#475569", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+        <div style={{ padding: "12px 16px", background: "var(--c-bg-2)", borderRadius: 8, border: "1px solid var(--c-border)", fontSize: 13, color: "var(--c-text-2)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div>
-            Format: <code style={{ background: "#e2e8f0", padding: "1px 5px", borderRadius: 3, fontSize: 12 }}>Datum;Beschreibung;Kategorie;Tag;Typ;Betrag</code>
+            Format: <code style={{ background: "var(--c-bg-3)", padding: "1px 5px", borderRadius: 3, fontSize: 12 }}>Datum;Beschreibung;Kategorie;Tag;Typ;Betrag</code>
             <br />
-            <span style={{ fontSize: 12, color: "#94a3b8" }}>Unterstützt: .xlsx und .csv · Tag: ONLINE oder BAR · Typ: Einzahlung oder Auszahlung</span>
+            <span style={{ fontSize: 12, color: "var(--c-text-3)" }}>Unterstützt: .xlsx und .csv · Tag: ONLINE oder BAR · Typ: Einzahlung oder Auszahlung</span>
           </div>
           <button
             onClick={downloadTemplate}
@@ -227,14 +227,14 @@ export default function ImportModal({ businessYears, categories, onImported, onC
         <div>
           <div style={sectionLabel}>Datei auswählen</div>
           <div
-            style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: "24px 20px", textAlign: "center", cursor: "pointer", background: "#fafafa" }}
+            style={{ border: "2px dashed var(--c-border)", borderRadius: 8, padding: "24px 20px", textAlign: "center", cursor: "pointer", background: "var(--c-bg-2)" }}
             onClick={() => fileRef.current?.click()}
             onDragOver={e => e.preventDefault()}
             onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
           >
             {fileName
-              ? <span style={{ fontSize: 14, color: "#1e293b", fontWeight: 600 }}>{fileName}</span>
-              : <span style={{ fontSize: 14, color: "#94a3b8" }}>Datei hierher ziehen oder klicken (.xlsx / .csv)</span>
+              ? <span style={{ fontSize: 14, color: "var(--c-text)", fontWeight: 600 }}>{fileName}</span>
+              : <span style={{ fontSize: 14, color: "var(--c-text-3)" }}>Datei hierher ziehen oder klicken (.xlsx / .csv)</span>
             }
           </div>
           <input ref={fileRef} type="file" accept=".xlsx,.csv" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
@@ -263,12 +263,12 @@ export default function ImportModal({ businessYears, categories, onImported, onC
                 <span style={{ fontSize: 12, color: "#16a34a" }}>{validRows.length} gültig</span>
                 {invalidRows.length > 0 && <span style={{ fontSize: 12, color: "#dc2626" }}>{invalidRows.length} fehlerhaft</span>}
               </div>
-              <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+              <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid var(--c-border)" }}>
                 <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12 }}>
                   <thead>
-                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                    <tr style={{ background: "var(--c-bg-2)", borderBottom: "1px solid var(--c-border)" }}>
                       {["Datum", "Beschreibung", "Kategorie", "Tag", "Typ", "Betrag", "GJ", "Status"].map(h => (
-                        <th key={h} align="left" style={{ padding: "7px 10px", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.4, fontSize: 11 }}>{h}</th>
+                        <th key={h} align="left" style={{ padding: "7px 10px", fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.4, fontSize: 11 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -276,7 +276,7 @@ export default function ImportModal({ businessYears, categories, onImported, onC
                     {rows.map((row, i) => {
                       const ok = row.errors.length === 0;
                       return (
-                        <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: ok ? "transparent" : "#fff8f8" }}>
+                        <tr key={i} style={{ borderBottom: "1px solid var(--c-border)", background: ok ? "transparent" : "#fff8f8" }}>
                           <td style={{ padding: "6px 10px", whiteSpace: "nowrap" }}>{row.date ? row.date.split("-").reverse().join(".") : row.raw[0]}</td>
                           <td style={{ padding: "6px 10px", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.description || row.raw[1]}</td>
                           <td style={{ padding: "6px 10px" }}>{row.categoryName}</td>
@@ -299,7 +299,7 @@ export default function ImportModal({ businessYears, categories, onImported, onC
             </div>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer" }}>
+              <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer" }}>
                 Abbrechen
               </button>
               <button

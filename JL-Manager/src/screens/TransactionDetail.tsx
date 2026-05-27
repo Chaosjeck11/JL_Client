@@ -25,7 +25,7 @@ function TypePill({ type }: { type: Transaction["type"] }) {
     AUSZAHLUNG:  { label: "Auszahlung",  color: "#dc2626", bg: "#fef2f2" },
     RUECKBUCHUNG: { label: "Rückbuchung", color: "#d97706", bg: "#fffbeb" },
   };
-  const s = map[type] ?? { label: type, color: "#64748b", bg: "#f1f5f9" };
+  const s = map[type] ?? { label: type, color: "var(--c-text-2)", bg: "var(--c-bg-3)" };
   return (
     <span style={{
       display: "inline-block", padding: "2px 10px", borderRadius: 12,
@@ -38,14 +38,15 @@ function TypePill({ type }: { type: Transaction["type"] }) {
 }
 
 const inputStyle: React.CSSProperties = {
-  padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db",
-  fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
+  padding: "7px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+  fontSize: 14, background: "var(--c-bg)", color: "var(--c-text)",
+  width: "100%", boxSizing: "border-box",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>
+      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>
         {label}
       </label>
       {children}
@@ -55,15 +56,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-      <span style={{ fontSize: 13, color: "#64748b" }}>{label}</span>
-      <span style={{ fontSize: 13, color: "#1e293b" }}>{children}</span>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--c-border)" }}>
+      <span style={{ fontSize: 13, color: "var(--c-text-2)" }}>{label}</span>
+      <span style={{ fontSize: 13, color: "var(--c-text)" }}>{children}</span>
     </div>
   );
 }
 
 function TagPill({ tag }: { tag: PaymentTag | null | undefined }) {
-  if (!tag) return <span style={{ fontSize: 13, color: "#94a3b8" }}>—</span>;
+  if (!tag) return <span style={{ fontSize: 13, color: "var(--c-text-3)" }}>—</span>;
   const map: Record<PaymentTag, { label: string; color: string; bg: string }> = {
     ONLINE: { label: "Online", color: "#1d4ed8", bg: "#eff6ff" },
     BAR:    { label: "Bar",    color: "#374151", bg: "#f1f5f9" },
@@ -215,7 +216,7 @@ export default function TransactionDetail({
     return (
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
-          <h3 style={{ margin: 0, fontSize: 16, color: "#1e293b" }}>Buchungsdetail</h3>
+          <h3 style={{ margin: 0, fontSize: 16, color: "var(--c-text)" }}>Buchungsdetail</h3>
           <span style={{ fontSize: 18, fontWeight: 700, color: amountColor }}>
             {sign}{transaction.amount.toFixed(2)} €
           </span>
@@ -251,8 +252,8 @@ export default function TransactionDetail({
             <button
               onClick={() => setEdit(true)}
               style={{
-                padding: "7px 16px", borderRadius: 6, border: "1px solid #d1d5db",
-                background: "#fff", fontSize: 13, cursor: "pointer",
+                padding: "7px 16px", borderRadius: 6, border: "1px solid var(--c-border)",
+                background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: "pointer",
               }}
             >
               Bearbeiten
@@ -274,7 +275,7 @@ export default function TransactionDetail({
         )}
 
         <div style={{ marginTop: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
             Anhänge {attachments.length > 0 && `(${attachments.length})`}
           </div>
 
@@ -285,7 +286,7 @@ export default function TransactionDetail({
           )}
 
           {attachments.length === 0 && (
-            <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 10 }}>Keine Anhänge</div>
+            <div style={{ fontSize: 13, color: "var(--c-text-3)", marginBottom: 10 }}>Keine Anhänge</div>
           )}
 
           {attachments.map(a => {
@@ -296,7 +297,7 @@ export default function TransactionDetail({
                 key={a.id}
                 style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
-                  borderBottom: "1px solid #f1f5f9", borderRadius: 6,
+                  borderBottom: "1px solid var(--c-border)", borderRadius: 6,
                   background: isActive ? "#eff6ff" : "transparent",
                   cursor: "pointer",
                 }}
@@ -306,18 +307,18 @@ export default function TransactionDetail({
                   title="Vorschau"
                   style={{
                     flex: 1, textAlign: "left", background: "none", border: "none", padding: 0,
-                    fontSize: 13, color: isActive ? "#1d4ed8" : "#1e293b",
+                    fontSize: 13, color: isActive ? "#1d4ed8" : "var(--c-text)",
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     cursor: "pointer", fontWeight: isActive ? 600 : 400,
                   }}
                 >
                   {isLoading ? "Lädt…" : a.filename}
                 </button>
-                <span style={{ fontSize: 12, color: "#94a3b8", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
+                <span style={{ fontSize: 12, color: "var(--c-text-3)", whiteSpace: "nowrap" }}>{fmtSize(a.size)}</span>
                 <button
                   onClick={e => { e.stopPropagation(); downloadAttachment(transaction.id, a.id, a.filename); }}
                   title="Herunterladen"
-                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid #d1d5db", background: "#fff", fontSize: 12, cursor: "pointer" }}
+                  style={{ padding: "3px 8px", borderRadius: 4, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 12, cursor: "pointer" }}
                 >
                   ↓
                 </button>
@@ -347,9 +348,9 @@ export default function TransactionDetail({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
                 style={{
-                  padding: "6px 14px", borderRadius: 6, border: "1px dashed #94a3b8",
-                  background: "#f8fafc", fontSize: 13, cursor: uploading ? "not-allowed" : "pointer",
-                  color: "#475569", opacity: uploading ? 0.6 : 1,
+                  padding: "6px 14px", borderRadius: 6, border: "1px dashed var(--c-text-3)",
+                  background: "var(--c-bg-2)", fontSize: 13, cursor: uploading ? "not-allowed" : "pointer",
+                  color: "var(--c-text-2)", opacity: uploading ? 0.6 : 1,
                 }}
               >
                 {uploading ? "Wird hochgeladen…" : "+ Anhang hinzufügen"}
@@ -371,7 +372,7 @@ export default function TransactionDetail({
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 20px", fontSize: 16, color: "#1e293b" }}>Buchung bearbeiten</h3>
+      <h3 style={{ margin: "0 0 20px", fontSize: 16, color: "var(--c-text)" }}>Buchung bearbeiten</h3>
 
       {error && (
         <div style={{ padding: "8px 12px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#dc2626", fontSize: 13, marginBottom: 14 }}>
@@ -405,9 +406,9 @@ export default function TransactionDetail({
                 style={{
                   flex: 1, padding: "7px 0", borderRadius: 6, border: "1px solid",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  borderColor: tag === t ? "#3b82f6" : "#d1d5db",
-                  background: tag === t ? "#eff6ff" : "#fff",
-                  color: tag === t ? "#1d4ed8" : "#374151",
+                  borderColor: tag === t ? "#3b82f6" : "var(--c-border)",
+                  background: tag === t ? "#eff6ff" : "var(--c-bg)",
+                  color: tag === t ? "#1d4ed8" : "var(--c-text-2)",
                 }}
               >
                 {t === "ONLINE" ? "Online" : "Bar"}
@@ -450,7 +451,7 @@ export default function TransactionDetail({
         <button
           onClick={() => { setEdit(false); setError(""); }}
           disabled={saving}
-          style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", fontSize: 14, cursor: "pointer" }}
+          style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 14, cursor: "pointer" }}
         >
           Abbrechen
         </button>

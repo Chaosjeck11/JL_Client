@@ -4,14 +4,14 @@ import { createVeranstaltung } from "../../api/veranstaltungen";
 import type { Veranstaltung } from "../../types/veranstaltungen";
 
 const inputStyle: React.CSSProperties = {
-  padding: "7px 10px", borderRadius: 6, border: "1px solid #d1d5db",
-  fontSize: 14, background: "#fff", width: "100%", boxSizing: "border-box",
+  padding: "7px 10px", borderRadius: 6, border: "1px solid var(--c-border)",
+  fontSize: 14, background: "var(--c-bg)", color: "var(--c-text)", width: "100%", boxSizing: "border-box",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5 }}>
+      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5 }}>
         {label}
       </label>
       {children}
@@ -58,7 +58,7 @@ export default function VeranstaltungCreate({ onCreated, onCancel }: Props) {
   return (
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--c-text)" }}>
           Neue Veranstaltung
         </h2>
       </div>
@@ -114,8 +114,8 @@ export default function VeranstaltungCreate({ onCreated, onCancel }: Props) {
             type="button"
             onClick={onCancel}
             style={{
-              padding: "8px 16px", borderRadius: 6, border: "1px solid #d1d5db",
-              background: "#fff", color: "#374151", fontSize: 14, cursor: "pointer",
+              padding: "8px 16px", borderRadius: 6, border: "1px solid var(--c-border)",
+              background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 14, cursor: "pointer",
             }}
           >
             Abbrechen
