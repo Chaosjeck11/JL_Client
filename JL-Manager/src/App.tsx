@@ -10,8 +10,9 @@ import Kalender from "./screens/Kalender";
 import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
+import { checkAndUpdate } from "./update/checkUpdate";
 import { getCurrentUser } from "./auth/currentUser";
-import { canManageFinance, canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
+import { canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -153,9 +154,12 @@ export default function App() {
     );
   }, [isMobile, isFinanceGroup, isEventsGroup]);
 
+  useEffect(() => {
+    if (loggedIn) checkAndUpdate().catch(() => {});
+  }, [loggedIn]);
+
   const currentUser = loggedIn ? getCurrentUser() : null;
-  const isAdmin = loggedIn ? canManageFinance() : false;
-  const canFinance = loggedIn ? canSeeFinance() : false;
+const canFinance = loggedIn ? canSeeFinance() : false;
   const { data: currentMember = null } = useQuery({
     queryKey: ["members", currentUser?.sub],
     queryFn: () => fetchMember(currentUser!.sub),

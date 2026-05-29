@@ -12,6 +12,7 @@ import { getCurrentUser } from "../auth/currentUser";
 import type { Strafe, StrafeEintrag } from "../types/strafen";
 import type { Member } from "../types/member";
 import type { BusinessYear } from "../types/finance";
+import { triggerDownload } from "../utils/triggerDownload";
 
 type SubTab = "katalog" | "meine" | "alle";
 
@@ -284,12 +285,113 @@ function KatalogTab({ isAdmin, onAssign }: { isAdmin: boolean; onAssign: (s: Str
   const [newForm, setNewForm] = useState({ name: "", beschreibung: "", betrag: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const { data: strafen = [], isLoading } = useQuery({
     queryKey: ["strafen"],
     queryFn: fetchStrafen,
     staleTime: 30_000,
   });
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      let y = 18;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("Strafenkatalog", 14, y);
+      y += 9;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text(`Erstellt am: ${new Date().toLocaleDateString("de-DE")}`, 14, y);
+      y += 10;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Beschreibung", "Betrag"]],
+        body: strafen.map(s => [
+          s.beschreibung ? `${s.name}\n${s.beschreibung}` : s.name,
+          `${s.betrag.toFixed(2)} €`,
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [30, 41, 59] },
+        columnStyles: { 0: { cellWidth: pageW - 28 - 30 }, 1: { halign: "right", cellWidth: 30 } },
+        theme: "striped",
+      });
+
+      const tableEndY: number = (doc as any).lastAutoTable.finalY;
+      const sigBlockH = 82;
+
+      let sy: number;
+      if (tableEndY + 10 + sigBlockH > pageH - 15) {
+        doc.addPage();
+        sy = 20;
+      } else {
+        sy = tableEndY + 12;
+      }
+
+      // Hinweistext
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60);
+      doc.text(
+        "Die Strafen sollen bis Ende des entsprechenden Geschäftsjahres gezahlt werden.",
+        14, sy,
+      );
+      sy += 10;
+
+      // Einleitungszeile
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Beide Seiten gelesen und akzeptiert:", 14, sy);
+      sy += 12;
+
+      // Unterschrift 1 — Mitglied
+      doc.setDrawColor(100, 100, 100);
+      doc.line(14, sy, 90, sy);       // Ort/Datum
+      doc.line(110, sy, 196, sy);     // Unterschrift
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Ort, Datum", 14, sy + 4);
+      doc.text("Unterschrift", 110, sy + 4);
+      doc.setTextColor(0, 0, 0);
+      sy += 18; // zwei Zeilen frei
+
+      // Optionales Ankreuzfeld — Erziehungsberechtigte/r
+      doc.setDrawColor(60, 60, 60);
+      doc.rect(14, sy - 3.5, 4, 4);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text("Unterschrift des Erziehungsberechtigten (optional):", 20, sy);
+      sy += 10;
+
+      // Unterschrift 2 — Erziehungsberechtigte/r
+      doc.setDrawColor(100, 100, 100);
+      doc.line(14, sy, 90, sy);
+      doc.line(110, sy, 196, sy);
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Ort, Datum", 14, sy + 4);
+      doc.text("Unterschrift Erziehungsberechtigte/r", 110, sy + 4);
+      doc.setTextColor(0, 0, 0);
+
+      const fn1 = `Strafenkatalog_${new Date().toISOString().substring(0, 10)}.pdf`;
+      await triggerDownload(fn1, new Blob([doc.output("arraybuffer")], { type: "application/pdf" }));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function startEdit(s: Strafe) {
     setEditingId(s.id);
@@ -337,8 +439,11 @@ function KatalogTab({ isAdmin, onAssign }: { isAdmin: boolean; onAssign: (s: Str
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Strafenkatalog</h3>
+        <button onClick={handleExportPdf} disabled={exporting || isLoading} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: exporting || isLoading ? "not-allowed" : "pointer", opacity: exporting || isLoading ? 0.6 : 1 }}>
+          {exporting ? "Exportiere…" : "PDF"}
+        </button>
         {isAdmin && (
           <button onClick={() => { setCreating(true); setError(""); }} style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
             + Neue Strafe
@@ -421,9 +526,10 @@ function KatalogTab({ isAdmin, onAssign }: { isAdmin: boolean; onAssign: (s: Str
 }
 
 // ── Meine Strafen (user + admin) ──────────────────────────────────────────────
-function MeineEintraege({ memberId, businessYears, isMobile }: { memberId: number; businessYears: BusinessYear[]; isMobile: boolean }) {
+function MeineEintraege({ memberId, memberName, businessYears, isMobile }: { memberId: number; memberName: string; businessYears: BusinessYear[]; isMobile: boolean }) {
   const sortedYears = useMemo(() => [...businessYears].sort((a, b) => b.year - a.year), [businessYears]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
   const effectiveYearId = selectedYearId ?? sortedYears[0]?.id ?? null;
 
   const { data: eintraege = [], isLoading } = useQuery({
@@ -436,13 +542,79 @@ function MeineEintraege({ memberId, businessYears, isMobile }: { memberId: numbe
 
   const totalOffen = eintraege.filter(e => !e.bezahlt).reduce((s, e) => s + (e.strafe?.betrag ?? 0), 0);
 
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const selectedYear = sortedYears.find(y => y.id === effectiveYearId);
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      let y = 18;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("Strafenliste", 14, y);
+      y += 9;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text(`Mitglied: ${memberName}`, 14, y); y += 6;
+      doc.text(`Geschäftsjahr: ${selectedYear?.year ?? "–"}`, 14, y); y += 6;
+      doc.text(`Erstellt am: ${new Date().toLocaleDateString("de-DE")}`, 14, y); y += 10;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["#", "Strafe", "Betrag", "Datum", "Grund", "Status"]],
+        body: eintraege.map((e, i) => [
+          i + 1,
+          e.strafe?.name ?? `#${e.strafeId}`,
+          `${(e.strafe?.betrag ?? 0).toFixed(2)} €`,
+          fmtDate(e.createdAt),
+          e.grund ?? "–",
+          e.bezahlt ? "Bezahlt" : "Offen",
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [30, 41, 59] },
+        columnStyles: { 0: { cellWidth: 10 }, 2: { halign: "right" }, 5: { cellWidth: 22 } },
+        theme: "striped",
+      });
+
+      const tableEndY: number = (doc as any).lastAutoTable.finalY + 8;
+      const totalGesamt = eintraege.reduce((s, e) => s + (e.strafe?.betrag ?? 0), 0);
+      doc.setFontSize(10);
+      doc.text(`Einträge: ${eintraege.length}  |  Gesamt: ${totalGesamt.toFixed(2)} €  |  Offen: ${totalOffen.toFixed(2)} €`, 14, tableEndY);
+
+      const sigY = tableEndY + 24;
+      doc.setDrawColor(120, 120, 120);
+      doc.line(14, sigY, 90, sigY);
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text("Datum, Unterschrift Mitglied", 14, sigY + 4);
+
+      const sig2Y = sigY + 22;
+      doc.line(14, sig2Y, 90, sig2Y);
+      doc.text("Datum, Unterschrift Erziehungsberechtigte/r (bei Minderjährigen)", 14, sig2Y + 4);
+      doc.setTextColor(0, 0, 0);
+
+      const fn2 = `Strafen_${memberName.replace(/\s+/g, "_")}_GJ${selectedYear?.year ?? ""}.pdf`;
+      await triggerDownload(fn2, new Blob([doc.output("arraybuffer")], { type: "application/pdf" }));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Deine Strafen</h3>
         <select value={effectiveYearId ?? ""} onChange={e => setSelectedYearId(Number(e.target.value))} style={{ fontSize: 14, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text)" }}>
           {sortedYears.map(y => <option key={y.id} value={y.id}>{y.year}</option>)}
         </select>
+        <button onClick={handleExportPdf} disabled={exporting || isLoading} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: exporting || isLoading ? "not-allowed" : "pointer", opacity: exporting || isLoading ? 0.6 : 1 }}>
+          {exporting ? "Exportiere…" : "PDF"}
+        </button>
       </div>
 
       {eintraege.length > 0 && (
@@ -495,6 +667,7 @@ function AlleEintraege({ members, businessYears, isMobile, isAdmin, canMarkGezah
   const [selectedMemberId, setSelectedMemberId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [bezahlenEintragData, setBezahlenEintragData] = useState<import("../types/strafen").StrafeEintrag | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const effectiveYearId = selectedYearId ?? sortedYears[0]?.id ?? null;
   const queryFilters = { businessYearId: effectiveYearId ?? undefined, memberId: selectedMemberId ?? undefined };
@@ -508,6 +681,61 @@ function AlleEintraege({ members, businessYears, isMobile, isAdmin, canMarkGezah
   });
 
   const totalOffen = eintraege.filter(e => !e.bezahlt).reduce((s, e) => s + (e.strafe?.betrag ?? 0), 0);
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+      const selectedYear = sortedYears.find(y => y.id === effectiveYearId);
+      const memberFilter = selectedMemberId ? members.find(m => m.id === selectedMemberId) : null;
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      let y = 18;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("Strafen – Übersicht", 14, y);
+      y += 9;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      if (memberFilter) { doc.text(`Mitglied: ${memberFilter.firstname} ${memberFilter.lastname}`, 14, y); y += 6; }
+      doc.text(`Geschäftsjahr: ${selectedYear?.year ?? "–"}`, 14, y); y += 6;
+      doc.text(`Erstellt am: ${new Date().toLocaleDateString("de-DE")}`, 14, y); y += 10;
+
+      autoTable(doc, {
+        startY: y,
+        head: [["#", "Mitglied", "Strafe", "Betrag", "Datum", "Grund", "Status"]],
+        body: eintraege.map((e, i) => [
+          i + 1,
+          e.member ? `${e.member.firstname} ${e.member.lastname}` : `#${e.memberId}`,
+          e.strafe?.name ?? `#${e.strafeId}`,
+          `${(e.strafe?.betrag ?? 0).toFixed(2)} €`,
+          fmtDate(e.createdAt),
+          e.grund ?? "–",
+          e.bezahlt ? "Bezahlt" : "Offen",
+        ]),
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [30, 41, 59] },
+        columnStyles: { 0: { cellWidth: 10 }, 3: { halign: "right" }, 6: { cellWidth: 22 } },
+        theme: "striped",
+      });
+
+      const tableEndY: number = (doc as any).lastAutoTable.finalY + 8;
+      const totalGesamt = eintraege.reduce((s, e) => s + (e.strafe?.betrag ?? 0), 0);
+      doc.setFontSize(10);
+      doc.text(`Einträge: ${eintraege.length}  |  Gesamt: ${totalGesamt.toFixed(2)} €  |  Offen: ${totalOffen.toFixed(2)} €`, 14, tableEndY);
+
+      const filename = memberFilter
+        ? `Strafen_${memberFilter.firstname}_${memberFilter.lastname}_GJ${selectedYear?.year ?? ""}.pdf`
+        : `Strafen_Alle_GJ${selectedYear?.year ?? ""}.pdf`;
+      await triggerDownload(filename, new Blob([doc.output("arraybuffer")], { type: "application/pdf" }));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function handleToggleBezahlt(e: StrafeEintrag) {
     if (!e.bezahlt) {
@@ -538,11 +766,6 @@ function AlleEintraege({ members, businessYears, isMobile, isAdmin, canMarkGezah
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--c-text)" }}>Alle Strafen</h3>
-        {isAdmin && onAdd && (
-          <button onClick={onAdd} style={{ marginLeft: "auto", padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            + Eintrag
-          </button>
-        )}
         <select value={effectiveYearId ?? ""} onChange={e => setSelectedYearId(Number(e.target.value))} style={{ fontSize: 14, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text)" }}>
           {sortedYears.map(y => <option key={y.id} value={y.id}>{y.year}</option>)}
         </select>
@@ -550,6 +773,14 @@ function AlleEintraege({ members, businessYears, isMobile, isAdmin, canMarkGezah
           <option value="">Alle Mitglieder</option>
           {members.filter(m => m.active).map(m => <option key={m.id} value={m.id}>{m.firstname} {m.lastname}</option>)}
         </select>
+        <button onClick={handleExportPdf} disabled={exporting || isLoading} style={{ padding: "5px 14px", borderRadius: 6, border: "1px solid var(--c-border)", background: "var(--c-bg)", color: "var(--c-text-2)", fontSize: 13, cursor: exporting || isLoading ? "not-allowed" : "pointer", opacity: exporting || isLoading ? 0.6 : 1 }}>
+          {exporting ? "Exportiere…" : "PDF"}
+        </button>
+        {isAdmin && onAdd && (
+          <button onClick={onAdd} style={{ padding: "5px 14px", borderRadius: 6, border: "none", background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            + Eintrag
+          </button>
+        )}
       </div>
 
       {eintraege.length > 0 && (
@@ -659,7 +890,7 @@ export default function Strafen({
   }
 
   const tabs: { id: SubTab; label: string }[] = [
-    { id: "katalog", label: "Strafen" },
+    { id: "katalog", label: "Strafenkatalog" },
     { id: "meine", label: "Deine Strafen" },
     ...(canSeeAll ? [{ id: "alle" as SubTab, label: "Alle Strafen" }] : []),
   ];
@@ -690,7 +921,12 @@ export default function Strafen({
 
       {subTab === "katalog" && <KatalogTab isAdmin={canWriteStrafenCatalog} onAssign={openAssign} />}
       {subTab === "meine" && currentUser && (
-        <MeineEintraege memberId={currentUser.sub} businessYears={businessYears} isMobile={isMobile} />
+        <MeineEintraege
+          memberId={currentUser.sub}
+          memberName={(() => { const m = members.find(x => x.id === currentUser.sub); return m ? `${m.firstname} ${m.lastname}` : currentUser.email; })()}
+          businessYears={businessYears}
+          isMobile={isMobile}
+        />
       )}
       {subTab === "alle" && canSeeAll && (
         <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} isAdmin={canWriteEintraege} canMarkGezahlt={canMarkGezahlt} onAdd={canWriteEintraege ? openAssignGeneral : undefined} />

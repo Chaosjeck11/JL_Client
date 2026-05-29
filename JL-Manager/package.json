@@ -1,7 +1,7 @@
 {
   "name": "jl-manager_v1",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,7 +12,9 @@
   "dependencies": {
     "@tanstack/react-query": "^5.100.10",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-fs": "^2.5.1",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-os": "^2.3.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "pdf-lib": "^1.17.1",
@@ -27,5 +29,8 @@
     "@vitejs/plugin-react": "^4.6.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["core-js", "esbuild"]
   }
 }

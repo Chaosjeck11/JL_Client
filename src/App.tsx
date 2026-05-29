@@ -10,6 +10,7 @@ import Kalender from "./screens/Kalender";
 import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
+import { checkAndUpdate } from "./update/checkUpdate";
 import { getCurrentUser } from "./auth/currentUser";
 import { canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
 import { fetchMember } from "./api/members";
@@ -152,6 +153,10 @@ export default function App() {
         : "calc(100vh - 44px - 56px)",
     );
   }, [isMobile, isFinanceGroup, isEventsGroup]);
+
+  useEffect(() => {
+    if (loggedIn) checkAndUpdate().catch(() => {});
+  }, [loggedIn]);
 
   const currentUser = loggedIn ? getCurrentUser() : null;
 const canFinance = loggedIn ? canSeeFinance() : false;
