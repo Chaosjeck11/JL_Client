@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Member } from "../../types/member";
+import { triggerDownload } from "../../utils/triggerDownload";
 
 interface Props {
   members: Member[];
@@ -119,7 +120,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      if (format === "csv") generateCSV();
+      if (format === "csv") await generateCSV();
       else await generatePDF();
       onClose();
     } catch {
@@ -129,7 +130,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
     }
   }
 
-  function generateCSV() {
+  async function generateCSV() {
     const BOM = "﻿";
     const header = orderedFields.map(f => FIELD_LABELS[f]).join(";");
     const rows = filteredMembers.map(m =>
@@ -142,12 +143,7 @@ export default function MemberExportModal({ members, onClose }: Props) {
     );
     const csv = BOM + [header, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mitglieder_${new Date().toISOString().substring(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await triggerDownload(`mitglieder_${new Date().toISOString().substring(0, 10)}.csv`, blob);
   }
 
   async function generatePDF() {
@@ -176,7 +172,8 @@ export default function MemberExportModal({ members, onClose }: Props) {
       alternateRowStyles: { fillColor: [248, 250, 252] },
     });
 
-    doc.save(`mitglieder_${new Date().toISOString().substring(0, 10)}.pdf`);
+    const filename = `mitglieder_${new Date().toISOString().substring(0, 10)}.pdf`;
+    await triggerDownload(filename, new Blob([doc.output("arraybuffer")], { type: "application/pdf" }));
   }
 
   const section: React.CSSProperties = { marginBottom: 20 };

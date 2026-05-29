@@ -5,6 +5,9 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    "os:default",
+    "fs:allow-write-file",
+    "fs:scope-download-recursive"
   ]
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { triggerDownload } from "../../utils/triggerDownload";
 import {
   fetchRunningBalance,
   fetchBusinessYear,
@@ -139,7 +140,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
         );
       }
 
-      if (format === "csv") generateCSV(filteredData, attachmentMap);
+      if (format === "csv") await generateCSV(filteredData, attachmentMap);
       else await generatePDF(filteredData, attachmentMap);
       onClose();
     } catch {
@@ -149,7 +150,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
     }
   }
 
-  function generateCSV(
+  async function generateCSV(
     data: Array<{ year: BusinessYear; carryOver: number; entries: RunningBalanceEntry[] }>,
     attachmentMap: Map<number, TransactionAttachment[]>
   ) {
@@ -186,12 +187,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
     }
 
     const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `kassenbuch_${new Date().toISOString().substring(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await triggerDownload(`kassenbuch_${new Date().toISOString().substring(0, 10)}.csv`, blob);
   }
 
   async function generatePDF(
@@ -372,12 +368,7 @@ export default function ReportModal({ businessYears, categories, onClose }: Prop
 
     const finalBytes = await mergedDoc.save();
     const blob = new Blob([finalBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    await triggerDownload(filename, blob);
   }
 
   const section: React.CSSProperties = { marginBottom: 20 };

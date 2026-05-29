@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { createTransaction } from "../../api/finance";
 import type { BusinessYear, Category } from "../../types/finance";
+import { triggerDownload } from "../../utils/triggerDownload";
 
 interface Props {
   businessYears: BusinessYear[];
@@ -42,14 +43,9 @@ const TEMPLATE_CSV =
   "01.02.2025;Beispiel Einzahlung;Mitgliedsbeitrag;ONLINE;Einzahlung;100.00\n" +
   "15.03.2025;Beispiel Ausgabe;Miete;BAR;Auszahlung;50.00\n";
 
-function downloadTemplate() {
+async function downloadTemplate() {
   const blob = new Blob(["﻿" + TEMPLATE_CSV], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "kassenbuch_import_vorlage.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  await triggerDownload("kassenbuch_import_vorlage.csv", blob);
 }
 
 export default function ImportModal({ businessYears, categories, onImported, onClose }: Props) {

@@ -235,8 +235,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               >
                 <div style={{
                   width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                  background: m.active ? "#dbeafe" : "var(--c-bg-3)",
-                  color: m.active ? "#1d4ed8" : "var(--c-text-3)",
+                  background: canDetail ? (m.active ? "#dbeafe" : "var(--c-bg-3)") : "#dbeafe",
+                  color: canDetail ? (m.active ? "#1d4ed8" : "var(--c-text-3)") : "#1d4ed8",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 13, fontWeight: 700, overflow: "hidden",
                 }}>
@@ -254,14 +254,16 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                     </div>
                   )}
                 </div>
-                <span style={{
-                  flexShrink: 0, padding: "3px 10px", borderRadius: 20,
-                  fontSize: 12, fontWeight: 600,
-                  background: m.active ? "#dcfce7" : "var(--c-bg-3)",
-                  color: m.active ? "#166534" : "var(--c-text-2)",
-                }}>
-                  {m.active ? "Aktiv" : "Inaktiv"}
-                </span>
+                {canDetail && (
+                  <span style={{
+                    flexShrink: 0, padding: "3px 10px", borderRadius: 20,
+                    fontSize: 12, fontWeight: 600,
+                    background: m.active ? "#dcfce7" : "var(--c-bg-3)",
+                    color: m.active ? "#166534" : "var(--c-text-2)",
+                  }}>
+                    {m.active ? "Aktiv" : "Inaktiv"}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -273,7 +275,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                 <th align="left" style={{ ...thStyle, paddingLeft: 20 }}>Name</th>
                 {canDetail && <th align="left" style={thStyle}>E-Mail</th>}
                 {canDetail && <th align="left" style={thStyle}>Adresse</th>}
-                <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>
+                {canDetail && <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>}
               </tr>
             </thead>
             <tbody>
@@ -292,8 +294,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{
                         width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: m.active ? "#dbeafe" : "var(--c-bg-3)",
-                        color: m.active ? "#1d4ed8" : "var(--c-text-3)",
+                        background: canDetail ? (m.active ? "#dbeafe" : "var(--c-bg-3)") : "#dbeafe",
+                        color: canDetail ? (m.active ? "#1d4ed8" : "var(--c-text-3)") : "#1d4ed8",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 12, fontWeight: 700, overflow: "hidden",
                       }}>
@@ -308,16 +310,18 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                   </td>
                   {canDetail && <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.email}</td>}
                   {canDetail && <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.address ?? "–"}</td>}
-                  <td style={{ padding: "10px 20px 10px 12px" }}>
-                    <span style={{
-                      display: "inline-block", padding: "3px 10px", borderRadius: 20,
-                      fontSize: 12, fontWeight: 600,
-                      background: m.active ? "#dcfce7" : "var(--c-bg-3)",
-                      color: m.active ? "#166534" : "var(--c-text-2)",
-                    }}>
-                      {m.active ? "Aktiv" : "Inaktiv"}
-                    </span>
-                  </td>
+                  {canDetail && (
+                    <td style={{ padding: "10px 20px 10px 12px" }}>
+                      <span style={{
+                        display: "inline-block", padding: "3px 10px", borderRadius: 20,
+                        fontSize: 12, fontWeight: 600,
+                        background: m.active ? "#dcfce7" : "var(--c-bg-3)",
+                        color: m.active ? "#166534" : "var(--c-text-2)",
+                      }}>
+                        {m.active ? "Aktiv" : "Inaktiv"}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

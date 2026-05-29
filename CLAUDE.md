@@ -9,7 +9,7 @@ to reflect new architecture, added services, or changed conventions.
 
 ## Wichtig — Verzeichnisstruktur
 
-**Bearbeite immer `/home/ben/DevLocal/JL_Client/src/` — niemals `JL-Manager/src/`.**
+**Bearbeite immer `/home/ben/Dev_local/JL_Client/src/` — niemals `JL-Manager/src/`.**
 
 `test_run.sh` führt `cp -r src/* JL-Manager/src/` aus, bevor es `npm run tauri dev` startet. Das bedeutet: alle Edits in `JL-Manager/src/` werden bei jedem `test_run.sh`-Aufruf überschrieben. `JL-Manager/` ist ein Build-Artefakt, kein Quellverzeichnis.
 
@@ -44,7 +44,9 @@ No test framework is configured yet.
 
 **Dev (`devDependencies`):** TypeScript ~5.9, ESLint 9, Vite (rolldown-vite 7), `@types/react`, `@types/react-dom`, `@types/node`.
 
-`jspdf`, `jspdf-autotable`, and `pdf-lib` are loaded via **dynamic import** inside `ReportModal` and `MemberExportModal` to keep the initial bundle lean. `xlsx` is loaded via **dynamic import** inside `ImportModal`.
+`jspdf`, `jspdf-autotable`, and `pdf-lib` are loaded via **dynamic import** inside `ReportModal`, `MemberExportModal`, and `Strafen` (all three subtab PDF exports) to keep the initial bundle lean. `xlsx` is loaded via **dynamic import** inside `ImportModal`.
+
+**Tauri-only packages (in `JL-Manager/package.json`, not root):** `@tauri-apps/api`, `@tauri-apps/plugin-opener`, `@tauri-apps/plugin-os`, `@tauri-apps/plugin-fs`. These are dynamically imported inside `src/update/checkUpdate.ts` so the web build doesn't break.
 
 ## Architecture
 
@@ -175,10 +177,10 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Types: `src/types/files.ts` → `AppFile`. API functions: `src/api/files.ts` (`fetchFiles`, `fetchFolders`, `uploadFile`, `downloadFile`, `previewFile`, `updateFile`, `deleteFile`).
 
 **Strafen screen (`src/screens/Strafen.tsx`):** Props `isMobile?: boolean`, `initialSubTab?: "katalog" | "meine" | "alle"` (default `"katalog"`), `hideSubTabBar?: boolean` (default `false`). Tab label: "Strafen" (flag icon).
-- Three subtabs: **Strafen** (catalog), **Deine Strafen** (own entries), **Alle Strafen** (L1 or L3+). Internal subtab bar hidden when `hideSubTabBar={true}` — used on mobile where the Finance group's App-level subtab bar drives navigation.
-- **Strafen subtab** (`KatalogTab`): table of all catalog entries. Write controls (inline edit, delete, "+ Neue Strafe", "+" assign button per row) gated by `canWriteStrafen()` (L1 or L3+). `staleTime: 30_000` (no loading flash on tab switch).
-- **Deine Strafen** (`MeineEintraege`): year filter, own entries table. Uses `placeholderData: keepPreviousData` + `enabled: effectiveYearId !== null` to avoid flash on mount.
-- **Alle Strafen** (`AlleEintraege`, L1 or L3+): year + member filter, all entries table. Delete per row gated by `canWriteStrafeEintraege()` (L1 or L3+). Toggle-bezahlt / stornieren gated by `canMarkStrafeGezahlt()` (L1 or L4+). `onAdd` prop exposes "+ Eintrag" button (gated by `canWriteStrafeEintraege()`) inside the component heading so it remains accessible when `hideSubTabBar` is true.
+- Three subtabs: **Strafenkatalog** (catalog), **Deine Strafen** (own entries), **Alle Strafen** (L1 or L3+). Internal subtab bar hidden when `hideSubTabBar={true}` — used on mobile where the Finance group's App-level subtab bar drives navigation.
+- **Strafenkatalog subtab** (`KatalogTab`): table of all catalog entries (Name/Beschreibung merged, Betrag). Write controls (inline edit, delete, "+ Neue Strafe", "+" assign button per row) gated by `canWriteStrafen()` (L1 or L3+). `staleTime: 30_000`. **"PDF" button** (all users): exports portrait-A4 PDF with 2-column table + signature block on last page (Ort/Datum + Unterschrift Mitglied, optional Erziehungsberechtigten-Unterschrift with checkbox).
+- **Deine Strafen** (`MeineEintraege`): year filter + **"PDF" button** (portrait-A4 export with member name, year, entry table, summary, two signature lines — Mitglied + Erziehungsberechtigte/r). Accepts `memberName: string` prop (resolved from members query in parent). Uses `placeholderData: keepPreviousData` + `enabled: effectiveYearId !== null` to avoid flash on mount.
+- **Alle Strafen** (`AlleEintraege`, L1 or L3+): year + member filter + **"PDF" button** (landscape-A4 export with member/year header, full table including Mitglied column, summary). Delete per row gated by `canWriteStrafeEintraege()` (L1 or L3+). Toggle-bezahlt / stornieren gated by `canMarkStrafeGezahlt()` (L1 or L4+). `onAdd` prop exposes "+ Eintrag" button (gated by `canWriteStrafeEintraege()`) inside the component heading so it remains accessible when `hideSubTabBar` is true.
 - **AssignModal**: member dropdown (active only), date (default today), auto-detected Geschäftsjahr displayed inline (month Jan → year−1, month Feb–Dec → current year), optional Grund. Error messages read from `err.body` via `apiErrMsg()`.
 - Business year auto-detection shared helper: `detectBusinessYearId(dateStr, businessYears)`.
 
@@ -217,6 +219,12 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `FormTemplateManager` — L5-only template column editor. Fetches singleton via `useQuery(['veranstaltung-form-template'])`. Displays editable table of columns (label, type); add column form at bottom; save via `PATCH /veranstaltung-form-template`. Note: changes only affect new Veranstaltungen.
 - `VeranstaltungKategorienManager` — L2+ category CRUD panel (`canWriteEvents()`). Fetches via `useQuery(['veranstaltung-kategorien'])`. List with color dot, name, description, usage count; inline edit row; create form with color picker (presets + custom color input). Delete blocked client-side if `_count.veranstaltungen > 0`. Exports `KategoriePill` (colored pill chip used in list + detail views).
 
+**Update module (`src/update/checkUpdate.ts`):**
+- `checkAndUpdate()` — called from `App.tsx` via `useEffect([loggedIn])` (fires on login and on app start with existing token).
+- Detects platform via dynamic import of `@tauri-apps/plugin-os`. Returns early if not in Tauri or platform not in `{linux, windows, android}`.
+- Checks `GET /update/check?version=APP_VERSION&platform=PLATFORM` via `apiFetch`. `APP_VERSION` read from `../../package.json` (resolves to `JL-Manager/package.json` at compile time).
+- On `updateAvailable`: `window.confirm` → fetch Blob with `Authorization` header → `writeFile` to `BaseDirectory.Download` via `@tauri-apps/plugin-fs` → `openPath(downloadDir())` via `@tauri-apps/plugin-opener`.
+- All check failures are silently swallowed; download failures show `window.alert`.
 
 ## Backend reference
 
@@ -319,6 +327,17 @@ Config lives in `src-tauri/gen/android/app/src/main/`.
 **Permissions** (`AndroidManifest.xml`): `INTERNET` + `ACCESS_NETWORK_STATE`.
 
 **Network security** (`AndroidManifest.xml` → `android:networkSecurityConfig="@xml/network_security_config"`): `res/xml/network_security_config.xml` sets `cleartextTrafficPermitted="true"` globally so HTTP traffic to `100.91.210.125` (Tailscale) works without TLS. `android:usesCleartextTraffic` is also set via Tauri's build variable `${usesCleartextTraffic}`.
+
+**Tauri plugins registered in `src-tauri/src/lib.rs`:**
+- `tauri_plugin_opener::init()` — `openUrl` / `openPath`
+- `tauri_plugin_os::init()` — `platform()` (used by update module)
+- `tauri_plugin_fs::init()` — `writeFile` to `BaseDirectory.Download` (used by update module)
+
+**Capabilities (`src-tauri/capabilities/default.json`):** `core:default`, `opener:default`, `os:default`, `fs:allow-write-binary-data`, `fs:scope-download-recursive`.
+
+**Cargo deps (`src-tauri/Cargo.toml`):** `tauri-plugin-opener`, `tauri-plugin-os`, `tauri-plugin-fs` — all version `"2"`.
+
+Note: capability permission identifiers are generated by the plugins. If `tauri build` rejects a permission name, check `src-tauri/gen/schemas/` for exact identifiers after a first build.
 
 ## Progressive Web App (PWA)
 
