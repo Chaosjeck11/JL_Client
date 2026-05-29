@@ -77,9 +77,26 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Auth flow:**
 - `App.tsx` holds `loggedIn` (boolean), `activeTab` ("members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender"), and `pendingEventId` (number | null) as global state. On logout, `queryClient.clear()` wipes the cache. `pendingEventId` is set when the user clicks an event in the Kalender tab; it is passed as `initialSelectedId` to `Veranstaltungen` so the detail panel opens automatically.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
-- Permission checks in `src/auth/permissions.ts` gate UI elements based on `accessLevel >= 5`:
-  - `canEditMembers()`, `canCreateMembers()` — member management
-  - `canManageFinance()` — finance admin actions (add year, manage categories)
+- Permission checks in `src/auth/permissions.ts` gate UI elements by `accessLevel`. All functions are pure (read JWT, return bool):
+
+| Function | Min level | Notes |
+|---|---|---|
+| `canSeeMemberDetails()` | L2 | full member record; L0/L1 see name-only |
+| `canEditMembers()` | L3 | edit/create/deactivate members |
+| `canCreateMembers()` | L3 | alias for `canEditMembers()` |
+| `canWriteMemberAttachments()` | L5 | upload/delete attachments on any member |
+| `canWriteEvents()` | L2 | create/edit/delete Veranstaltungen, Kategorien, form rows |
+| `canWriteFormTemplate()` | L5 | PATCH global form template |
+| `canWriteStrafen()` | L1 or L3+ | catalog create/edit/delete (not L2) |
+| `canSeeAllStrafen()` | L1 or L3+ | read all entries, not just own (not L2) |
+| `canWriteStrafeEintraege()` | L1 or L3+ | create/edit-grund/delete entries (not L2) |
+| `canMarkStrafeGezahlt()` | L1 or L4+ | mark bezahlt / stornieren (not L2/L3) |
+| `canSeeFinance()` | L3 | read Kassenbuch + Beiträge tabs |
+| `canWriteFinance()` | L4 | write transactions, business years, categories |
+| `canPayBeitraege()` | L4 | mark Mitgliedsbeiträge as bezahlt |
+| `canManageFinance()` | L4 | alias for `canWriteFinance()` (backward compat) |
+
+**Roles:** L0 Mitglied · L1 Strafenwart · L2 Orgateam · L3 Vorstand · L4 Kassenwart · L5 Admin
 
 **API layer:**
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
@@ -108,10 +125,10 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Split-pane screens (Members, Finance, Files, Veranstaltungen) implement **stack navigation** on mobile: list panel OR detail panel visible at a time; detail panel shows a "← Zurück" button to return to the list.
 
 **Navigation (App.tsx):**
-- Desktop: sticky top bar with tab buttons + settings gear (⚙) + avatar (right).
+- Desktop: sticky top bar with tab buttons + settings gear (⚙) + avatar (right). "Finanzen" and "Beiträge" tabs hidden for users below L3 (`canSeeFinance()`). Finance group bottom nav defaults to "strafen" for L0–L2.
 - Mobile: slim top bar (active tab name + settings gear + avatar) + fixed 56px **bottom tab bar** with SVG icons + labels. Bottom nav uses CSS class `mobile-bottom-nav` for safe-area-inset support on notched devices.
 - **Mobile grouped navigation**: `FINANCE_GROUP = ["finance", "beitraege", "strafen", "meine_strafen", "alle_strafen"]` and `EVENTS_GROUP = ["veranstaltungen", "kalender"]`. Bottom nav has 4 items; tapping a group activates the first tab in that group. Subtab bars (height 40px, `position: sticky, top: 44`) handle intra-group navigation.
-  - Finance subtab bar: Kassenbuch | Beiträge | Strafen | Deine Str. | Alle Str. (admin only) — horizontally scrollable (`overflow-x: auto`) since 5 items.
+  - Finance subtab bar: Kassenbuch | Beiträge (L3+ only) | Strafen | Deine Str. | Alle Str. (L1 or L3+) — horizontally scrollable (`overflow-x: auto`) since up to 5 items.
   - Events subtab bar: Events | Kalender.
   - `"meine_strafen"` renders `<Strafen initialSubTab="meine" hideSubTabBar />`, `"alle_strafen"` renders `<Strafen initialSubTab="alle" hideSubTabBar />`, `"strafen"` renders `<Strafen hideSubTabBar={isMobile} />` (internal subtab bar hidden on mobile, shown on desktop).
 - **`--content-h` CSS variable** is set dynamically via `useEffect` in `App.tsx` (not just via `mobile.css`): with subtabs active `calc(100vh - 44px - 40px - 56px)`, without `calc(100vh - 44px - 56px)`. Desktop: `removeProperty` to restore CSS default.
@@ -121,16 +138,16 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Screens (`src/screens/`):**
 - `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `https://jl_manage.ct-2514.de`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`. **Connectivity indicator**: on mount and 800ms after URL changes, a `fetch` with `mode: "no-cors"` + 3s `AbortController` timeout probes the server; badge shows 🟡 Prüfe… / 🟢 Erreichbar / 🔴 Nicht erreichbar next to the label; "Tailscale aktiv?" hint shown below input when unreachable. **Password visibility toggle**: 👁️/🙈 button inside the password field toggles `type="password"` ↔ `type="text"` (`tabIndex={-1}`, does not steal form focus). **Error detail panel**: on login failure, error box shows HTTP status code in message + collapsible "Details ▼" button that reveals the raw API response body (JSON pretty-printed if parseable, otherwise plain text).
 - `ProfileModal` — overlay modal opened by the avatar button (top nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API. **Avatar upload/delete**: avatar circle is clickable → opens file picker; camera overlay on hover; "Löschen" button shown when avatar exists. Upload calls `uploadAvatar` (raw `fetch`/`FormData`). `onAvatarChanged` prop notifies `App.tsx` to update the nav avatar immediately without closing the modal.
-- `Members` — split-pane layout: member list (left) + detail/create panel (right). Prop `isMobile?: boolean`. **Mobile**: card-style list rows (avatar + name + email + status badge); tapping a row hides the list and shows the detail panel full-width; "← Zurück" button returns to list. **Desktop**: table with Name/E-Mail/Adresse/Status columns. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (admin only).
-- `MemberDetail` — inline edit form for a single member; only shown when `canEditMembers()`. If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs. If no beitragsrelevante field changed, the PATCH goes out immediately without that field. Includes a **"Passwort ändern"** section (two password inputs, new + confirm); `password` is included in the PATCH body only when the field is filled and both inputs match (min 6 chars). State is cleared on cancel and after successful save. Includes **"Anhänge"** section (view mode only): lists attachments with filename/size; single click opens `AttachmentViewer` side panel (click again to close); download button (↓) per row; admins can upload multiple files and delete attachments. Active attachment row highlighted blue.
+- `Members` — split-pane layout: member list (left) + detail/create panel (right). Prop `isMobile?: boolean`. **L0/L1**: rows show name only (no email, no status badge, not clickable — `canSeeMemberDetails()` false). **L2+**: full list, clickable rows open detail. **Mobile**: card-style list rows (avatar + name + [email+status if L2+]); tapping opens detail full-width; "← Zurück" returns to list. **Desktop**: table with Name / [E-Mail / Adresse / Status if L2+] columns. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (L3+, `canCreateMembers()`).
+- `MemberDetail` — shown for L2+ (`canSeeMemberDetails()`). Edit controls (fields, Passwort ändern, retroactive beitrag flow) shown only for L3+ (`canEditMembers()`). Attachment section shown for L2+; upload/delete buttons for L5 only (`canWriteMemberAttachments()`). If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs.
 - `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right). Prop `isMobile?: boolean`. **Mobile**: list panel OR detail panel shown at a time; "← Zurück" returns to list; transaction table shows only 3 columns (Datum, Beschreibung, Betrag) — no horizontal scroll; desktop shows all 7 columns (Datum, Beschreibung, Kategorie, Zahlung, Typ, Betrag, Kontostand). Stats cards: Einnahmen, Kontostand, **Geld in Kasse**, **Geld in Konto** always visible; desktop also shows Übertrag, Ausgaben, Gewinn.
   - Left: year dropdown (descending), summary badges, running-balance table with a „Zahlung" column (tag: Online/Bar, desktop only) that is filterable via dropdown, summary footer row.
   - Right panel switches between: `BusinessYearForm`, `TransactionCreate`, `TransactionDetail`, or placeholder text.
-  - Toolbar buttons: "Kategorien" (admin), "Rückbuchungen", **"Transfers"**, **"Einzahlen"** / **"Auszahlen"** (admin, only when Kassenstransfer category exists), **"Report"** (all users), **"Import"** (admin), "+ Neue Buchung" (admin).
+  - Toolbar buttons: "Kategorien" (L4+, `canWriteFinance()`), "Rückbuchungen", **"Transfers"**, **"Einzahlen"** / **"Auszahlen"** (L4+, only when Kassenstransfer category exists), **"Report"** (all finance users, L3+), **"Import"** (L4+), "+ Neue Buchung" (L4+).
   - **Kassenstransfer / Kasse–Konto split**: category named "kassenstransfer" (case-insensitive match) identifies transfer transactions. `transferIds` set built from entries matching that category. Transfer rows highlighted indigo (`#eef2ff` bg, `#818cf8` left border). Excluded from `statsEntries` (Einnahmen/Ausgaben) to avoid double-counting. `kasseBalance` = net of all BAR-tagged non-RUECKBUCHUNG entries; `kontoBalance = finalBalance - kasseBalance`. `KasseKontoModal` creates two paired transactions (EINZAHLUNG + AUSZAHLUNG, opposite tags) with zero net effect on running balance: Einzahlen = EINZAHLUNG ONLINE + AUSZAHLUNG BAR; Auszahlen = EINZAHLUNG BAR + AUSZAHLUNG ONLINE. Category must be created manually via the Kategorien admin panel — no backend changes required.
-  - "Kategorien verwalten" toggle (admin only) opens `CategoryManager` inline below the header.
-  - "+ Jahr" button (admin only) next to the year dropdown opens `BusinessYearForm` in the right panel.
+  - "Kategorien verwalten" toggle (L4+ only) opens `CategoryManager` inline below the header.
+  - "+ Jahr" button (L4+ only) next to the year dropdown opens `BusinessYearForm` in the right panel.
 - `TransactionCreate` — create form for a new transaction (used by `Finance`). `tag` (`ONLINE` | `BAR`) is required; defaults to `ONLINE`. **Strafe integration**: when selected category name contains "strafe" (case-insensitive) and `!isMitgliedsbeitrag`, a member selector appears; once a member is selected, a `StrafeEintrag` selector loads their open (unbezahlt) penalties via `fetchEintraege({ memberId, bezahlt: false })`; selecting an entry auto-fills the amount; after transaction creation, optionally marks the entry as bezahlt via `updateEintrag(id, { bezahlt: true })`. Checkbox auto-checks when `amount >= strafe.betrag`, shows Teilzahlung hint otherwise.
 - `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form. Includes **"Anhänge"** section (always visible in detail view): single click on filename opens `AttachmentViewer` side panel (click again to close); active row highlighted blue; download button (↓) per row; admins can upload multiple files and delete attachments. Upload uses raw `fetch` with `FormData` (not `apiFetch`). Download fetches as Blob + object URL (auth header can't be sent via `<a href>`).
 
@@ -158,21 +175,21 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Types: `src/types/files.ts` → `AppFile`. API functions: `src/api/files.ts` (`fetchFiles`, `fetchFolders`, `uploadFile`, `downloadFile`, `previewFile`, `updateFile`, `deleteFile`).
 
 **Strafen screen (`src/screens/Strafen.tsx`):** Props `isMobile?: boolean`, `initialSubTab?: "katalog" | "meine" | "alle"` (default `"katalog"`), `hideSubTabBar?: boolean` (default `false`). Tab label: "Strafen" (flag icon).
-- Three subtabs: **Strafen** (catalog), **Deine Strafen** (own entries), **Alle Strafen** (admin only). Internal subtab bar hidden when `hideSubTabBar={true}` — used on mobile where the Finance group's App-level subtab bar drives navigation.
-- **Strafen subtab** (`KatalogTab`): table of all catalog entries. Admin: inline edit, delete (blocked if `_count.eintraege > 0`), "+ Neue Strafe" form, and "+" button per row that opens `AssignModal`. `staleTime: 30_000` (no loading flash on tab switch).
+- Three subtabs: **Strafen** (catalog), **Deine Strafen** (own entries), **Alle Strafen** (L1 or L3+). Internal subtab bar hidden when `hideSubTabBar={true}` — used on mobile where the Finance group's App-level subtab bar drives navigation.
+- **Strafen subtab** (`KatalogTab`): table of all catalog entries. Write controls (inline edit, delete, "+ Neue Strafe", "+" assign button per row) gated by `canWriteStrafen()` (L1 or L3+). `staleTime: 30_000` (no loading flash on tab switch).
 - **Deine Strafen** (`MeineEintraege`): year filter, own entries table. Uses `placeholderData: keepPreviousData` + `enabled: effectiveYearId !== null` to avoid flash on mount.
-- **Alle Strafen** (`AlleEintraege`, admin only): year + member filter, all entries table with toggle-bezahlt / delete per row. `isAdmin` and `onAdd` props expose the "+ Eintrag" button inside the component heading (not in the subtab bar) so it remains accessible when `hideSubTabBar` is true.
+- **Alle Strafen** (`AlleEintraege`, L1 or L3+): year + member filter, all entries table. Delete per row gated by `canWriteStrafeEintraege()` (L1 or L3+). Toggle-bezahlt / stornieren gated by `canMarkStrafeGezahlt()` (L1 or L4+). `onAdd` prop exposes "+ Eintrag" button (gated by `canWriteStrafeEintraege()`) inside the component heading so it remains accessible when `hideSubTabBar` is true.
 - **AssignModal**: member dropdown (active only), date (default today), auto-detected Geschäftsjahr displayed inline (month Jan → year−1, month Feb–Dec → current year), optional Grund. Error messages read from `err.body` via `apiErrMsg()`.
 - Business year auto-detection shared helper: `detectBusinessYearId(dateStr, businessYears)`.
 
 **Mitgliederbeitraege screen (`src/screens/Mitgliederbeitraege.tsx`):** Prop `isMobile?: boolean`.
 - Uses `height: "var(--content-h)"`. **Mobile**: table shows 3 columns (Mitglied, Offen, Status) — no horizontal scroll; desktop shows all 7 (Mitglied, Beitrag JL, Beitrag KG, Bezahlt JL, Bezahlt KG, Offen, Status). Summary cards: mobile shows only Ausstehend + Gesamt offen; desktop shows all 4.
-- Admin **Bezahlen** button (green, when status ≠ BEZAHLT): opens `BezahlenBeitragModal` which creates an EINZAHLUNG transaction against the `isMitgliedsbeitrag` category, triggering automatic beitrag tracking. Pre-fills amount with the open balance. Fields: amount, date, tag (ONLINE/BAR).
-- Admin **Stornieren** button (red, when status ≠ AUSSTEHEND): calls `updateMitgliedsbeitrag(id, { bezahltJL: 0, bezahltKG: 0 })` to reset payments to zero.
+- L4+ **Bezahlen** button (green, when status ≠ BEZAHLT, `canPayBeitraege()`): opens `BezahlenBeitragModal` which creates an EINZAHLUNG transaction against the `isMitgliedsbeitrag` category, triggering automatic beitrag tracking. Pre-fills amount with the open balance. Fields: amount, date, tag (ONLINE/BAR).
+- L4+ **Stornieren** button (red, when status ≠ AUSSTEHEND, `canPayBeitraege()`): calls `updateMitgliedsbeitrag(id, { bezahltJL: 0, bezahltKG: 0 })` to reset payments to zero.
 
 **Veranstaltungen screen (`src/screens/Veranstaltungen.tsx`):** Props `isMobile?: boolean`, `initialSelectedId?: number | null`. Tab label: "Events" (calendar icon).
 - Split-pane: event list (left, 320px) + right panel. Mobile: stack navigation.
-- Left list: events sorted by date desc; search on name + description; count badges (Buchungen / Anhänge). Toolbar: "Vorlage" button (admin, opens `FormTemplateManager`), "+ Neu" button (admin, opens `VeranstaltungCreate`).
+- Left list: events sorted by date desc; search on name + description; count badges (Buchungen / Anhänge). Toolbar: "Vorlage" button (L5 only, `canWriteFormTemplate()`, opens `FormTemplateManager`), "+ Neu" button (L2+, `canWriteEvents()`, opens `VeranstaltungCreate`).
 - Right panel switches between: `VeranstaltungCreate`, `FormTemplateManager`, `VeranstaltungDetail`, or placeholder text.
 - Detail data fetched via `useQuery(['veranstaltungen', id])` → `fetchVeranstaltung(id)` (includes transactions, attachments, form).
 - `initialSelectedId`: when provided (from Kalender tab navigation), sets initial `selectedId` and `rightPanel = "detail"` on mount so the event detail opens immediately.
@@ -180,9 +197,9 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Kalender screen (`src/screens/Kalender.tsx`):** Props `isMobile?: boolean`, `onGoToEvent?: (id: number) => void`. Tab label: "Kalender" (calendar grid icon).
 - Monthly calendar grid (Mo–So columns, German locale). Month navigation: ‹ › arrows + "Heute" button.
 - Events fetched via `useQuery(['veranstaltungen'])` — shares cache with Veranstaltungen tab.
-- Desktop: event chips (blue, up to 2 per day, "+N weitere" on overflow). Clicking chip calls `onGoToEvent(id)` → App.tsx sets `pendingEventId` + switches to "veranstaltungen" tab. Admin: clicking any empty in-month day cell (outside chips) opens `CreateEventModal`.
-- Mobile: dot indicators on days with events (up to 3 blue dots + grey overflow dot). Event list for current month shown below the grid; tapping calls `onGoToEvent`. Admin: tapping any in-month day opens `CreateEventModal`.
-- `clickable = isAdmin && cell.inMonth` — both desktop and mobile. Event chips use `e.stopPropagation()` so chip clicks navigate without triggering day-cell create modal.
+- Desktop: event chips (blue, up to 2 per day, "+N weitere" on overflow). Clicking chip calls `onGoToEvent(id)` → App.tsx sets `pendingEventId` + switches to "veranstaltungen" tab. L2+ (`canWriteEvents()`): clicking any empty in-month day cell (outside chips) opens `CreateEventModal`.
+- Mobile: dot indicators on days with events (up to 3 blue dots + grey overflow dot). Event list for current month shown below the grid; tapping calls `onGoToEvent`. L2+: tapping any in-month day opens `CreateEventModal`.
+- `clickable = canWriteEvents() && cell.inMonth` — both desktop and mobile. Event chips use `e.stopPropagation()` so chip clicks navigate without triggering day-cell create modal.
 - **Abonnieren button** (header): opens a dropdown panel with:
   - The raw iCal URL (`${getApiUrl()}/veranstaltungen/ical`) — monospace display + "Kopieren" button (clipboard, shows "Kopiert!" confirmation for 2 s).
   - "In Kalender-App öffnen" button — `<a href={webcalUrl}>` where `webcalUrl` replaces `http(s)://` with `webcal://`. Opens the system calendar app for direct subscription.
@@ -192,13 +209,13 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 **Veranstaltungen sub-screens (`src/screens/veranstaltungen/`):**
 - `VeranstaltungCreate` — form with name, date (defaults today), description, and optional category multi-select (toggle buttons). Fetches available categories via `useQuery(['veranstaltung-kategorien'])`. Creates via `POST /veranstaltungen` with optional `kategorieIds`; invalidates `['veranstaltungen']`; calls `onCreated` with new event.
 - `VeranstaltungDetail` — detail/edit view. Sections:
-  - **Metadata** (name, date, description): inline edit toggle (admin); "Bearbeiten" / "Speichern" / "Abbrechen" buttons. Delete button with confirmation (admin).
+  - **Metadata** (name, date, description): inline edit toggle (L2+, `canWriteEvents()`); "Bearbeiten" / "Speichern" / "Abbrechen" buttons. Delete button with confirmation (L2+).
   - **Finanzen**: 3 stat cards (Einnahmen, Ausgaben, Saldo) fetched via `useQuery(['veranstaltung-financials', id])`.
   - **Buchungen**: read-only table of linked transactions (date, description, category, amount) from the event detail response.
-  - **Formular**: table rendered from the event's `form.columns` snapshot. Admin can edit cells inline (input type matches `column.type`: text/number/date/checkbox), save per-row via PATCH, add rows, delete rows. Non-admin sees read-only values.
-  - **Anhänge**: list with filename, size, download (↓), delete (×, admin). Clicking row opens `AttachmentViewer` side panel (click again to close); blob URL lifecycle managed with `useRef` + cancellation token. Admin upload: multi-file label input.
-- `FormTemplateManager` — admin template column editor. Fetches singleton via `useQuery(['veranstaltung-form-template'])`. Displays editable table of columns (label, type); add column form at bottom; save via `PATCH /veranstaltung-form-template`. Note: changes only affect new Veranstaltungen.
-- `VeranstaltungKategorienManager` — admin category CRUD panel. Fetches via `useQuery(['veranstaltung-kategorien'])`. List with color dot, name, description, usage count; inline edit row; create form with color picker (presets + custom color input). Delete blocked client-side if `_count.veranstaltungen > 0`. Exports `KategoriePill` (colored pill chip used in list + detail views).
+  - **Formular**: table rendered from the event's `form.columns` snapshot. L2+ can edit cells inline (input type matches `column.type`: text/number/date/checkbox), save per-row via PATCH, add rows, delete rows. L0/L1 sees read-only values.
+  - **Anhänge**: list with filename, size, download (↓), delete (×, L2+). Clicking row opens `AttachmentViewer` side panel (click again to close); blob URL lifecycle managed with `useRef` + cancellation token. L2+ upload: multi-file label input.
+- `FormTemplateManager` — L5-only template column editor. Fetches singleton via `useQuery(['veranstaltung-form-template'])`. Displays editable table of columns (label, type); add column form at bottom; save via `PATCH /veranstaltung-form-template`. Note: changes only affect new Veranstaltungen.
+- `VeranstaltungKategorienManager` — L2+ category CRUD panel (`canWriteEvents()`). Fetches via `useQuery(['veranstaltung-kategorien'])`. List with color dot, name, description, usage count; inline edit row; create form with color picker (presets + custom color input). Delete blocked client-side if `_count.veranstaltungen > 0`. Exports `KategoriePill` (colored pill chip used in list + detail views).
 
 
 ## Backend reference
@@ -231,8 +248,12 @@ Default: `https://jl_manage.ct-2514.de`. Configurable at runtime via the Login s
 | Strafen (entries) | `/strafen/eintraege` |
 
 ### Key constraints Claude Code must respect
-- Access level `0` = any authenticated user (GET routes)
-- Access level `5` = admin (POST / PATCH / DELETE); `PATCH /members/:id` (including password change) therefore only works for admins
+- Use `canSeeFinance()` (L3+) to gate Finance/Beiträge UI; `canWriteFinance()` (L4+) to gate write actions
+- Use `canWriteEvents()` (L2+) for event/kategorie CRUD; `canWriteFormTemplate()` (L5) for template PATCH
+- Use `canEditMembers()` (L3+) for member edit; `canSeeMemberDetails()` (L2+) for full record
+- `canWriteStrafen()` / `canSeeAllStrafen()` / `canWriteStrafeEintraege()` are L1 or L3+ (non-linear — NOT L2)
+- `canMarkStrafeGezahlt()` is L1 or L4+ (NOT L2/L3)
+- Never use `canManageFinance()` for new code — it is an alias for `canWriteFinance()` (L4+) kept for backward compat only
 - `type` and `amount` on Transactions are **immutable** after creation
 - `tag` (`ONLINE` | `BAR`) is required on every Transaction; the frontend enforces this on create and defaults to `ONLINE` in the edit form
 - `RUECKBUCHUNG` requires `relatedTransactionId`; the related tx must not itself be a `RUECKBUCHUNG`

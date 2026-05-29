@@ -11,7 +11,7 @@ import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
-import { canManageFinance, canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
+import { canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -154,8 +154,7 @@ export default function App() {
   }, [isMobile, isFinanceGroup, isEventsGroup]);
 
   const currentUser = loggedIn ? getCurrentUser() : null;
-  const isAdmin = loggedIn ? canManageFinance() : false;
-  const canFinance = loggedIn ? canSeeFinance() : false;
+const canFinance = loggedIn ? canSeeFinance() : false;
   const { data: currentMember = null } = useQuery({
     queryKey: ["members", currentUser?.sub],
     queryFn: () => fetchMember(currentUser!.sub),
