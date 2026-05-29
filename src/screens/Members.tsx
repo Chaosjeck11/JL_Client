@@ -5,7 +5,7 @@ import type { Member } from "../types/member";
 import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
 import MemberExportModal from "./members/MemberExportModal";
-import { canCreateMembers } from "../auth/permissions";
+import { canCreateMembers, canSeeMemberDetails } from "../auth/permissions";
 import { getApiUrl } from "../api/client";
 
 type MembersProps = {
@@ -76,7 +76,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
       return sortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
 
-  const showDetailPanel = selected !== null || creating;
+  const canDetail = canSeeMemberDetails();
+  const showDetailPanel = (selected !== null && canDetail) || creating;
 
   return (
     <div style={{ display: "flex", height: "var(--content-h)" }}>
@@ -223,19 +224,19 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
             {displayedMembers.map(m => (
               <div
                 key={m.id}
-                onClick={() => { setSelected(m); setCreating(false); }}
+                onClick={() => { if (canDetail) { setSelected(m); setCreating(false); } }}
                 style={{
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "13px 16px", borderBottom: "1px solid var(--c-border)",
-                  cursor: "pointer",
+                  cursor: canDetail ? "pointer" : "default",
                   borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
                   background: selected?.id === m.id ? "#eff6ff" : "var(--c-bg)",
                 }}
               >
                 <div style={{
                   width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                  background: m.active ? "#dbeafe" : "var(--c-bg-3)",
-                  color: m.active ? "#1d4ed8" : "var(--c-text-3)",
+                  background: canDetail ? (m.active ? "#dbeafe" : "var(--c-bg-3)") : "#dbeafe",
+                  color: canDetail ? (m.active ? "#1d4ed8" : "var(--c-text-3)") : "#1d4ed8",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 13, fontWeight: 700, overflow: "hidden",
                 }}>
@@ -247,18 +248,22 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                   <div style={{ fontWeight: 600, fontSize: 15, color: "var(--c-text)", marginBottom: 2 }}>
                     {m.firstname} {m.lastname}
                   </div>
-                  <div style={{ fontSize: 13, color: "var(--c-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {m.email}
-                  </div>
+                  {canDetail && (
+                    <div style={{ fontSize: 13, color: "var(--c-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {m.email}
+                    </div>
+                  )}
                 </div>
-                <span style={{
-                  flexShrink: 0, padding: "3px 10px", borderRadius: 20,
-                  fontSize: 12, fontWeight: 600,
-                  background: m.active ? "#dcfce7" : "var(--c-bg-3)",
-                  color: m.active ? "#166534" : "var(--c-text-2)",
-                }}>
-                  {m.active ? "Aktiv" : "Inaktiv"}
-                </span>
+                {canDetail && (
+                  <span style={{
+                    flexShrink: 0, padding: "3px 10px", borderRadius: 20,
+                    fontSize: 12, fontWeight: 600,
+                    background: m.active ? "#dcfce7" : "var(--c-bg-3)",
+                    color: m.active ? "#166534" : "var(--c-text-2)",
+                  }}>
+                    {m.active ? "Aktiv" : "Inaktiv"}
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -268,18 +273,18 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
             <thead>
               <tr style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-bg-2)" }}>
                 <th align="left" style={{ ...thStyle, paddingLeft: 20 }}>Name</th>
-                <th align="left" style={thStyle}>E-Mail</th>
-                <th align="left" style={thStyle}>Adresse</th>
-                <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>
+                {canDetail && <th align="left" style={thStyle}>E-Mail</th>}
+                {canDetail && <th align="left" style={thStyle}>Adresse</th>}
+                {canDetail && <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>}
               </tr>
             </thead>
             <tbody>
               {displayedMembers.map(m => (
                 <tr
                   key={m.id}
-                  onClick={() => { setSelected(m); setCreating(false); }}
+                  onClick={() => { if (canDetail) { setSelected(m); setCreating(false); } }}
                   style={{
-                    cursor: "pointer",
+                    cursor: canDetail ? "pointer" : "default",
                     borderBottom: "1px solid var(--c-border)",
                     borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
                     background: selected?.id === m.id ? "#eff6ff" : "transparent",
@@ -289,8 +294,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{
                         width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                        background: m.active ? "#dbeafe" : "var(--c-bg-3)",
-                        color: m.active ? "#1d4ed8" : "var(--c-text-3)",
+                        background: canDetail ? (m.active ? "#dbeafe" : "var(--c-bg-3)") : "#dbeafe",
+                        color: canDetail ? (m.active ? "#1d4ed8" : "var(--c-text-3)") : "#1d4ed8",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 12, fontWeight: 700, overflow: "hidden",
                       }}>
@@ -303,18 +308,20 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.email}</td>
-                  <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.address ?? "–"}</td>
-                  <td style={{ padding: "10px 20px 10px 12px" }}>
-                    <span style={{
-                      display: "inline-block", padding: "3px 10px", borderRadius: 20,
-                      fontSize: 12, fontWeight: 600,
-                      background: m.active ? "#dcfce7" : "var(--c-bg-3)",
-                      color: m.active ? "#166534" : "var(--c-text-2)",
-                    }}>
-                      {m.active ? "Aktiv" : "Inaktiv"}
-                    </span>
-                  </td>
+                  {canDetail && <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.email}</td>}
+                  {canDetail && <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.address ?? "–"}</td>}
+                  {canDetail && (
+                    <td style={{ padding: "10px 20px 10px 12px" }}>
+                      <span style={{
+                        display: "inline-block", padding: "3px 10px", borderRadius: 20,
+                        fontSize: 12, fontWeight: 600,
+                        background: m.active ? "#dcfce7" : "var(--c-bg-3)",
+                        color: m.active ? "#166534" : "var(--c-text-2)",
+                      }}>
+                        {m.active ? "Aktiv" : "Inaktiv"}
+                      </span>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

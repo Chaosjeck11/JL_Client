@@ -4,7 +4,7 @@ import type { Member, MemberAttachment, Role } from "../types/member";
 import type { BusinessYear } from "../types/finance";
 import { updateMember, fetchMemberAttachments, uploadMemberAttachment, downloadMemberAttachment, deleteMemberAttachment, fetchMemberAttachmentBlob } from "../api/members";
 import { fetchBusinessYears } from "../api/finance";
-import { canEditMembers } from "../auth/permissions";
+import { canEditMembers, canWriteMemberAttachments } from "../auth/permissions";
 import AttachmentViewer from "../components/AttachmentViewer";
 import { getApiUrl } from "../api/client";
 
@@ -451,7 +451,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
               >
                 ↓
               </button>
-              {canEditMembers() && (
+              {canWriteMemberAttachments() && (
                 <button
                   onClick={e => { e.stopPropagation(); handleDeleteAttachment(a.id); }}
                   title="Löschen"
@@ -464,7 +464,7 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
           );
         })}
 
-        {canEditMembers() && (
+        {canWriteMemberAttachments() && (
           <div style={{ marginTop: 8 }}>
             <input
               ref={fileInputRef}

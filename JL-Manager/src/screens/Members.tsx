@@ -5,7 +5,7 @@ import type { Member } from "../types/member";
 import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
 import MemberExportModal from "./members/MemberExportModal";
-import { canCreateMembers } from "../auth/permissions";
+import { canCreateMembers, canSeeMemberDetails } from "../auth/permissions";
 import { getApiUrl } from "../api/client";
 
 type MembersProps = {
@@ -76,7 +76,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
       return sortDir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
 
-  const showDetailPanel = selected !== null || creating;
+  const canDetail = canSeeMemberDetails();
+  const showDetailPanel = (selected !== null && canDetail) || creating;
 
   return (
     <div style={{ display: "flex", height: "var(--content-h)" }}>
@@ -223,11 +224,11 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
             {displayedMembers.map(m => (
               <div
                 key={m.id}
-                onClick={() => { setSelected(m); setCreating(false); }}
+                onClick={() => { if (canDetail) { setSelected(m); setCreating(false); } }}
                 style={{
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "13px 16px", borderBottom: "1px solid var(--c-border)",
-                  cursor: "pointer",
+                  cursor: canDetail ? "pointer" : "default",
                   borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
                   background: selected?.id === m.id ? "#eff6ff" : "var(--c-bg)",
                 }}
@@ -247,9 +248,11 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                   <div style={{ fontWeight: 600, fontSize: 15, color: "var(--c-text)", marginBottom: 2 }}>
                     {m.firstname} {m.lastname}
                   </div>
-                  <div style={{ fontSize: 13, color: "var(--c-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {m.email}
-                  </div>
+                  {canDetail && (
+                    <div style={{ fontSize: 13, color: "var(--c-text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {m.email}
+                    </div>
+                  )}
                 </div>
                 <span style={{
                   flexShrink: 0, padding: "3px 10px", borderRadius: 20,
@@ -268,8 +271,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
             <thead>
               <tr style={{ borderBottom: "1px solid var(--c-border)", background: "var(--c-bg-2)" }}>
                 <th align="left" style={{ ...thStyle, paddingLeft: 20 }}>Name</th>
-                <th align="left" style={thStyle}>E-Mail</th>
-                <th align="left" style={thStyle}>Adresse</th>
+                {canDetail && <th align="left" style={thStyle}>E-Mail</th>}
+                {canDetail && <th align="left" style={thStyle}>Adresse</th>}
                 <th align="left" style={{ ...thStyle, paddingRight: 20 }}>Status</th>
               </tr>
             </thead>
@@ -277,9 +280,9 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               {displayedMembers.map(m => (
                 <tr
                   key={m.id}
-                  onClick={() => { setSelected(m); setCreating(false); }}
+                  onClick={() => { if (canDetail) { setSelected(m); setCreating(false); } }}
                   style={{
-                    cursor: "pointer",
+                    cursor: canDetail ? "pointer" : "default",
                     borderBottom: "1px solid var(--c-border)",
                     borderLeft: selected?.id === m.id ? "3px solid #2563eb" : "3px solid transparent",
                     background: selected?.id === m.id ? "#eff6ff" : "transparent",
@@ -303,8 +306,8 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
                       </span>
                     </div>
                   </td>
-                  <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.email}</td>
-                  <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.address ?? "–"}</td>
+                  {canDetail && <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.email}</td>}
+                  {canDetail && <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--c-text-2)" }}>{m.address ?? "–"}</td>}
                   <td style={{ padding: "10px 20px 10px 12px" }}>
                     <span style={{
                       display: "inline-block", padding: "3px 10px", borderRadius: 20,

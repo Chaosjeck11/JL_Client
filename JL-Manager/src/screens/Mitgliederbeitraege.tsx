@@ -7,7 +7,7 @@ import {
   createTransaction,
   updateMitgliedsbeitrag,
 } from "../api/finance";
-import { canManageFinance } from "../auth/permissions";
+import { canPayBeitraege } from "../auth/permissions";
 import type { BusinessYear, Category, Mitgliedsbeitrag } from "../types/finance";
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -203,7 +203,7 @@ function BezahlenBeitragModal({
 }
 
 export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: boolean }) {
-  const isAdmin = canManageFinance();
+  const isAdmin = canPayBeitraege();
   const queryClient = useQueryClient();
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
