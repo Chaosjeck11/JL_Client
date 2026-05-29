@@ -23,7 +23,7 @@ import type {
   VeranstaltungAttachment,
   VeranstaltungFormRow,
 } from "../../types/veranstaltungen";
-import { canManageFinance } from "../../auth/permissions";
+import { canWriteEvents } from "../../auth/permissions";
 import AttachmentViewer from "../../components/AttachmentViewer";
 
 function fmtDate(d: string): string {
@@ -165,7 +165,7 @@ type Props = {
 
 export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdated }: Props) {
   const queryClient = useQueryClient();
-  const isAdmin = canManageFinance();
+  const isAdmin = canWriteEvents();
 
   // Edit mode for event metadata
   const [editing, setEditing] = useState(false);

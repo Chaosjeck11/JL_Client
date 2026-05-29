@@ -9,7 +9,7 @@ import {
 } from "../api/finance";
 import { fetchMembers } from "../api/members";
 import { fetchVeranstaltungen } from "../api/veranstaltungen";
-import { canManageFinance } from "../auth/permissions";
+import { canWriteFinance } from "../auth/permissions";
 import type { BusinessYear, PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
 import BusinessYearForm from "./finance/BusinessYearForm";
 import CategoryManager from "./finance/CategoryManager";
@@ -206,7 +206,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const [filterTags, setFilterTags] = useState<Array<PaymentTag | null>>([]);
 
   const filterRef = useRef<HTMLTableSectionElement>(null);
-  const isAdmin = canManageFinance();
+  const isAdmin = canWriteFinance();
 
   const { data: rawYears = [] } = useQuery({
     queryKey: ["business-years"],

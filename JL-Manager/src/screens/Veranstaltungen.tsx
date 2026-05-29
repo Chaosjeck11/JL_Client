@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchVeranstaltung, fetchVeranstaltungen } from "../api/veranstaltungen";
-import { canManageFinance } from "../auth/permissions";
+import { canWriteEvents, canWriteFormTemplate } from "../auth/permissions";
 import type { Veranstaltung } from "../types/veranstaltungen";
 import VeranstaltungDetail from "./veranstaltungen/VeranstaltungDetail";
 import VeranstaltungCreate from "./veranstaltungen/VeranstaltungCreate";
@@ -17,7 +17,8 @@ type RightPanel = "detail" | "create" | "template" | null;
 
 export default function Veranstaltungen({ isMobile = false, initialSelectedId }: { isMobile?: boolean; initialSelectedId?: number | null }) {
   const queryClient = useQueryClient();
-  const isAdmin = canManageFinance();
+  const isAdmin = canWriteEvents();
+  const canTemplate = canWriteFormTemplate();
 
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
@@ -106,7 +107,7 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
                 fontSize: 13, outline: "none", background: "var(--c-bg-2)", color: "var(--c-text)",
               }}
             />
-            {isAdmin && (
+            {canTemplate && (
               <button
                 onClick={() => { setRightPanel("template"); setSelectedId(null); if (isMobile) setMobileShowDetail(true); }}
                 title="Formular-Vorlage"

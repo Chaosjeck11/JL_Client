@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchVeranstaltungen, createVeranstaltung } from "../api/veranstaltungen";
-import { canManageFinance } from "../auth/permissions";
+import { canWriteEvents } from "../auth/permissions";
 import { getApiUrl } from "../api/client";
 import type { Veranstaltung } from "../types/veranstaltungen";
 
@@ -117,7 +117,7 @@ export default function Kalender({ isMobile = false, onGoToEvent }: Props) {
   const [copied, setCopied] = useState(false);
   const [createForDate, setCreateForDate] = useState<string | null>(null);
 
-  const isAdmin = canManageFinance();
+  const isAdmin = canWriteEvents();
   const icalUrl = `${getApiUrl()}/veranstaltungen/ical`;
   const webcalUrl = icalUrl.replace(/^https?:\/\//, "webcal://");
 

@@ -11,7 +11,7 @@ import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { getCurrentUser } from "./auth/currentUser";
-import { canManageFinance } from "./auth/permissions";
+import { canManageFinance, canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
@@ -155,6 +155,7 @@ export default function App() {
 
   const currentUser = loggedIn ? getCurrentUser() : null;
   const isAdmin = loggedIn ? canManageFinance() : false;
+  const canFinance = loggedIn ? canSeeFinance() : false;
   const { data: currentMember = null } = useQuery({
     queryKey: ["members", currentUser?.sub],
     queryFn: () => fetchMember(currentUser!.sub),
@@ -299,7 +300,10 @@ export default function App() {
           height: 44, boxSizing: "border-box", background: "var(--c-nav)",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
         }}>
-          {TABS.map(tab => (
+          {TABS.filter(tab => {
+            if (tab.id === "finance" || tab.id === "beitraege") return canFinance;
+            return true;
+          }).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -369,11 +373,11 @@ export default function App() {
           overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
         }}>
           {([
-            { id: "finance" as Tab, label: "Kassenbuch" },
-            { id: "beitraege" as Tab, label: "Beiträge" },
+            ...(canFinance ? [{ id: "finance" as Tab, label: "Kassenbuch" }] : []),
+            ...(canFinance ? [{ id: "beitraege" as Tab, label: "Beiträge" }] : []),
             { id: "strafen" as Tab, label: "Strafen" },
             { id: "meine_strafen" as Tab, label: "Deine Str." },
-            ...(isAdmin ? [{ id: "alle_strafen" as Tab, label: "Alle Str." }] : []),
+            ...(canSeeAllStrafen() ? [{ id: "alle_strafen" as Tab, label: "Alle Str." }] : []),
           ] as { id: Tab; label: string }[]).map(t => (
             <button
               key={t.id}
@@ -417,7 +421,7 @@ export default function App() {
       {activeTab === "beitraege" && <Mitgliederbeitraege isMobile={isMobile} />}
       {activeTab === "strafen"         && <Strafen isMobile={isMobile} hideSubTabBar={isMobile} />}
       {activeTab === "meine_strafen"   && <Strafen isMobile={isMobile} initialSubTab="meine" hideSubTabBar />}
-      {activeTab === "alle_strafen"    && isAdmin && <Strafen isMobile={isMobile} initialSubTab="alle" hideSubTabBar />}
+      {activeTab === "alle_strafen"    && canSeeAllStrafen() && <Strafen isMobile={isMobile} initialSubTab="alle" hideSubTabBar />}
       {activeTab === "files"          && <Files isMobile={isMobile} />}
       {activeTab === "veranstaltungen" && <Veranstaltungen isMobile={isMobile} initialSelectedId={pendingEventId} />}
       {activeTab === "kalender" && (
@@ -461,7 +465,11 @@ export default function App() {
                 key={tab.id}
                 onClick={() => {
                   if (groupTabs && isActive) return;
-                  setActiveTab(tab.id);
+                  if (tab.id === "finance" && !canFinance) {
+                    setActiveTab("strafen");
+                  } else {
+                    setActiveTab(tab.id);
+                  }
                 }}
                 style={{
                   flex: 1, border: "none", background: "transparent",

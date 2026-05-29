@@ -7,7 +7,7 @@ import {
 } from "../api/strafen";
 import { fetchMembers } from "../api/members";
 import { fetchBusinessYears } from "../api/finance";
-import { canManageFinance } from "../auth/permissions";
+import { canWriteStrafen, canSeeAllStrafen, canWriteStrafeEintraege, canMarkStrafeGezahlt } from "../auth/permissions";
 import { getCurrentUser } from "../auth/currentUser";
 import type { Strafe, StrafeEintrag } from "../types/strafen";
 import type { Member } from "../types/member";
@@ -488,7 +488,7 @@ function MeineEintraege({ memberId, businessYears, isMobile }: { memberId: numbe
 }
 
 // ── Alle Einträge (admin) ─────────────────────────────────────────────────────
-function AlleEintraege({ members, businessYears, isMobile, isAdmin, onAdd }: { members: Member[]; businessYears: BusinessYear[]; isMobile: boolean; isAdmin?: boolean; onAdd?: () => void }) {
+function AlleEintraege({ members, businessYears, isMobile, isAdmin, canMarkGezahlt, onAdd }: { members: Member[]; businessYears: BusinessYear[]; isMobile: boolean; isAdmin?: boolean; canMarkGezahlt?: boolean; onAdd?: () => void }) {
   const queryClient = useQueryClient();
   const sortedYears = useMemo(() => [...businessYears].sort((a, b) => b.year - a.year), [businessYears]);
   const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
@@ -590,14 +590,18 @@ function AlleEintraege({ members, businessYears, isMobile, isAdmin, onAdd }: { m
                     <td style={{ padding: "10px 14px" }}><StatusBadge bezahlt={e.bezahlt} /></td>
                     <td style={{ padding: "10px 14px" }}>
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <button
-                          onClick={() => handleToggleBezahlt(e)}
-                          disabled={togglingId === e.id}
-                          style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${e.bezahlt ? "#fca5a5" : "#86efac"}`, background: "var(--c-bg)", color: e.bezahlt ? "#dc2626" : "#16a34a", fontSize: 12, cursor: togglingId === e.id ? "not-allowed" : "pointer", opacity: togglingId === e.id ? 0.5 : 1 }}
-                        >
-                          {e.bezahlt ? "Stornieren" : "Bezahlen"}
-                        </button>
-                        <button onClick={() => handleDelete(e)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "var(--c-bg)", color: "#dc2626", fontSize: 12, cursor: "pointer" }}>×</button>
+                        {canMarkGezahlt && (
+                          <button
+                            onClick={() => handleToggleBezahlt(e)}
+                            disabled={togglingId === e.id}
+                            style={{ padding: "3px 8px", borderRadius: 5, border: `1px solid ${e.bezahlt ? "#fca5a5" : "#86efac"}`, background: "var(--c-bg)", color: e.bezahlt ? "#dc2626" : "#16a34a", fontSize: 12, cursor: togglingId === e.id ? "not-allowed" : "pointer", opacity: togglingId === e.id ? 0.5 : 1 }}
+                          >
+                            {e.bezahlt ? "Stornieren" : "Bezahlen"}
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button onClick={() => handleDelete(e)} style={{ padding: "3px 8px", borderRadius: 5, border: "1px solid #fca5a5", background: "var(--c-bg)", color: "#dc2626", fontSize: 12, cursor: "pointer" }}>×</button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -631,7 +635,10 @@ export default function Strafen({
   initialSubTab?: SubTab;
   hideSubTabBar?: boolean;
 }) {
-  const isAdmin = canManageFinance();
+  const canWriteStrafenCatalog = canWriteStrafen();
+  const canWriteEintraege = canWriteStrafeEintraege();
+  const canSeeAll = canSeeAllStrafen();
+  const canMarkGezahlt = canMarkStrafeGezahlt();
   const currentUser = getCurrentUser();
   const queryClient = useQueryClient();
 
@@ -654,7 +661,7 @@ export default function Strafen({
   const tabs: { id: SubTab; label: string }[] = [
     { id: "katalog", label: "Strafen" },
     { id: "meine", label: "Deine Strafen" },
-    ...(isAdmin ? [{ id: "alle" as SubTab, label: "Alle Strafen" }] : []),
+    ...(canSeeAll ? [{ id: "alle" as SubTab, label: "Alle Strafen" }] : []),
   ];
 
   return (
@@ -681,12 +688,12 @@ export default function Strafen({
         </div>
       )}
 
-      {subTab === "katalog" && <KatalogTab isAdmin={isAdmin} onAssign={openAssign} />}
+      {subTab === "katalog" && <KatalogTab isAdmin={canWriteStrafenCatalog} onAssign={openAssign} />}
       {subTab === "meine" && currentUser && (
         <MeineEintraege memberId={currentUser.sub} businessYears={businessYears} isMobile={isMobile} />
       )}
-      {subTab === "alle" && isAdmin && (
-        <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} isAdmin={isAdmin} onAdd={openAssignGeneral} />
+      {subTab === "alle" && canSeeAll && (
+        <AlleEintraege members={members} businessYears={businessYears} isMobile={isMobile} isAdmin={canWriteEintraege} canMarkGezahlt={canMarkGezahlt} onAdd={canWriteEintraege ? openAssignGeneral : undefined} />
       )}
 
       {showAssignModal && (
