@@ -5,15 +5,3 @@
     { "path": "./tsconfig.node.json" }
   ]
 }
-
-{
-  "compilerOptions": {
-    "skipLibCheck": true,
-    "paths": {
-      "@tauri-apps/plugin-os": ["./src/shims/tauri.d.ts"],
-      "@tauri-apps/plugin-fs": ["./src/shims/tauri.d.ts"],
-      "@tauri-apps/api/path": ["./src/shims/tauri.d.ts"],
-      "@tauri-apps/plugin-opener": ["./src/shims/tauri.d.ts"]
-    }
-  }
-}
