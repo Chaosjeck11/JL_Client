@@ -17,6 +17,7 @@ import { canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
+import { version as APP_VERSION } from "../package.json";
 
 type Tab = "members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender";
 
@@ -130,6 +131,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [pendingEventId, setPendingEventId] = useState<number | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateCheckDone, setUpdateCheckDone] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     const d = localStorage.getItem("dark_mode") === "true";
     document.documentElement.setAttribute("data-theme", d ? "dark" : "light");
@@ -173,6 +176,23 @@ const canFinance = loggedIn ? canSeeFinance() : false;
     queryClient.clear();
     setLoggedIn(false);
     setActiveTab("members");
+  }
+
+  async function handleManualCheck() {
+    setCheckingUpdate(true);
+    setUpdateCheckDone(false);
+    try {
+      const info = await checkForUpdate();
+      if (info) {
+        setPendingUpdate(info);
+        setShowSettings(false);
+      } else {
+        setUpdateCheckDone(true);
+        setTimeout(() => setUpdateCheckDone(false), 3000);
+      }
+    } finally {
+      setCheckingUpdate(false);
+    }
   }
 
   function toggleDarkMode() {
@@ -259,6 +279,21 @@ const canFinance = loggedIn ? canSeeFinance() : false;
             <span>Dunkel</span>
           </button>
         </div>
+        <div style={{ borderTop: "1px solid var(--c-border)", marginTop: 10, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 11, color: "var(--c-text-3)", fontWeight: 500 }}>v{APP_VERSION}</span>
+          <button
+            onClick={handleManualCheck}
+            disabled={checkingUpdate}
+            style={{
+              padding: "5px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+              border: "1px solid var(--c-border)", cursor: checkingUpdate ? "default" : "pointer",
+              background: updateCheckDone ? "#dcfce7" : "var(--c-bg-2)",
+              color: updateCheckDone ? "#16a34a" : "var(--c-text-2)",
+            }}
+          >
+            {checkingUpdate ? "Prüfe…" : updateCheckDone ? "Aktuell ✓" : "Update prüfen"}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -306,6 +341,9 @@ const canFinance = loggedIn ? canSeeFinance() : false;
           height: 44, boxSizing: "border-box", background: "var(--c-nav)",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
         }}>
+          <span style={{ fontSize: 11, color: "var(--c-text-3)", fontWeight: 500, marginRight: 4, flexShrink: 0 }}>
+            v{APP_VERSION}
+          </span>
           {TABS.filter(tab => {
             if (tab.id === "finance" || tab.id === "beitraege") return canFinance;
             return true;
