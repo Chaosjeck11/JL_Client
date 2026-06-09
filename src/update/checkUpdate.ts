@@ -46,72 +46,32 @@ export async function downloadUpdate(
 
   const ext =
     platform === 'windows' ? 'exe' : platform === 'android' ? 'apk' : 'AppImage';
-
+  const filename = `jl-manager-${latestVersion}.${ext}`;
   const downloadUrl = `${getApiUrl()}/update/download?platform=${platform}`;
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') ?? '';
 
   onLog(`Verbinde mit Server…`);
   onLog(`URL: ${downloadUrl}`);
-
-  const res = await fetch(downloadUrl, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-
-  if (!res.ok) throw new Error(`Server antwortete mit HTTP ${res.status}`);
-
-  const disposition = res.headers.get('content-disposition') ?? '';
-  const fnMatch = disposition.match(/filename="?([^";\n]+)"?/i);
-  const filename = fnMatch?.[1] ?? `jl-manager-${latestVersion}.${ext}`;
   onLog(`Dateiname: ${filename}`);
 
-  const contentLength = Number(res.headers.get('content-length') ?? '0');
-  if (contentLength > 0) {
-    const mb = (contentLength / 1024 / 1024).toFixed(1);
-    onLog(`Dateigröße: ${mb} MB`);
-  } else {
-    onLog(`Dateigröße: unbekannt`);
-  }
+  const { invoke, Channel } = await import('@tauri-apps/api/core');
 
-  onLog(`Download gestartet…`);
+  type DownloadEvent = { type: 'progress'; pct: number } | { type: 'log'; msg: string };
+  const channel = new Channel<DownloadEvent>();
+  channel.onmessage = (event) => {
+    if (event.type === 'progress') onProgress(event.pct);
+    else onLog(event.msg);
+  };
 
-  const reader = res.body!.getReader();
-  const chunks: Uint8Array[] = [];
-  let received = 0;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (contentLength > 0) {
-      const pct = Math.round((received / contentLength) * 100);
-      onProgress(pct);
-    } else {
-      const mbRecv = (received / 1024 / 1024).toFixed(1);
-      onLog(`Empfangen: ${mbRecv} MB`);
-    }
-  }
-
-  onProgress(100);
-  onLog(`Download abgeschlossen (${(received / 1024 / 1024).toFixed(1)} MB).`);
-  onLog(`Schreibe Datei in Downloads-Ordner…`);
-
-  const uint8 = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    uint8.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-  await writeFile(filename, uint8, { baseDir: BaseDirectory.Download });
-  onLog(`Datei gespeichert: ${filename}`);
+  const filePath = await invoke<string>('download_to_file', {
+    url: downloadUrl,
+    token,
+    filename,
+    onEvent: channel,
+  });
 
   onLog(`Öffne Installer…`);
-  const { downloadDir } = await import('@tauri-apps/api/path');
-  const { invoke } = await import('@tauri-apps/api/core');
-  const dir = await downloadDir();
-  const filePath = `${dir}/${filename}`;
+
   if (platform === 'linux') {
     await invoke('launch_appimage', { path: filePath });
   } else if (platform === 'android') {
@@ -121,6 +81,7 @@ export async function downloadUpdate(
       `${new Date().toISOString()} APK-Pfad: ${filePath}`,
       `${new Date().toISOString()} invoke plugin:install|installApk …`,
     ];
+    const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
     try {
       await invoke('plugin:install|installApk', { path: filePath });
       installLog.push(`${new Date().toISOString()} invoke OK`);
