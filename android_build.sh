@@ -6,9 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TAURI_CONF="$SCRIPT_DIR/JL-Manager/src-tauri/tauri.conf.json"
 KEYSTORE="$SCRIPT_DIR/jl-manager.keystore"
 
-SERVER_USER="ben"
-SERVER_HOST="100.91.210.125"   # Tailscale IP anpassen
-SERVER_PATH="/mnt/docker/JL_Backend/Builds"
+: "${SERVER_USER:?SERVER_USER nicht gesetzt}"
+: "${SERVER_HOST:?SERVER_HOST nicht gesetzt}"
+: "${SERVER_PATH:?SERVER_PATH nicht gesetzt}"
 
 # ── Keystore-Passwörter ───────────────────────────────────────────────────────
 : "${KEYSTORE_PASSWORD:?KEYSTORE_PASSWORD nicht gesetzt}"
