@@ -10,7 +10,8 @@ import Kalender from "./screens/Kalender";
 import Strafen from "./screens/Strafen";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
-import { checkAndUpdate } from "./update/checkUpdate";
+import { checkForUpdate, UpdateInfo } from "./update/checkUpdate";
+import { UpdateModal } from "./update/UpdateModal";
 import { getCurrentUser } from "./auth/currentUser";
 import { canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
 import { fetchMember } from "./api/members";
@@ -128,6 +129,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [pendingEventId, setPendingEventId] = useState<number | null>(null);
+  const [pendingUpdate, setPendingUpdate] = useState<UpdateInfo | null>(null);
   const [darkMode, setDarkMode] = useState(() => {
     const d = localStorage.getItem("dark_mode") === "true";
     document.documentElement.setAttribute("data-theme", d ? "dark" : "light");
@@ -155,7 +157,7 @@ export default function App() {
   }, [isMobile, isFinanceGroup, isEventsGroup]);
 
   useEffect(() => {
-    if (loggedIn) checkAndUpdate().catch(() => {});
+    if (loggedIn) checkForUpdate().then((info) => { if (info) setPendingUpdate(info); }).catch(() => {});
   }, [loggedIn]);
 
   const currentUser = loggedIn ? getCurrentUser() : null;
@@ -433,6 +435,10 @@ const canFinance = loggedIn ? canSeeFinance() : false;
           isMobile={isMobile}
           onGoToEvent={(id) => { setPendingEventId(id); setActiveTab("veranstaltungen"); }}
         />
+      )}
+
+      {pendingUpdate && (
+        <UpdateModal info={pendingUpdate} onClose={() => setPendingUpdate(null)} />
       )}
 
       {showProfile && currentMember && (

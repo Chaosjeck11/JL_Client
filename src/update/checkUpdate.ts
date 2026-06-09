@@ -7,71 +7,115 @@ const PLATFORM_MAP: Record<string, string> = {
   android: 'android',
 };
 
-interface UpdateCheckResult {
-  updateAvailable: boolean;
+export interface UpdateInfo {
   latestVersion: string;
+  platform: string;
 }
 
-export async function checkAndUpdate(): Promise<void> {
-  if (!('__TAURI_INTERNALS__' in window)) return;
+export async function checkForUpdate(): Promise<UpdateInfo | null> {
+  if (!('__TAURI_INTERNALS__' in window)) return null;
 
   let platform: string;
   try {
     const { platform: getPlatform } = await import('@tauri-apps/plugin-os');
     platform = await getPlatform();
   } catch {
-    return;
+    return null;
   }
 
   const mappedPlatform = PLATFORM_MAP[platform];
-  if (!mappedPlatform) return;
+  if (!mappedPlatform) return null;
 
-  let result: UpdateCheckResult;
   try {
-    result = await apiFetch(
+    const result = await apiFetch(
       `/update/check?version=${encodeURIComponent(APP_VERSION)}&platform=${mappedPlatform}`
     );
+    if (!result?.updateAvailable) return null;
+    return { latestVersion: result.latestVersion, platform: mappedPlatform };
   } catch {
-    return;
+    return null;
+  }
+}
+
+export async function downloadUpdate(
+  info: UpdateInfo,
+  onLog: (msg: string) => void,
+  onProgress: (pct: number) => void
+): Promise<void> {
+  const { latestVersion, platform } = info;
+
+  const ext =
+    platform === 'windows' ? 'exe' : platform === 'android' ? 'apk' : 'AppImage';
+
+  const downloadUrl = `${getApiUrl()}/update/download?platform=${platform}`;
+  const token = localStorage.getItem('token');
+
+  onLog(`Verbinde mit Server…`);
+  onLog(`URL: ${downloadUrl}`);
+
+  const res = await fetch(downloadUrl, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) throw new Error(`Server antwortete mit HTTP ${res.status}`);
+
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const fnMatch = disposition.match(/filename="?([^";\n]+)"?/i);
+  const filename = fnMatch?.[1] ?? `jl-manager-${latestVersion}.${ext}`;
+  onLog(`Dateiname: ${filename}`);
+
+  const contentLength = Number(res.headers.get('content-length') ?? '0');
+  if (contentLength > 0) {
+    const mb = (contentLength / 1024 / 1024).toFixed(1);
+    onLog(`Dateigröße: ${mb} MB`);
+  } else {
+    onLog(`Dateigröße: unbekannt`);
   }
 
-  if (!result?.updateAvailable) return;
+  onLog(`Download gestartet…`);
 
-  const confirmed = window.confirm(
-    `Version ${result.latestVersion} ist verfügbar. Jetzt herunterladen?`
-  );
-  if (!confirmed) return;
+  const reader = res.body!.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
 
-  try {
-    const token = localStorage.getItem('token');
-    const downloadUrl = `${getApiUrl()}/update/download?platform=${mappedPlatform}`;
-    const res = await fetch(downloadUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) return;
-
-    const arrayBuffer = await res.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-
-    const ext =
-      mappedPlatform === 'windows'
-        ? 'exe'
-        : mappedPlatform === 'android'
-          ? 'apk'
-          : 'AppImage';
-    const disposition = res.headers.get('content-disposition') ?? '';
-    const fnMatch = disposition.match(/filename="?([^";\n]+)"?/i);
-    const filename = fnMatch?.[1] ?? `jl-manager-${result.latestVersion}.${ext}`;
-
-    const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await writeFile(filename, uint8, { baseDir: BaseDirectory.Download });
-
-    const { downloadDir } = await import('@tauri-apps/api/path');
-    const { openPath } = await import('@tauri-apps/plugin-opener');
-    const dir = await downloadDir();
-    await openPath(`${dir}/${filename}`);
-  } catch (e) {
-    console.error('Update download failed:', e);
-    window.alert('Download fehlgeschlagen. Bitte manuell aktualisieren.');
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (contentLength > 0) {
+      const pct = Math.round((received / contentLength) * 100);
+      onProgress(pct);
+    } else {
+      const mbRecv = (received / 1024 / 1024).toFixed(1);
+      onLog(`Empfangen: ${mbRecv} MB`);
+    }
   }
+
+  onProgress(100);
+  onLog(`Download abgeschlossen (${(received / 1024 / 1024).toFixed(1)} MB).`);
+  onLog(`Schreibe Datei in Downloads-Ordner…`);
+
+  const uint8 = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    uint8.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+  await writeFile(filename, uint8, { baseDir: BaseDirectory.Download });
+  onLog(`Datei gespeichert: ${filename}`);
+
+  onLog(`Öffne Installer…`);
+  const { downloadDir } = await import('@tauri-apps/api/path');
+  const { openPath } = await import('@tauri-apps/plugin-opener');
+  const dir = await downloadDir();
+  await openPath(`${dir}/${filename}`);
+  onLog(`Fertig. Installer geöffnet.`);
+}
+
+/** Legacy wrapper — called from App.tsx, now delegates to modal via state */
+export async function checkAndUpdate(): Promise<UpdateInfo | null> {
+  return checkForUpdate();
 }
