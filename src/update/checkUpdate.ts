@@ -109,9 +109,36 @@ export async function downloadUpdate(
 
   onLog(`Öffne Installer…`);
   const { downloadDir } = await import('@tauri-apps/api/path');
-  const { openPath } = await import('@tauri-apps/plugin-opener');
+  const { invoke } = await import('@tauri-apps/api/core');
   const dir = await downloadDir();
-  await openPath(`${dir}/${filename}`);
+  const filePath = `${dir}/${filename}`;
+  if (platform === 'linux') {
+    await invoke('launch_appimage', { path: filePath });
+  } else if (platform === 'android') {
+    onLog('Starte APK-Installation…');
+    onLog(`APK-Pfad: ${filePath}`);
+    const installLog: string[] = [
+      `${new Date().toISOString()} APK-Pfad: ${filePath}`,
+      `${new Date().toISOString()} invoke plugin:install|installApk …`,
+    ];
+    try {
+      await invoke('plugin:install|installApk', { path: filePath });
+      installLog.push(`${new Date().toISOString()} invoke OK`);
+      onLog('Installation gestartet. Bitte Installationsaufforderung bestätigen.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      installLog.push(`${new Date().toISOString()} invoke FEHLER: ${msg}`);
+      onLog(`Fehler: ${msg}`);
+      throw e;
+    } finally {
+      const logText = new TextEncoder().encode(installLog.join('\n') + '\n');
+      await writeFile('jl-install.log', logText, { baseDir: BaseDirectory.Download }).catch(() => {});
+      onLog('Log gespeichert: Downloads/jl-install.log');
+    }
+  } else {
+    const { openPath } = await import('@tauri-apps/plugin-opener');
+    await openPath(filePath);
+  }
   onLog(`Fertig. Installer geöffnet.`);
 }
 

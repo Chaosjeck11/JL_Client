@@ -4,10 +4,15 @@
   "description": "Capability for the main window",
   "windows": ["main"],
   "permissions": [
-    "core:default",
-    "opener:default",
-    "os:default",
-    "fs:allow-write-file",
-    "fs:scope-download-recursive"
+  "core:default",
+  "opener:default",
+  "opener:allow-open-path",
+  "os:default",
+  "fs:allow-write-file",
+  "fs:scope-download-recursive",
+  {
+    "identifier": "opener:allow-open-path",
+    "allow": [{ "path": "$DOWNLOAD/**" }]
+  }
   ]
 }
