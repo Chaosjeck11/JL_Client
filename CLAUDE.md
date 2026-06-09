@@ -9,7 +9,7 @@ to reflect new architecture, added services, or changed conventions.
 
 ## Wichtig — Verzeichnisstruktur
 
-**Bearbeite immer `/home/ben/Dev_local/JL_Client/src/` — niemals `JL-Manager/src/`.**
+**Bearbeite immer `src/` im Repository-Root — niemals `JL-Manager/src/`.**
 
 `test_run.sh` führt `cp -r src/* JL-Manager/src/` aus, bevor es `npm run tauri dev` startet. Das bedeutet: alle Edits in `JL-Manager/src/` werden bei jedem `test_run.sh`-Aufruf überschrieben. `JL-Manager/` ist ein Build-Artefakt, kein Quellverzeichnis.
 
@@ -228,8 +228,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 ## Backend reference
 
-Full backend docs (data model, all routes, business logic):
-@../JL_Backend/CLAUDE.md   ← Claude Code löst diesen Pfad automatisch auf
+Full backend docs (data model, all routes, business logic) are maintained in the separate `JL_Backend` repository.
 
 ### Quick-reference: API base URL
 Default: `https://jl_manage.ct-2514.de`. Configurable at runtime via the Login screen → stored in `localStorage('api_base_url')`. Always access via `getApiUrl()` from `src/api/client.ts`.
