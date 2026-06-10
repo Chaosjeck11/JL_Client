@@ -8,6 +8,7 @@ import Files from "./screens/Files";
 import Veranstaltungen from "./screens/Veranstaltungen";
 import Kalender from "./screens/Kalender";
 import Strafen from "./screens/Strafen";
+import Bierliste from "./screens/Bierliste";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { checkForUpdate, UpdateInfo } from "./update/checkUpdate";
@@ -19,7 +20,7 @@ import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { version as APP_VERSION } from "../package.json";
 
-type Tab = "members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender";
+type Tab = "members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender" | "bierliste";
 
 const FINANCE_GROUP: Tab[] = ["finance", "beitraege", "strafen", "meine_strafen", "alle_strafen"];
 const EVENTS_GROUP: Tab[] = ["veranstaltungen", "kalender"];
@@ -107,14 +108,30 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
       </svg>
     ),
   },
+  {
+    id: "bierliste",
+    label: "Bierliste",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 11h1a3 3 0 0 1 0 6h-1"/>
+        <path d="M9 12v6"/>
+        <path d="M13 12v6"/>
+        <path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.44.5-3 .5"/>
+        <path d="M6 5v17"/>
+        <path d="M18 5v17"/>
+        <path d="M5 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2H5V5z"/>
+      </svg>
+    ),
+  },
 ];
 
-// Mobile bottom nav: 4 grouped items
+// Mobile bottom nav: 5 grouped items
 const MOBILE_NAV_ITEMS = [
   { tab: TABS[0], groupTabs: null as Tab[] | null },
   { tab: TABS[1], groupTabs: FINANCE_GROUP },
   { tab: TABS[4], groupTabs: null as Tab[] | null },
   { tab: TABS[5], groupTabs: EVENTS_GROUP },
+  { tab: TABS[7], groupTabs: null as Tab[] | null },
 ];
 
 const GearIcon = () => (
@@ -474,6 +491,7 @@ const canFinance = loggedIn ? canSeeFinance() : false;
           onGoToEvent={(id) => { setPendingEventId(id); setActiveTab("veranstaltungen"); }}
         />
       )}
+      {activeTab === "bierliste" && <Bierliste isMobile={isMobile} />}
 
       {pendingUpdate && (
         <UpdateModal info={pendingUpdate} onClose={() => setPendingUpdate(null)} />
