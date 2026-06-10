@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchBierDrinks, createBierDrink, updateBierDrink, uploadBierDrinkImage,
@@ -9,13 +9,15 @@ import {
   fetchBierStats,
 } from "../api/bierliste";
 import { getApiUrl } from "../api/client";
-import { getToken } from "../auth/auth";
 import { getCurrentUser } from "../auth/currentUser";
 import type { BierDrink, BierMemberBalance } from "../types/bierliste";
 
 type SubTab = "home" | "fridge" | "scoreboard" | "kasse" | "admin";
 
 const PAYPAL_LINK_KEY = "bierliste_paypal_link";
+const WARN_THRESHOLD = 10;
+const CRIT_THRESHOLD = 5;
+function warnDisabledKey(drinkId: number) { return `bierliste_warn_off_${drinkId}`; }
 
 function isBierAdmin(): boolean {
   return (getCurrentUser()?.accessLevel ?? 0) >= 3;
@@ -139,7 +141,6 @@ function HomeTab({ isMobile }: { isMobile?: boolean }) {
     }
   }
 
-  // Aggregate consumption per drink (net, positive = consumed)
   const drinkCounts: Record<number, number> = {};
   for (const c of consumption) {
     drinkCounts[c.drinkId] = (drinkCounts[c.drinkId] ?? 0) + c.amount;
@@ -269,7 +270,7 @@ function HomeTab({ isMobile }: { isMobile?: boolean }) {
 }
 
 // ── Fridge subtab ─────────────────────────────────────────────────────────────
-function FridgeTab({ isMobile }: { isMobile?: boolean }) {
+function FridgeTab() {
   const { data: fridge = [], isLoading } = useQuery({
     queryKey: ["bier-fridge"],
     queryFn: fetchBierFridge,
@@ -287,11 +288,12 @@ function FridgeTab({ isMobile }: { isMobile?: boolean }) {
         {sorted.map(item => {
           const drink = item.drink;
           const stockPct = item.maxStock ? Math.min(item.stock / item.maxStock, 1) : null;
-          const stockColor = item.minStock && item.stock <= item.minStock ? "#ef4444"
-            : item.maxStock && item.stock >= item.maxStock ? "#16a34a"
-            : "var(--c-text)";
+          const isCrit = item.stock < CRIT_THRESHOLD;
+          const isWarn = !isCrit && item.stock < WARN_THRESHOLD;
+          const stockColor = isCrit ? "#ef4444" : isWarn ? "#f59e0b" : "var(--c-text)";
+          const cardBorder = isCrit ? "1px solid #ef4444" : isWarn ? "1px solid #f59e0b" : "1px solid var(--c-border)";
           return (
-            <div key={item.drinkId} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 10, background: "var(--c-bg)", border: "1px solid var(--c-border)" }}>
+            <div key={item.drinkId} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderRadius: 10, background: "var(--c-bg)", border: cardBorder }}>
               {drink && <DrinkImage drink={drink} size={52} />}
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{drink?.name ?? `Drink #${item.drinkId}`}</div>
@@ -299,6 +301,11 @@ function FridgeTab({ isMobile }: { isMobile?: boolean }) {
                   {drink?.pricePerUnit != null && `${fmtEur(drink.pricePerUnit)} / Stück`}
                   {item.location && ` · ${item.location}`}
                 </div>
+                {(isCrit || isWarn) && (
+                  <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, color: stockColor }}>
+                    {isCrit ? "⚠ Kritisch niedrig!" : "⚠ Bestand niedrig"}
+                  </div>
+                )}
                 {stockPct !== null && (
                   <div style={{ marginTop: 6, height: 4, borderRadius: 2, background: "var(--c-border)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${stockPct * 100}%`, background: "#3b82f6", borderRadius: 2 }} />
@@ -320,15 +327,79 @@ function FridgeTab({ isMobile }: { isMobile?: boolean }) {
   );
 }
 
-// ── Scoreboard subtab ─────────────────────────────────────────────────────────
-function ScoreboardTab() {
-  const admin = isBierAdmin();
+// ── Drink column selector dropdown ────────────────────────────────────────────
+function DrinkColumnSelector({
+  drinks,
+  selected,
+  onChange,
+}: {
+  drinks: BierDrink[];
+  selected: Set<number>;
+  onChange: (s: Set<number>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    if (open) document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+
+  function toggle(id: number) {
+    const next = new Set(selected);
+    if (next.has(id)) { next.delete(id); } else { next.add(id); }
+    onChange(next);
+  }
+
+  const allSelected = drinks.every(d => selected.has(d.id));
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ ...inputStyle, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+      >
+        <span>Getränke</span>
+        <span style={{ fontSize: 11, color: "var(--c-text-2)" }}>
+          ({selected.size}/{drinks.length})
+        </span>
+        <span style={{ fontSize: 10 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 200,
+          background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: 8,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.15)", minWidth: 200, padding: "6px 0",
+        }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13, fontWeight: 700, borderBottom: "1px solid var(--c-border)" }}>
+            <input type="checkbox" checked={allSelected} onChange={() => {
+              if (allSelected) { onChange(new Set()); } else { onChange(new Set(drinks.map(d => d.id))); }
+            }} />
+            Alle
+          </label>
+          {drinks.map(d => (
+            <label key={d.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13 }}>
+              <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
+              {d.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Scoreboard subtab ─────────────────────────────────────────────────────────
+type SortKey = "name" | "total" | "open" | number;
+
+function ScoreboardTab() {
   const { data: stats = [], isLoading, error } = useQuery({
     queryKey: ["bier-stats"],
     queryFn: fetchBierStats,
     staleTime: 30_000,
-    enabled: admin,
   });
 
   const { data: drinks = [] } = useQuery({
@@ -337,54 +408,108 @@ function ScoreboardTab() {
     staleTime: 60_000,
   });
 
-  if (!admin) return <div style={{ padding: 32, textAlign: "center", color: "var(--c-text-2)" }}>Nur für Admins sichtbar.</div>;
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "total", dir: "desc" });
+  const [selectedDrinks, setSelectedDrinks] = useState<Set<number> | null>(null);
+
+  // Default: all drinks selected once data loads
+  const visibleDrinkSet: Set<number> = selectedDrinks ?? new Set(drinks.map(d => d.id));
+  const visibleDrinks = drinks.filter(d => visibleDrinkSet.has(d.id));
+
+  function handleSort(key: SortKey) {
+    setSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" });
+  }
+
+  function sortIndicator(key: SortKey) {
+    if (sort.key !== key) return <span style={{ color: "var(--c-text-3)", fontSize: 9, marginLeft: 3 }}>⇅</span>;
+    return <span style={{ fontSize: 9, marginLeft: 3 }}>{sort.dir === "asc" ? "▲" : "▼"}</span>;
+  }
+
+  const sorted = [...stats].sort((a, b) => {
+    let cmp = 0;
+    if (sort.key === "name") {
+      cmp = `${a.member.firstname} ${a.member.lastname}`.localeCompare(`${b.member.firstname} ${b.member.lastname}`, "de");
+    } else if (sort.key === "total") {
+      cmp = a.totalAmount - b.totalAmount;
+    } else if (sort.key === "open") {
+      cmp = a.openAmount - b.openAmount;
+    } else {
+      const drinkId = sort.key as number;
+      const aMap: Record<number, number> = {};
+      for (const x of a.byDrink) aMap[x.drink.id] = x.amount;
+      const bMap: Record<number, number> = {};
+      for (const x of b.byDrink) bMap[x.drink.id] = x.amount;
+      cmp = (aMap[drinkId] ?? 0) - (bMap[drinkId] ?? 0);
+    }
+    return sort.dir === "asc" ? cmp : -cmp;
+  });
+
+  const thStyle = (key: SortKey): React.CSSProperties => ({
+    padding: "8px 12px", textAlign: key === "name" ? "left" : "center",
+    fontWeight: 700, cursor: "pointer", userSelect: "none",
+    background: sort.key === key ? "var(--c-bg-3, #e2e8f0)" : undefined,
+    whiteSpace: "nowrap",
+  });
+
   if (isLoading) return <div style={{ padding: 24, textAlign: "center", color: "var(--c-text-2)" }}>Lädt…</div>;
   if (error) return <div style={{ padding: 24, textAlign: "center", color: "#ef4444" }}>Fehler beim Laden</div>;
 
-  // Sort by total descending
-  const sorted = [...stats].sort((a, b) => b.totalAmount - a.totalAmount);
-
   return (
-    <div style={{ padding: "16px", overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr style={{ background: "var(--c-bg-2)" }}>
-            <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700 }}>Name</th>
-            {drinks.map(d => (
-              <th key={d.id} style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700 }}>{d.name}</th>
-            ))}
-            <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>Gesamt</th>
-            <th style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>Offen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((s, i) => {
-            // Backend returns byDrink[].drink.id — map drink.id → amount
-            const byDrinkMap: Record<number, number> = {};
-            for (const b of s.byDrink) byDrinkMap[b.drink.id] = b.amount;
-
-            return (
-              <tr key={s.member.id} style={{ background: i % 2 === 0 ? "var(--c-bg)" : "var(--c-bg-2)", borderTop: "1px solid var(--c-border)" }}>
-                <td style={{ padding: "8px 12px" }}>{s.member.firstname} {s.member.lastname}</td>
-                {drinks.map(d => (
-                  <td key={d.id} style={{ padding: "8px 12px", textAlign: "center" }}>
-                    {byDrinkMap[d.id] ?? 0}
-                  </td>
-                ))}
-                <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>{s.totalAmount}</td>
-                <td style={{ padding: "8px 12px", textAlign: "right", color: s.openAmount > 0 ? "#ef4444" : "#16a34a", fontWeight: 600 }}>
-                  {fmtEur(s.openAmount)}
-                </td>
-              </tr>
-            );
-          })}
-          {sorted.length === 0 && (
-            <tr>
-              <td colSpan={drinks.length + 3} style={{ padding: 24, textAlign: "center", color: "var(--c-text-2)" }}>Keine Daten</td>
+    <div style={{ padding: "16px" }}>
+      <div style={{ marginBottom: 12 }}>
+        <DrinkColumnSelector
+          drinks={drinks}
+          selected={visibleDrinkSet}
+          onChange={s => setSelectedDrinks(new Set(s))}
+        />
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "var(--c-bg-2)" }}>
+              <th style={thStyle("name")} onClick={() => handleSort("name")}>
+                Name {sortIndicator("name")}
+              </th>
+              {visibleDrinks.map(d => (
+                <th key={d.id} style={{ ...thStyle(d.id), textAlign: "center" }} onClick={() => handleSort(d.id)}>
+                  {d.name} {sortIndicator(d.id)}
+                </th>
+              ))}
+              <th style={{ ...thStyle("total"), textAlign: "right" }} onClick={() => handleSort("total")}>
+                Gesamt {sortIndicator("total")}
+              </th>
+              <th style={{ ...thStyle("open"), textAlign: "right" }} onClick={() => handleSort("open")}>
+                Offen {sortIndicator("open")}
+              </th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sorted.map((s, i) => {
+              const byDrinkMap: Record<number, number> = {};
+              for (const b of s.byDrink) byDrinkMap[b.drink.id] = b.amount;
+
+              return (
+                <tr key={s.member.id} style={{ background: i % 2 === 0 ? "var(--c-bg)" : "var(--c-bg-2)", borderTop: "1px solid var(--c-border)" }}>
+                  <td style={{ padding: "8px 12px", whiteSpace: "nowrap" }}>{s.member.firstname} {s.member.lastname}</td>
+                  {visibleDrinks.map(d => (
+                    <td key={d.id} style={{ padding: "8px 12px", textAlign: "center" }}>
+                      {byDrinkMap[d.id] ?? 0}
+                    </td>
+                  ))}
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700 }}>{s.totalAmount}</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", color: s.openAmount > 0 ? "#ef4444" : "#16a34a", fontWeight: 600 }}>
+                    {fmtEur(s.openAmount)}
+                  </td>
+                </tr>
+              );
+            })}
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={visibleDrinks.length + 3} style={{ padding: 24, textAlign: "center", color: "var(--c-text-2)" }}>Keine Daten</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -496,6 +621,9 @@ function AdminTab() {
   const [selectedFridgeDrink, setSelectedFridgeDrink] = useState<number | null>(null);
   const [fridgeSaving, setFridgeSaving] = useState(false);
 
+  // Warning toggles — stored per-drink in localStorage
+  const [warnToggles, setWarnToggles] = useState<Record<number, boolean>>({});
+
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [imgDrinkId, setImgDrinkId] = useState<number | null>(null);
 
@@ -518,6 +646,28 @@ function AdminTab() {
     enabled: admin,
   });
 
+  // Load warning toggles from localStorage once drinks are available
+  useEffect(() => {
+    const loaded: Record<number, boolean> = {};
+    for (const d of drinks) {
+      loaded[d.id] = localStorage.getItem(warnDisabledKey(d.id)) === "1";
+    }
+    setWarnToggles(loaded);
+  }, [drinks.length]);
+
+  function setWarnDisabled(drinkId: number, disabled: boolean) {
+    localStorage.setItem(warnDisabledKey(drinkId), disabled ? "1" : "0");
+    setWarnToggles(prev => ({ ...prev, [drinkId]: disabled }));
+  }
+
+  // Collect fridge warnings
+  const fridgeWarnings = fridge.filter(item => {
+    if (warnToggles[item.drinkId]) return false;
+    return item.stock < WARN_THRESHOLD;
+  });
+  const critWarnings = fridgeWarnings.filter(item => item.stock < CRIT_THRESHOLD);
+  const normalWarnings = fridgeWarnings.filter(item => item.stock >= CRIT_THRESHOLD);
+
   if (!admin) return <div style={{ padding: 32, textAlign: "center", color: "var(--c-text-2)" }}>Nur für Admins sichtbar.</div>;
 
   async function handlePay(e: React.FormEvent) {
@@ -527,7 +677,6 @@ function AdminTab() {
     if (!a || a <= 0) { setPayErr("Betrag ungültig"); return; }
     setPayLoading(true); setPayErr("");
     try {
-      // payMember already creates the cashbox IN transaction automatically
       await payMember(selectedMember.memberId, a);
       qc.invalidateQueries({ queryKey: ["bier-balances"] });
       qc.invalidateQueries({ queryKey: ["bier-cashbox"] });
@@ -620,6 +769,31 @@ function AdminTab() {
 
   return (
     <div style={{ padding: 16, maxWidth: 700, margin: "0 auto" }}>
+
+      {/* Fridge warnings summary */}
+      {fridgeWarnings.length > 0 && (
+        <div style={{ marginBottom: 8 }}>
+          {critWarnings.map(item => (
+            <div key={item.drinkId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fca5a5", marginBottom: 6, fontSize: 13 }}>
+              <span style={{ fontSize: 18 }}>🚨</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 700, color: "#dc2626" }}>{item.drink?.name ?? `Drink #${item.drinkId}`}</span>
+                <span style={{ color: "#dc2626" }}> — Kritisch! Nur noch {item.stock} Stück</span>
+              </div>
+            </div>
+          ))}
+          {normalWarnings.map(item => (
+            <div key={item.drinkId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fcd34d", marginBottom: 6, fontSize: 13 }}>
+              <span style={{ fontSize: 18 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontWeight: 700, color: "#d97706" }}>{item.drink?.name ?? `Drink #${item.drinkId}`}</span>
+                <span style={{ color: "#d97706" }}> — Bestand niedrig: {item.stock} Stück</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Salden */}
       {section("Mitglieder-Salden")}
       <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--c-border)", marginBottom: 8 }}>
@@ -802,20 +976,45 @@ function AdminTab() {
         )}
       </form>
 
-      {/* Current fridge state */}
+      {/* Fridge state with warning toggles */}
+      {section("Kühlschrankbestand & Warnungen")}
       <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid var(--c-border)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", background: "var(--c-bg-2)", padding: "8px 14px", fontSize: 11, fontWeight: 700, color: "var(--c-text-2)", textTransform: "uppercase", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", background: "var(--c-bg-2)", padding: "8px 14px", fontSize: 11, fontWeight: 700, color: "var(--c-text-2)", textTransform: "uppercase", gap: 8 }}>
           <span>Getränk</span>
-          <span style={{ textAlign: "right" }}>Preis</span>
           <span style={{ textAlign: "right" }}>Bestand</span>
+          <span style={{ textAlign: "center" }}>Status</span>
+          <span style={{ textAlign: "center" }}>Warnung</span>
         </div>
-        {fridge.map(item => (
-          <div key={item.drinkId} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", padding: "10px 14px", borderTop: "1px solid var(--c-border)", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 14 }}>{item.drink?.name ?? `Drink #${item.drinkId}`}</span>
-            <span style={{ fontSize: 13, color: "var(--c-text-2)" }}>{item.drink?.pricePerUnit != null ? fmtEur(item.drink.pricePerUnit) : "–"}</span>
-            <span style={{ fontSize: 14, fontWeight: 700 }}>{item.stock}</span>
-          </div>
-        ))}
+        {fridge.map(item => {
+          const disabled = !!warnToggles[item.drinkId];
+          const isCrit = !disabled && item.stock < CRIT_THRESHOLD;
+          const isWarn = !disabled && !isCrit && item.stock < WARN_THRESHOLD;
+          return (
+            <div key={item.drinkId} style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", padding: "10px 14px", borderTop: "1px solid var(--c-border)", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 14 }}>{item.drink?.name ?? `Drink #${item.drinkId}`}</span>
+              <span style={{ fontSize: 14, fontWeight: 700, textAlign: "right", color: isCrit ? "#ef4444" : isWarn ? "#f59e0b" : "var(--c-text)" }}>
+                {item.stock}
+              </span>
+              <span style={{ textAlign: "center", fontSize: 13 }}>
+                {disabled ? <span style={{ color: "var(--c-text-3)" }}>—</span>
+                  : isCrit ? <span style={{ color: "#ef4444", fontWeight: 700 }}>Kritisch</span>
+                  : isWarn ? <span style={{ color: "#f59e0b", fontWeight: 600 }}>Niedrig</span>
+                  : <span style={{ color: "#16a34a" }}>OK</span>}
+              </span>
+              <div style={{ textAlign: "center" }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, cursor: "pointer", color: "var(--c-text-2)" }}>
+                  <input
+                    type="checkbox"
+                    checked={!disabled}
+                    onChange={e => setWarnDisabled(item.drinkId, !e.target.checked)}
+                  />
+                  An
+                </label>
+              </div>
+            </div>
+          );
+        })}
+        {fridge.length === 0 && <div style={{ padding: 24, textAlign: "center", color: "var(--c-text-2)" }}>Keine Einträge</div>}
       </div>
     </div>
   );
@@ -845,7 +1044,7 @@ export default function Bierliste({ isMobile, initialSubTab = "home" }: { isMobi
       </div>
       <div style={{ flex: 1, overflowY: "auto" }}>
         {subTab === "home" && <HomeTab isMobile={isMobile} />}
-        {subTab === "fridge" && <FridgeTab isMobile={isMobile} />}
+        {subTab === "fridge" && <FridgeTab />}
         {subTab === "scoreboard" && <ScoreboardTab />}
         {subTab === "kasse" && <KasseTab />}
         {subTab === "admin" && <AdminTab />}
