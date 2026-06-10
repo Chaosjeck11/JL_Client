@@ -10,6 +10,7 @@
   "os:default",
   "fs:allow-write-file",
   "fs:scope-download-recursive",
+  "install:allow-install-apk",
   {
     "identifier": "opener:allow-open-path",
     "allow": [{ "path": "$DOWNLOAD/**" }]
