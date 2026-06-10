@@ -93,7 +93,7 @@ function PaypalSettingsModal({ onClose }: { onClose: () => void }) {
 }
 
 // ── Home subtab ───────────────────────────────────────────────────────────────
-function HomeTab({ isMobile }: { isMobile?: boolean }) {
+function HomeTab({ isMobile: _isMobile }: { isMobile?: boolean }) {
   const qc = useQueryClient();
   const admin = isBierAdmin();
   const [loadingDrink, setLoadingDrink] = useState<number | null>(null);
