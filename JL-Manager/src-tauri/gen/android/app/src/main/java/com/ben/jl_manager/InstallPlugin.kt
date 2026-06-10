@@ -13,12 +13,12 @@ class InstallPlugin(private val activity: android.app.Activity) : Plugin(activit
 
     @Command
     fun installApk(invoke: Invoke) {
-        val path = invoke.getString("path")
+        val path: String? = invoke.data?.getString("path")
         if (path == null) {
             invoke.reject("path is required")
             return
         }
-        val file = File(path)
+        val file = File(path as String)
         if (!file.exists()) {
             invoke.reject("APK not found: $path")
             return
