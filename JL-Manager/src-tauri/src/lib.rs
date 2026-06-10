@@ -69,7 +69,12 @@ async fn download_to_file(
         .map_err(|e| format!("Download-Verzeichnis nicht gefunden: {}", e))?;
     let file_path = download_dir.join(&filename);
 
-    let client = reqwest::Client::new();
+    let _ = on_event.send(DownloadEvent::Log { msg: "Sende HTTP-Anfrage…".to_string() });
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(300))
+        .build()
+        .map_err(|e| format!("HTTP-Client-Fehler: {}", e))?;
     let response = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", token))
