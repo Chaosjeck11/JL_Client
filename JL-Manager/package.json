@@ -1,7 +1,7 @@
 {
   "name": "jl-manager_v1",
   "private": true,
-  "version": "2.2.8",
+  "version": "4.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
