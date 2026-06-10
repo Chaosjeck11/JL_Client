@@ -85,11 +85,11 @@ export async function downloadUpdate(
     onLog(`APK-Pfad: ${filePath}`);
     const installLog: string[] = [
       `${new Date().toISOString()} APK-Pfad: ${filePath}`,
-      `${new Date().toISOString()} invoke plugin:install|installApk …`,
+      `${new Date().toISOString()} invoke plugin:install|install_apk …`,
     ];
     const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
     try {
-      await invoke('plugin:install|installApk', { path: filePath });
+      await invoke('plugin:install|install_apk', { path: filePath });
       installLog.push(`${new Date().toISOString()} invoke OK`);
       onLog('Installation gestartet. Bitte Installationsaufforderung bestätigen.');
     } catch (e) {

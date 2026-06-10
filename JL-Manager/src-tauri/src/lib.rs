@@ -105,12 +105,46 @@ async fn download_file(
     Ok(file_path.to_string_lossy().to_string())
 }
 
+#[cfg(target_os = "android")]
+struct InstallHandle<R: tauri::Runtime>(tauri::plugin::PluginHandle<R>);
+
+#[derive(serde::Serialize)]
+struct InstallApkPayload {
+    path: String,
+}
+
+#[tauri::command]
+fn install_apk<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    path: String,
+) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        return app
+            .state::<InstallHandle<R>>()
+            .0
+            .run_mobile_plugin::<serde_json::Value>("installApk", InstallApkPayload { path })
+            .map(|_| ())
+            .map_err(|e| format!("Installer-Fehler: {}", e));
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, path);
+        Err("APK-Installation nur unter Android verfügbar".to_string())
+    }
+}
+
 fn init_install_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("install")
-        .setup(|_app, api| {
+        .invoke_handler(tauri::generate_handler![install_apk])
+        .setup(|_app, _api| {
             #[cfg(target_os = "android")]
-            api.register_android_plugin("com.ben.jl_manager", "InstallPlugin")?;
-            let _ = api;
+            {
+                use tauri::Manager;
+                let handle = _api.register_android_plugin("com.ben.jl_manager", "InstallPlugin")?;
+                _app.manage(InstallHandle(handle));
+            }
             Ok(())
         })
         .build()
