@@ -54,21 +54,27 @@ export async function downloadUpdate(
   onLog(`URL: ${downloadUrl}`);
   onLog(`Dateiname: ${filename}`);
 
-  const { invoke, Channel } = await import('@tauri-apps/api/core');
+  const { invoke } = await import('@tauri-apps/api/core');
+  const { listen } = await import('@tauri-apps/api/event');
 
-  type DownloadEvent = { type: 'progress'; pct: number } | { type: 'log'; msg: string };
-  const channel = new Channel<DownloadEvent>();
-  channel.onmessage = (event) => {
-    if (event.type === 'progress') onProgress(event.pct);
-    else onLog(event.msg);
-  };
-
-  const filePath = await invoke<string>('download_to_file', {
-    url: downloadUrl,
-    token,
-    filename,
-    onEvent: channel,
+  const unlisten = await listen<{ received: number; total: number }>('download-progress', (event) => {
+    const { received, total } = event.payload;
+    if (total > 0) {
+      onProgress(Math.min(99, Math.floor((received / total) * 100)));
+    }
   });
+
+  let filePath: string;
+  try {
+    filePath = await invoke<string>('download_file', {
+      url: downloadUrl,
+      filename,
+      headers: token ? [['Authorization', `Bearer ${token}`]] : [],
+    });
+  } finally {
+    unlisten();
+  }
+  onProgress(100);
 
   onLog(`Öffne Installer…`);
 
@@ -79,11 +85,11 @@ export async function downloadUpdate(
     onLog(`APK-Pfad: ${filePath}`);
     const installLog: string[] = [
       `${new Date().toISOString()} APK-Pfad: ${filePath}`,
-      `${new Date().toISOString()} invoke plugin:install|installApk …`,
+      `${new Date().toISOString()} invoke plugin:install|install_apk …`,
     ];
     const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
     try {
-      await invoke('plugin:install|installApk', { path: filePath });
+      await invoke('plugin:install|install_apk', { path: filePath });
       installLog.push(`${new Date().toISOString()} invoke OK`);
       onLog('Installation gestartet. Bitte Installationsaufforderung bestätigen.');
     } catch (e) {
