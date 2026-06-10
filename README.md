@@ -2,7 +2,7 @@
 
 Vereinsverwaltung für Jugendlager-Gruppen. React 19 + TypeScript SPA (Vite), verpackt als Tauri-Desktop/Android-App und als Progressive Web App (PWA) nutzbar.
 
-**Features:** Mitgliederverwaltung · Kassenbuch · Mitgliedsbeiträge · Strafen · Dateiverwaltung · Veranstaltungen · Kalender
+**Features:** Mitgliederverwaltung · Kassenbuch · Mitgliedsbeiträge · Strafen · Dateiverwaltung · Veranstaltungen · Kalender · Bierliste
 
 ---
 
@@ -194,9 +194,39 @@ JL_Client/
 
 | Level | Rolle | Rechte (Kurzfassung) |
 |---|---|---|
-| L0 | Mitglied | Eigene Strafen lesen |
+| L0 | Mitglied | Eigene Strafen lesen, Bierliste buchen |
 | L1 | Strafenwart | Strafenkatalog + alle Einträge verwalten |
 | L2 | Orgateam | Mitglieder lesen, Veranstaltungen schreiben |
-| L3 | Vorstand | Mitglieder schreiben, Finanzen lesen |
+| L3 | Vorstand | Mitglieder schreiben, Finanzen lesen, Bierliste Admin |
 | L4 | Kassenwart | Finanzen schreiben, Beiträge bezahlen |
 | L5 | Admin | Vollzugriff inkl. Anhänge, Formular-Template |
+
+---
+
+## Bierliste
+
+Getränkeverwaltung und Schuldenbuch für den Vereinskühlschrank. Integriert in die App unter dem Tab **Bierliste** (🍺).
+
+### Subtabs
+
+| Tab | Sichtbar für | Funktion |
+|---|---|---|
+| Home | Alle | Eigener Saldo + offener Betrag, Getränke buchen (+1/−1), PayPal-Bezahlbutton, persönlicher Score |
+| Kühlschrank | Alle | Bestandsübersicht inkl. Niedrig-/Kritisch-Warnungen |
+| Score | Alle | Gesamt-Scoreboard aller Mitglieder, sortierbar, Drinkauswahl via Dropdown |
+| Kasse | Admins (L3+) | Bierliste-Kassenstand, manuelle Buchungen (IN/OUT/CORRECTION) |
+| Admin | Admins (L3+) | Salden-Übersicht, Abrechnungen, Getränke verwalten, Kühlschrank befüllen (Einzeln/Kasten), Bestandswarnungen konfigurieren |
+
+### Spam-Schutz
+
+Die Buchungs-Buttons (+1/−1) sind durch einen **synchronen Ref-Lock** (`useRef<Set<number>>`) gegen Doppelklicks geschützt. Nach einer erfolgreichen Buchung bleibt der Button für 800 ms gesperrt (visuell: `disabled` + gedimmt). Bei einem API-Fehler wird die Sperre sofort aufgehoben, damit ein Retry möglich ist.
+
+### Konfiguration
+
+- **PayPal-Link**: Admins können unter Home → ⚙ einen `https://paypal.me/...`-Link hinterlegen (gespeichert in `localStorage('bierliste_paypal_link')`). Der Betrag wird automatisch an die URL angehängt.
+- **Bestandswarnungen**: Pro Getränk togglebar, gespeichert in `localStorage('bierliste_warn_off_<drinkId>')`. Schwellenwerte: < 10 = Gelb, < 5 = Rot.
+- **Bierliste-Admin-Level**: Konfigurierbar per `BIERLISTE_ADMIN_MIN_LEVEL` im Backend (Standard: L3).
+
+### API-Modul
+
+`src/api/bierliste.ts` — alle `/bierliste/*`-Endpunkte. Typen in `src/types/bierliste.ts`.

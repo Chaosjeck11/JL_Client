@@ -74,10 +74,17 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - `['veranstaltung-kategorien']`
   - `['strafen']`
   - `['strafen-eintraege', 'meine', memberId, yearId]` / `['strafen-eintraege', 'alle', filters]`
+  - `['bier-drinks']` — `fetchBierDrinks(includeInactive)`
+  - `['bier-fridge']` — `fetchBierFridge()`
+  - `['bier-consumption-me']` — `fetchMyConsumption()`
+  - `['bier-balance-me']` — `fetchMyBalance()`
+  - `['bier-balances']` — `fetchAllBalances()` (admin only)
+  - `['bier-cashbox']` — `fetchCashbox()` (admin only)
+  - `['bier-stats']` — `fetchBierStats()` (admin only)
 - Exceptions (still use `useEffect`): blob URL lifecycle with cancellation tokens, event listeners, UI-state reactions (not data fetching).
 
 **Auth flow:**
-- `App.tsx` holds `loggedIn` (boolean), `activeTab` ("members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender"), and `pendingEventId` (number | null) as global state. On logout, `queryClient.clear()` wipes the cache. `pendingEventId` is set when the user clicks an event in the Kalender tab; it is passed as `initialSelectedId` to `Veranstaltungen` so the detail panel opens automatically.
+- `App.tsx` holds `loggedIn` (boolean), `activeTab` ("members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender" | "bierliste"), and `pendingEventId` (number | null) as global state. On logout, `queryClient.clear()` wipes the cache. `pendingEventId` is set when the user clicks an event in the Kalender tab; it is passed as `initialSelectedId` to `Veranstaltungen` so the detail panel opens automatically.
 - JWT is stored in `localStorage` via `src/auth/auth.ts`. `getCurrentUser()` in `src/auth/currentUser.ts` decodes it client-side to read `sub`, `email`, `accessLevel`, `role` without an extra API call.
 - Permission checks in `src/auth/permissions.ts` gate UI elements by `accessLevel`. All functions are pure (read JWT, return bool):
 
@@ -109,6 +116,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `src/api/files.ts` — `/files` endpoints: `fetchFiles(path?)`, `fetchFolders()`, `uploadFile` (raw fetch/FormData), `downloadFile` (Blob → objectURL), `previewFile` (Blob → objectURL, inline), `updateFile`, `deleteFile`.
 - `src/api/veranstaltungen.ts` — `/veranstaltungen` + `/veranstaltung-form-template` + `/veranstaltung-kategorien` endpoints: full CRUD, financials, form rows (add/update/delete), attachment upload/download/delete/blob-preview, template get/update, kategorie CRUD. Attachment uploads use raw `fetch`/`FormData`; downloads return Blob → objectURL.
 - `src/api/strafen.ts` — `/strafen` + `/strafen/eintraege` endpoints: catalog CRUD (`fetchStrafen`, `createStrafe`, `updateStrafe`, `deleteStrafe`) and entry CRUD (`fetchEintraege`, `createEintrag`, `updateEintrag`, `deleteEintrag`). All via `apiFetch`. `fetchEintraege` accepts optional filter object `{ memberId?, strafeId?, businessYearId?, bezahlt? }`.
+- `src/api/bierliste.ts` — all `/bierliste/*` endpoints via `apiFetch`. Functions: `fetchBierDrinks(includeInactive?)`, `createBierDrink`, `updateBierDrink`, `deleteBierDrink`, `uploadBierDrinkImage` (raw fetch/FormData), `fetchBierFridge`, `updateBierFridge`, `fetchMyConsumption`, `postConsumption`, `fetchMyBalance`, `fetchAllBalances`, `payMember`, `adjustMemberAmounts`, `fetchCashbox`, `postCashboxTransaction`, `fetchBierStats`. Image serve URL: `${getApiUrl()}/bierliste/drinks/:id/image` (no auth header — `<img src>` direct).
 
 **Types:**
 - `src/types/member.ts` — `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
@@ -116,6 +124,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `src/types/files.ts` — `AppFile`.
 - `src/types/veranstaltungen.ts` — `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `VeranstaltungKategorie`, `AllAttachments`.
 - `src/types/strafen.ts` — `Strafe`, `StrafeEintrag`.
+- `src/types/bierliste.ts` — `BierDrink`, `BierFridge`, `BierConsumption`, `BierMemberBalance`, `BierCashboxTransaction`, `BierCashbox`, `BierUserStat`. Key shape: `BierUserStat.byDrink[]` is `{ drink: { id, name, pricePerUnit }, amount, cost }` (NOT `drinkId`/`drinkName` — backend returns the nested `drink` object).
 
 **Responsive design:**
 - Mobile breakpoint: **768px**. Hook: `src/hooks/useIsMobile.ts` → `useIsMobile()` returns boolean, updates on resize.
@@ -195,6 +204,16 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - Right panel switches between: `VeranstaltungCreate`, `FormTemplateManager`, `VeranstaltungDetail`, or placeholder text.
 - Detail data fetched via `useQuery(['veranstaltungen', id])` → `fetchVeranstaltung(id)` (includes transactions, attachments, form).
 - `initialSelectedId`: when provided (from Kalender tab navigation), sets initial `selectedId` and `rightPanel = "detail"` on mount so the event detail opens immediately.
+
+**Bierliste screen (`src/screens/Bierliste.tsx`):** Props `isMobile?: boolean`. Tab label: "Bierliste" (beer mug SVG). Helper `isBierAdmin()` = `accessLevel >= BIERLISTE_ADMIN_MIN_LEVEL` (frontend hardcoded to 3; must match backend env var).
+- Five subtabs: **Home**, **Kühlschrank**, **Score**, **Kasse** (admin), **Admin** (admin).
+- `HomeTab` — balance cards (Offener Betrag / Bezahlt), PayPal-Bezahlbutton (link in `localStorage('bierliste_paypal_link')`; admin gear icon to configure), drink table with +1/−1 booking, "Mein Gesamtscore" summary. **Spam protection**: `bookingLock` (`useRef<Set<number>>`) checked synchronously before each booking; button kept visually disabled 800 ms after success via `setTimeout`; on API error lock releases immediately for retry.
+- `FridgeTab` — read-only stock overview; cards highlighted red (< 5) / yellow (< 10) with inline label.
+- `ScoreboardTab` — visible to ALL users (stats endpoint is admin-gated server-side; non-admins see API error). Sortable by any column (click header, re-click reverses direction). `DrinkColumnSelector` dropdown: multi-checkbox to pick which drink columns appear; hidden drinks still count in Gesamt. `byDrinkMap` built as `{ [drink.id]: amount }` — use `b.drink.id`, never `b.drinkId`.
+- `KasseTab` (admin) — cashbox balance card, new booking form (IN/OUT/CORRECTION), last 20 transactions.
+- `AdminTab` (admin) — fridge warning banners at top (🚨 critical / ⚠️ warning); member balances list with pay modal (`payMember` auto-creates cashbox IN — **do NOT call `postCashboxTransaction` additionally**); drink CRUD with image upload; Kühlschrank refill form (Einzeln/Kasten toggle with flaschenProKasten input); Kühlschrankbestand table with per-drink warning toggles stored in `localStorage('bierliste_warn_off_<drinkId>')`.
+- Warning thresholds: `WARN_THRESHOLD = 10`, `CRIT_THRESHOLD = 5` — constants at top of file.
+- `PAYPAL_LINK_KEY = "bierliste_paypal_link"` — localStorage key for PayPal URL.
 
 **Kalender screen (`src/screens/Kalender.tsx`):** Props `isMobile?: boolean`, `onGoToEvent?: (id: number) => void`. Tab label: "Kalender" (calendar grid icon).
 - Monthly calendar grid (Mo–So columns, German locale). Month navigation: ‹ › arrows + "Heute" button.

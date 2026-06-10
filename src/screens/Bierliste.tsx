@@ -98,6 +98,9 @@ function HomeTab({ isMobile }: { isMobile?: boolean }) {
   const admin = isBierAdmin();
   const [loadingDrink, setLoadingDrink] = useState<number | null>(null);
   const [showPaypalSettings, setShowPaypalSettings] = useState(false);
+  // Synchronous ref-lock prevents spam even before React re-renders the disabled state.
+  // Cooldown of 800 ms keeps button visually locked after the API calls complete.
+  const bookingLock = useRef<Set<number>>(new Set());
 
   const { data: balance } = useQuery({
     queryKey: ["bier-balance-me"],
@@ -123,6 +126,8 @@ function HomeTab({ isMobile }: { isMobile?: boolean }) {
   });
 
   async function book(drinkId: number, amount: number) {
+    if (bookingLock.current.has(drinkId)) return;
+    bookingLock.current.add(drinkId);
     setLoadingDrink(drinkId);
     try {
       const fridgeItem = fridge.find(f => f.drinkId === drinkId);
@@ -136,9 +141,17 @@ function HomeTab({ isMobile }: { isMobile?: boolean }) {
       qc.invalidateQueries({ queryKey: ["bier-balance-me"] });
       qc.invalidateQueries({ queryKey: ["bier-consumption-me"] });
       qc.invalidateQueries({ queryKey: ["bier-fridge"] });
-    } finally {
+    } catch {
+      // On error release lock immediately so the user can retry
+      bookingLock.current.delete(drinkId);
       setLoadingDrink(null);
+      return;
     }
+    // 800 ms cooldown: button stays visually disabled after success
+    setTimeout(() => {
+      bookingLock.current.delete(drinkId);
+      setLoadingDrink(null);
+    }, 800);
   }
 
   const drinkCounts: Record<number, number> = {};
