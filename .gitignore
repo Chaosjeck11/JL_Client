@@ -50,6 +50,16 @@ JL-Manager/src-tauri/gen/android/app/src/*
 JL-Manager/src-tauri/gen/android/app/src/main/*
 !JL-Manager/src-tauri/gen/android/app/src/main/res/
 !JL-Manager/src-tauri/gen/android/app/src/main/AndroidManifest.xml
+!JL-Manager/src-tauri/gen/android/app/src/main/java/
+JL-Manager/src-tauri/gen/android/app/src/main/java/*
+!JL-Manager/src-tauri/gen/android/app/src/main/java/com/
+JL-Manager/src-tauri/gen/android/app/src/main/java/com/*
+!JL-Manager/src-tauri/gen/android/app/src/main/java/com/ben/
+JL-Manager/src-tauri/gen/android/app/src/main/java/com/ben/*
+!JL-Manager/src-tauri/gen/android/app/src/main/java/com/ben/jl_manager/
+JL-Manager/src-tauri/gen/android/app/src/main/java/com/ben/jl_manager/*
+!JL-Manager/src-tauri/gen/android/app/src/main/java/com/ben/jl_manager/InstallPlugin.kt
+!JL-Manager/src-tauri/gen/android/app/src/main/java/com/ben/jl_manager/MainActivity.kt
 JL-Manager/src-tauri/gen/android/app/src/main/res/*
 !JL-Manager/src-tauri/gen/android/app/src/main/res/xml/
 JL-Manager/src-tauri/gen/android/app/src/main/res/xml/*
