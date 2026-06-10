@@ -57,11 +57,10 @@ export interface BierCashbox {
 }
 
 export interface BierUserStat {
-  memberId: number;
   member: { id: number; firstname: string; lastname: string };
   totalAmount: number;
   totalCost: number;
   openAmount: number;
   paidAmount: number;
-  byDrink: { drinkId: number; drinkName: string; amount: number; cost: number }[];
+  byDrink: { drink: { id: number; name: string; pricePerUnit: number }; amount: number; cost: number }[];
 }
