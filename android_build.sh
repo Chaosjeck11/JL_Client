@@ -165,7 +165,7 @@ read -r DEPLOY_ANSWER
 if [ "$DEPLOY_ANSWER" = "j" ] || [ "$DEPLOY_ANSWER" = "J" ]; then
   echo "=== DEPLOY v$VERSION → $SERVER_HOST ==="
 
-  ssh "$SERVER_USER@$SERVER_HOST" "mkdir -p $SERVER_PATH/$VERSION/linux $SERVER_PATH/$VERSION/windows $SERVER_PATH/$VERSION/android"
+  ssh "$SERVER_USER@$SERVER_HOST" "sudo mkdir -p $SERVER_PATH/$VERSION/linux $SERVER_PATH/$VERSION/windows $SERVER_PATH/$VERSION/android && sudo chown -R $SERVER_USER $SERVER_PATH/$VERSION"
   scp -r "$OUT_DIR/"* "$SERVER_USER@$SERVER_HOST:$SERVER_PATH/$VERSION/"
   scp "$SCRIPT_DIR/Builds/latest.json" "$SERVER_USER@$SERVER_HOST:$SERVER_PATH/latest.json"
 

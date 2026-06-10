@@ -36,7 +36,24 @@ coverage/
 .idea/
 
 
-JL-Manager/src-tauri/
+# src-tauri generierte Dateien ignorieren, außer manuell gepflegte Android-Configs:
+JL-Manager/src-tauri/*
+!JL-Manager/src-tauri/gen/
+JL-Manager/src-tauri/gen/*
+!JL-Manager/src-tauri/gen/android/
+JL-Manager/src-tauri/gen/android/*
+!JL-Manager/src-tauri/gen/android/app/
+JL-Manager/src-tauri/gen/android/app/*
+!JL-Manager/src-tauri/gen/android/app/src/
+JL-Manager/src-tauri/gen/android/app/src/*
+!JL-Manager/src-tauri/gen/android/app/src/main/
+JL-Manager/src-tauri/gen/android/app/src/main/*
+!JL-Manager/src-tauri/gen/android/app/src/main/res/
+!JL-Manager/src-tauri/gen/android/app/src/main/AndroidManifest.xml
+JL-Manager/src-tauri/gen/android/app/src/main/res/*
+!JL-Manager/src-tauri/gen/android/app/src/main/res/xml/
+JL-Manager/src-tauri/gen/android/app/src/main/res/xml/*
+!JL-Manager/src-tauri/gen/android/app/src/main/res/xml/network_security_config.xml
 JL-Manager/src/
 Builds/
 *.keystore
