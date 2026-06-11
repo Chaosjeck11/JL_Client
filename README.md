@@ -6,46 +6,91 @@ Vereinsverwaltung für Jugendlager-Gruppen. React 19 + TypeScript SPA (Vite), ve
 
 ---
 
-## Voraussetzungen
-
-| Tool | Zweck |
-|---|---|
-| Node.js ≥ 20 + pnpm | Frontend-Build |
-| Rust + Cargo | Tauri Desktop/Android |
-| Android SDK + NDK | Android-Build |
-| `cargo-xwin` + NSIS | Windows-Cross-Compile (optional) |
-
-Rust-Targets für Android installieren:
-```bash
-rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-```
-
----
-
-## Setup
-
-### 1. Repository klonen
+## Schnellstart — frischer Linux-Rechner (Debian/Ubuntu)
 
 ```bash
 git clone https://github.com/Chaosjeck11/JL_Client.git
 cd JL_Client
+./init.sh
 ```
 
-### 2. `.env` anlegen
+Das Script installiert und konfiguriert automatisch **alles**, was zum Bauen aller Plattformen benötigt wird:
 
-Kopiere `.env.example` nach `.env` und trage deine Werte ein:
+- Node.js 22 + pnpm
+- Rust + Cargo (via rustup)
+- Alle Rust-Targets (Android × 4 + Windows)
+- cargo-xwin (Windows-Cross-Compile)
+- NSIS (Windows-Installer-Generator)
+- OpenJDK 17
+- Android SDK (Command-Line Tools, Build-Tools, Platform 35)
+- Android NDK 27
+- npm-Abhängigkeiten (root + JL-Manager)
+- `.env` aus `.env.example` vorausfüllen
+- Android-Keystore optional direkt erstellen
+
+**Nach dem Script:** neue Shell öffnen (oder `source ~/.bashrc`), `.env` befüllen, fertig.
+
+> **Voraussetzung:** Debian/Ubuntu mit `sudo`-Rechten. Das Script ist idempotent — mehrfaches Ausführen schadet nicht.
+
+---
+
+## Manuelle Einrichtung (Schritt für Schritt)
+
+Nur nötig, wenn `init.sh` nicht verwendet werden soll oder kein Debian/Ubuntu vorliegt.
+
+### Voraussetzungen installieren
+
+| Tool | Mindestversion | Zweck |
+|---|---|---|
+| Node.js | 22 | Frontend-Build |
+| pnpm | aktuell | Paketmanager |
+| Rust + Cargo | stable | Tauri Desktop/Android |
+| OpenJDK | 17 | Android-Build |
+| Android SDK | API 35 | Android-Build |
+| Android NDK | 27.0.12077973 | Android-Build |
+| cargo-xwin | aktuell | Windows-Cross-Compile |
+| NSIS / makensis | aktuell | Windows-Installer |
+
+Rust-Targets hinzufügen:
+```bash
+rustup target add \
+  aarch64-linux-android \
+  armv7-linux-androideabi \
+  i686-linux-android \
+  x86_64-linux-android \
+  x86_64-pc-windows-msvc
+```
+
+Umgebungsvariablen setzen (in `~/.bashrc` / `~/.zshrc` eintragen):
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_HOME=$HOME/android-sdk
+export NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$HOME/.cargo/bin:$PATH"
+```
+
+### Repository klonen + Dependencies installieren
+
+```bash
+git clone https://github.com/Chaosjeck11/JL_Client.git
+cd JL_Client
+
+pnpm install
+cd JL-Manager && pnpm install && cd ..
+```
+
+### `.env` anlegen
 
 ```bash
 cp .env.example .env
+nano .env          # Werte eintragen
 ```
-
-Inhalt von `.env`:
 
 ```env
 # ── Deploy-Server ─────────────────────────────────────────────────────────────
-SERVER_USER=ben                          # SSH-User auf dem Deploy-Server
-SERVER_HOST=100.x.x.x                   # Tailscale-IP oder Hostname
-SERVER_PATH=/mnt/docker/JL_Backend/Builds  # Zielpfad auf dem Server
+SERVER_USER=ben                              # SSH-User auf dem Deploy-Server
+SERVER_HOST=100.x.x.x                       # Tailscale-IP oder Hostname
+SERVER_PATH=/mnt/docker/JL_Backend/Builds   # Zielpfad auf dem Server
 
 # ── Android Keystore ──────────────────────────────────────────────────────────
 KEYSTORE_PASSWORD=dein_keystore_passwort
@@ -57,18 +102,19 @@ KEY_PASSWORD=dein_key_passwort
 VITE_API_BASE_URL=https://deine-backend-domain.de
 ```
 
-> **Hinweis:** Die `.env`-Datei ist in `.gitignore` und wird nie committed.
-> Den Android-Keystore (`jl-manager.keystore`) ebenfalls lokal ablegen — er gehört **nicht** ins Repository.
+> Die `.env`-Datei ist in `.gitignore` und wird nie committed.
+> Den Android-Keystore (`jl-manager.keystore`) ebenfalls nur lokal ablegen.
 
-### 3. Dependencies installieren
+### Android-Keystore erstellen (einmalig)
 
 ```bash
-# Root (Vite/TypeScript-Tools)
-pnpm install
-
-# Tauri-Subprojekt
-cd JL-Manager && pnpm install && cd ..
+keytool -genkey -v \
+  -keystore jl-manager.keystore \
+  -alias jl-manager \
+  -keyalg RSA -keysize 2048 -validity 10000
 ```
+
+Die gewählten Passwörter in `.env` als `KEYSTORE_PASSWORD` und `KEY_PASSWORD` eintragen.
 
 ---
 
