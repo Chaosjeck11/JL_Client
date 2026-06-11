@@ -119,6 +119,7 @@ install_pkgs_debian() {
     libgtk-3-dev libwebkit2gtk-4.1-dev
     libayatana-appindicator3-dev librsvg2-dev
     libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+    xdg-utils
     nsis
     openjdk-17-jdk
   )

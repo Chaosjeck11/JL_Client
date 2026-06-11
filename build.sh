@@ -79,6 +79,7 @@ check cargo
 check rustup
 check cargo-xwin
 check makensis
+check xdg-open
 
 for VAR in JAVA_HOME ANDROID_HOME NDK_HOME; do
   if [ -z "${!VAR}" ]; then
