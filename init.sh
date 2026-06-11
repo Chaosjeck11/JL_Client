@@ -24,6 +24,16 @@ info() { echo -e "  →      $*"; }
 step() { echo -e "\n${CYAN}=== $* ===${NC}"; }
 fail() { echo -e "${RED}  FEHLER:${NC} $*"; exit 1; }
 
+# ── sudo-Wrapper: als root direkt ausführen, sonst sudo nutzen ───────────────
+if [ "$(id -u)" = "0" ]; then
+  SUDO=""
+else
+  if ! command -v sudo &>/dev/null; then
+    fail "Nicht root und kein sudo verfügbar. Script als root ausführen oder sudo installieren."
+  fi
+  SUDO="sudo"
+fi
+
 # ── Versions-Pins ─────────────────────────────────────────────────────────────
 NODE_MAJOR=22
 ANDROID_CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
@@ -97,14 +107,14 @@ install_pkgs_debian() {
     openjdk-17-jdk
   )
   info "apt-get update..."
-  sudo apt-get update -qq
+  $SUDO apt-get update -qq
   local MISSING=()
   for pkg in "${PKGS[@]}"; do
     dpkg -s "$pkg" &>/dev/null || MISSING+=("$pkg")
   done
   if [ ${#MISSING[@]} -gt 0 ]; then
     info "Installiere: ${MISSING[*]}"
-    sudo apt-get install -y "${MISSING[@]}"
+    $SUDO apt-get install -y "${MISSING[@]}"
   fi
 }
 
@@ -137,7 +147,7 @@ install_pkgs_arch() {
   fi
 
   info "pacman -Syu..."
-  sudo pacman -Syu --noconfirm --needed
+  $SUDO pacman -Syu --noconfirm --needed
 
   local MISSING=()
   for pkg in "${PACMAN_PKGS[@]}"; do
@@ -145,7 +155,7 @@ install_pkgs_arch() {
   done
   if [ ${#MISSING[@]} -gt 0 ]; then
     info "Installiere: ${MISSING[*]}"
-    sudo pacman -S --noconfirm --needed "${MISSING[@]}"
+    $SUDO pacman -S --noconfirm --needed "${MISSING[@]}"
   fi
 
   # AUR-Pakete
@@ -180,14 +190,14 @@ install_pkgs_fedora() {
     mingw64-nsis
   )
   info "dnf check-update..."
-  sudo dnf check-update -q || true
+  $SUDO dnf check-update -q || true
   local MISSING=()
   for pkg in "${PKGS[@]}"; do
     rpm -q "$pkg" &>/dev/null || MISSING+=("$pkg")
   done
   if [ ${#MISSING[@]} -gt 0 ]; then
     info "Installiere: ${MISSING[*]}"
-    sudo dnf install -y "${MISSING[@]}"
+    $SUDO dnf install -y "${MISSING[@]}"
   fi
 }
 
@@ -203,14 +213,14 @@ install_pkgs_suse() {
     nsis
   )
   info "zypper refresh..."
-  sudo zypper refresh -q
+  $SUDO zypper refresh -q
   local MISSING=()
   for pkg in "${PKGS[@]}"; do
     rpm -q "$pkg" &>/dev/null || MISSING+=("$pkg")
   done
   if [ ${#MISSING[@]} -gt 0 ]; then
     info "Installiere: ${MISSING[*]}"
-    sudo zypper install -y "${MISSING[@]}"
+    $SUDO zypper install -y "${MISSING[@]}"
   fi
 }
 
@@ -245,7 +255,7 @@ if command -v java &>/dev/null; then
     if [ "$DISTRO_FAMILY" = "debian" ] && command -v update-alternatives &>/dev/null; then
       JAVA17_PATH=$(update-alternatives --list java 2>/dev/null | grep "java-$JAVA_MIN" | head -1)
       if [ -n "$JAVA17_PATH" ]; then
-        sudo update-alternatives --set java "$JAVA17_PATH"
+        $SUDO update-alternatives --set java "$JAVA17_PATH"
         JAVA_HOME_DETECTED=$(detect_java_home)
         export JAVA_HOME="${JAVA_HOME:-$JAVA_HOME_DETECTED}"
         ok "Java auf $JAVA_MIN gesetzt (JAVA_HOME=$JAVA_HOME)"
@@ -279,22 +289,22 @@ if [ "$NODE_NEEDS_INSTALL" = true ]; then
     debian)
       info "NodeSource-Repository einrichten..."
       curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
-      sudo apt-get install -y nodejs
+      $SUDO apt-get install -y nodejs
       ;;
     arch)
       # Arch-Repos haben meistens aktuelles Node — pacman -S nodejs
       info "Installiere nodejs via pacman..."
-      sudo pacman -S --noconfirm --needed nodejs npm
+      $SUDO pacman -S --noconfirm --needed nodejs npm
       ;;
     fedora)
       info "NodeSource-Repository einrichten (RPM)..."
       curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
-      sudo dnf install -y nodejs
+      $SUDO dnf install -y nodejs
       ;;
     suse)
       info "NodeSource-Repository einrichten (openSUSE)..."
       curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
-      sudo zypper install -y nodejs
+      $SUDO zypper install -y nodejs
       ;;
   esac
   ok "Node.js $(node --version) installiert"
@@ -309,10 +319,10 @@ else
   info "Installiere pnpm..."
   # corepack ist in Node.js 16+ enthalten und ist die sauberste Methode
   if command -v corepack &>/dev/null; then
-    sudo corepack enable
+    $SUDO corepack enable
     corepack prepare pnpm@latest --activate
   else
-    sudo npm install -g pnpm
+    $SUDO npm install -g pnpm
   fi
   ok "pnpm $(pnpm --version) installiert"
 fi
