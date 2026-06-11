@@ -9,12 +9,23 @@
 #   Fedora / RHEL / CentOS Stream / AlmaLinux / Rocky Linux
 #   openSUSE Tumbleweed / Leap
 #
-# Aufruf: ./init.sh
+# Aufruf: ./init.sh [--auto]
+#   --auto  Keine interaktiven Eingaben: tzdata→Europa/Berlin, Keystore überspringen.
+#           Ideal für CI, Container und vollautomatische Setups.
 # Das Script ist idempotent — es kann mehrfach ausgeführt werden.
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Flags ─────────────────────────────────────────────────────────────────────
+AUTO=false
+for arg in "$@"; do
+  case "$arg" in
+    --auto) AUTO=true ;;
+    *) echo "Unbekanntes Argument: $arg"; echo "Verwendung: ./init.sh [--auto]"; exit 1 ;;
+  esac
+done
 
 # ── Farben ────────────────────────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -33,6 +44,11 @@ else
   fi
   SUDO="sudo"
 fi
+
+# ── Nicht-interaktiver apt-Modus (verhindert tzdata-Eingabeaufforderung) ──────
+# tzdata fragt sonst interaktiv nach Weltregion (7=Europa) und Stadt (8=Berlin).
+export DEBIAN_FRONTEND=noninteractive
+export TZ=Europe/Berlin
 
 # ── Versions-Pins ─────────────────────────────────────────────────────────────
 NODE_MAJOR=22
@@ -288,7 +304,7 @@ if [ "$NODE_NEEDS_INSTALL" = true ]; then
   case "$DISTRO_FAMILY" in
     debian)
       info "NodeSource-Repository einrichten..."
-      curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
+      curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | ${SUDO:+sudo -E} bash -
       $SUDO apt-get install -y nodejs
       ;;
     arch)
@@ -298,12 +314,12 @@ if [ "$NODE_NEEDS_INSTALL" = true ]; then
       ;;
     fedora)
       info "NodeSource-Repository einrichten (RPM)..."
-      curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
+      curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | ${SUDO:+sudo -E} bash -
       $SUDO dnf install -y nodejs
       ;;
     suse)
       info "NodeSource-Repository einrichten (openSUSE)..."
-      curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | sudo -E bash -
+      curl -fsSL "https://rpm.nodesource.com/setup_${NODE_MAJOR}.x" | ${SUDO:+sudo -E} bash -
       $SUDO zypper install -y nodejs
       ;;
   esac
@@ -492,12 +508,18 @@ else
   echo ""
   echo -e "${YELLOW}  Kein Android-Keystore gefunden.${NC}"
   echo "  Zum Signieren von Release-APKs wird ein Keystore benötigt."
-  echo ""
-  echo "    [1] Jetzt neu erstellen (empfohlen)"
-  echo "    [2] Überspringen (Keystore später manuell ablegen)"
-  echo ""
-  printf "  Auswahl [1/2]: "
-  read -r KS_CHOICE
+
+  if [ "$AUTO" = true ]; then
+    warn "--auto: Keystore-Erstellung übersprungen. $KEYSTORE vor dem ersten Build ablegen."
+    KS_CHOICE="2"
+  else
+    echo ""
+    echo "    [1] Jetzt neu erstellen (empfohlen)"
+    echo "    [2] Überspringen (Keystore später manuell ablegen)"
+    echo ""
+    printf "  Auswahl [1/2]: "
+    read -r KS_CHOICE
+  fi
 
   if [ "$KS_CHOICE" = "1" ]; then
     echo ""
