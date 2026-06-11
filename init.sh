@@ -124,7 +124,9 @@ install_pkgs_debian() {
     openjdk-17-jdk
   )
   info "apt-get update..."
-  $SUDO apt-get update -qq
+  # || true: defekte/nicht erreichbare PPAs brechen den Update nicht ab.
+  # APT aktualisiert trotzdem alle erreichbaren Quellen (Ubuntu-Haupt-Repos reichen).
+  $SUDO apt-get update -qq 2>/dev/null || true
   local MISSING=()
   for pkg in "${PKGS[@]}"; do
     dpkg -s "$pkg" &>/dev/null || MISSING+=("$pkg")
@@ -398,42 +400,59 @@ step "Android SDK + NDK"
 
 mkdir -p "$ANDROID_HOME/cmdline-tools"
 
+ANDROID_SDK_OK=false
+
 if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
   ok "Android Command-Line Tools bereits installiert"
+  ANDROID_SDK_OK=true
 else
   info "Lade Android Command-Line Tools herunter..."
   TMP_ZIP=$(mktemp /tmp/android-cmdtools-XXXXXX.zip)
-  wget -q --show-progress -O "$TMP_ZIP" "$ANDROID_CMDLINE_TOOLS_URL"
-  info "Entpacke nach $ANDROID_HOME/cmdline-tools/latest ..."
   TMP_DIR=$(mktemp -d)
-  unzip -q "$TMP_ZIP" -d "$TMP_DIR"
-  mv "$TMP_DIR/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+
+  if curl -fsSL --max-time 60 -o "$TMP_ZIP" "$ANDROID_CMDLINE_TOOLS_URL" 2>/dev/null \
+     && [ -s "$TMP_ZIP" ] \
+     && unzip -q "$TMP_ZIP" -d "$TMP_DIR" 2>/dev/null; then
+    mv "$TMP_DIR/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+    ANDROID_SDK_OK=true
+    ok "Command-Line Tools installiert"
+  else
+    warn "Android Command-Line Tools konnten nicht heruntergeladen werden."
+    warn "Bitte manuell installieren: https://developer.android.com/studio#command-tools"
+    warn "Danach: sdkmanager 'platform-tools' 'build-tools;35.0.0' 'platforms;android-35' 'ndk;$NDK_VERSION'"
+  fi
   rm -rf "$TMP_ZIP" "$TMP_DIR"
-  ok "Command-Line Tools installiert"
 fi
 
 export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
 
-info "Akzeptiere SDK-Lizenzen..."
-yes | sdkmanager --licenses > /dev/null 2>&1 || true
+if [ "$ANDROID_SDK_OK" = true ] && command -v sdkmanager &>/dev/null; then
+  info "Akzeptiere SDK-Lizenzen..."
+  yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
-SDK_PACKAGES=(
-  "platform-tools"
-  "build-tools;35.0.0"
-  "platforms;android-35"
-  "ndk;$NDK_VERSION"
-)
+  SDK_PACKAGES=(
+    "platform-tools"
+    "build-tools;35.0.0"
+    "platforms;android-35"
+    "ndk;$NDK_VERSION"
+  )
 
-for PKG in "${SDK_PACKAGES[@]}"; do
-  INSTALLED_CHECK=$(echo "$PKG" | sed 's/;/ /')
-  if sdkmanager --list_installed 2>/dev/null | grep -q "$INSTALLED_CHECK"; then
-    ok "$PKG"
-  else
-    info "Installiere $PKG..."
-    sdkmanager "$PKG"
-    ok "$PKG"
-  fi
-done
+  for PKG in "${SDK_PACKAGES[@]}"; do
+    INSTALLED_CHECK=$(echo "$PKG" | sed 's/;/ /')
+    if sdkmanager --list_installed 2>/dev/null | grep -q "$INSTALLED_CHECK"; then
+      ok "$PKG"
+    else
+      info "Installiere $PKG..."
+      if sdkmanager "$PKG"; then
+        ok "$PKG"
+      else
+        warn "$PKG konnte nicht installiert werden — ggf. Netzwerkproblem."
+      fi
+    fi
+  done
+else
+  warn "Android SDK übersprungen — sdkmanager nicht verfügbar."
+fi
 
 export NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
 
