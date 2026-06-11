@@ -14,7 +14,7 @@ cd JL_Client
 ./init.sh
 ```
 
-Das Script installiert und konfiguriert automatisch **alles**, was zum Bauen aller Plattformen benötigt wird:
+Das Script erkennt die Distribution automatisch und installiert und konfiguriert alles, was zum Bauen aller Plattformen benötigt wird:
 
 - Node.js 22 + pnpm
 - Rust + Cargo (via rustup)
@@ -28,9 +28,18 @@ Das Script installiert und konfiguriert automatisch **alles**, was zum Bauen all
 - `.env` aus `.env.example` vorausfüllen
 - Android-Keystore optional direkt erstellen
 
+**Unterstützte Distributionen:**
+
+| Familie | Beispiele |
+|---|---|
+| Debian/Ubuntu | Ubuntu, Linux Mint, Pop!\_OS, Kali, Raspberry Pi OS |
+| Arch Linux | CachyOS, Manjaro, EndeavourOS, Garuda, ArcoLinux |
+| Fedora/RHEL | Fedora, Nobara, AlmaLinux, Rocky Linux, CentOS Stream |
+| openSUSE | Tumbleweed, Leap |
+
 **Nach dem Script:** neue Shell öffnen (oder `source ~/.bashrc`), `.env` befüllen, fertig.
 
-> **Voraussetzung:** Debian/Ubuntu mit `sudo`-Rechten. Das Script ist idempotent — mehrfaches Ausführen schadet nicht.
+> Das Script ist idempotent — mehrfaches Ausführen schadet nicht. `sudo`-Rechte werden benötigt.
 
 ---
 
