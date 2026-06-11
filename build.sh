@@ -2,6 +2,20 @@
 set -e
 set -a; source .env; set +a
 
+# ── Build-Umgebung laden (Rust, Android SDK, Java) ───────────────────────────
+# ~/.bashrc wird in nicht-interaktiven Shells nicht gesourct — daher explizit.
+[ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
+export PATH="$HOME/.cargo/bin:$PATH"
+
+_NDK_VERSION="27.0.12077973"
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
+export NDK_HOME="${NDK_HOME:-$ANDROID_HOME/ndk/$_NDK_VERSION}"
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+if [ -z "${JAVA_HOME:-}" ] && command -v java &>/dev/null; then
+  export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(which java)")")")"
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TAURI_CONF="$SCRIPT_DIR/JL-Manager/src-tauri/tauri.conf.json"
 KEYSTORE="$SCRIPT_DIR/jl-manager.keystore"

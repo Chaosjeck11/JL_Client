@@ -478,6 +478,7 @@ fi
 step "npm-Abhängigkeiten installieren"
 
 cd "$SCRIPT_DIR"
+mkdir -p JL-Manager/src
 info "Root-Paket..."
 pnpm install
 
