@@ -75,11 +75,13 @@ function SummaryCard({
 function BezahlenBeitragModal({
   beitrag,
   mitgliedsbeitragKat,
+  businessYears,
   onClose,
   onDone,
 }: {
   beitrag: Mitgliedsbeitrag;
   mitgliedsbeitragKat: Category;
+  businessYears: BusinessYear[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -89,6 +91,9 @@ function BezahlenBeitragModal({
   const [datum, setDatum] = useState(todayStr());
   const [tag, setTag] = useState<"ONLINE" | "BAR">("BAR");
   const [amount, setAmount] = useState(openAmount.toFixed(2));
+  const [buchungsjahrId, setBuchungsjahrId] = useState<number>(
+    businessYears[0]?.id ?? beitrag.businessYearId,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -96,6 +101,7 @@ function BezahlenBeitragModal({
     ? `${beitrag.member.firstname} ${beitrag.member.lastname}`
     : `Mitglied #${beitrag.memberId}`;
   const yearLabel = beitrag.businessYear?.year ?? "";
+  const buchungsjahrAbweichend = buchungsjahrId !== beitrag.businessYearId;
 
   async function handleSubmit() {
     const amt = parseFloat(amount);
@@ -110,7 +116,8 @@ function BezahlenBeitragModal({
         type: "EINZAHLUNG",
         amount: amt,
         categoryId: mitgliedsbeitragKat.id,
-        businessYearId: beitrag.businessYearId,
+        businessYearId: buchungsjahrId,
+        beitragYearId: beitrag.businessYearId,
         memberId: beitrag.memberId,
         tag,
       });
@@ -158,6 +165,23 @@ function BezahlenBeitragModal({
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Datum</div>
             <input type="date" value={datum} onChange={e => setDatum(e.target.value)} style={{ ...inputStyle, width: "100%" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>Buchungsjahr (Kassenbuch)</div>
+            <select
+              value={buchungsjahrId}
+              onChange={e => setBuchungsjahrId(Number(e.target.value))}
+              style={{ ...inputStyle, width: "100%" }}
+            >
+              {businessYears.map(y => (
+                <option key={y.id} value={y.id}>{y.year}</option>
+              ))}
+            </select>
+            {buchungsjahrAbweichend && (
+              <div style={{ fontSize: 12, color: "#d97706", marginTop: 4 }}>
+                Buchung erscheint im Kassenbuch GJ {businessYears.find(y => y.id === buchungsjahrId)?.year}, wird aber dem Beitrag GJ {yearLabel} gutgeschrieben.
+              </div>
+            )}
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--c-text-2)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>Zahlungsart</div>
@@ -422,6 +446,7 @@ export default function Mitgliederbeitraege({ isMobile = false }: { isMobile?: b
         <BezahlenBeitragModal
           beitrag={bezahlenBeitrag}
           mitgliedsbeitragKat={mitgliedsbeitragKat}
+          businessYears={businessYears}
           onClose={() => setBezahlenBeitrag(null)}
           onDone={() => {
             queryClient.invalidateQueries({ queryKey: ["mitgliedsbeitraege"] });

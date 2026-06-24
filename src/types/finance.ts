@@ -29,6 +29,8 @@ export type Transaction = {
   categoryId: number;
   category: Category;
   businessYearId: number;
+  beitragYearId?: number | null;
+  beitragYear?: { id: number; year: number } | null;
   relatedTransactionId?: number;
   memberId?: number | null;
   tag?: PaymentTag | null;
