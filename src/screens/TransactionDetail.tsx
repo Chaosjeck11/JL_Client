@@ -203,6 +203,7 @@ export default function TransactionDetail({
         categoryId: transaction.categoryId,
         businessYearId: transaction.businessYearId,
         relatedTransactionId: transaction.id,
+        veranstaltungId: transaction.veranstaltung?.id ?? null,
       });
       onDeleted();
     } catch {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchVeranstaltung, fetchVeranstaltungen } from "../api/veranstaltungen";
 import { canWriteEvents, canWriteFormTemplate } from "../auth/permissions";
 import type { Veranstaltung } from "../types/veranstaltungen";
@@ -42,6 +42,31 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
       (v.description ?? "").toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => b.date.localeCompare(a.date));
+
+  // `_count.transactions` from the list endpoint counts RUECKBUCHUNG entries
+  // and the originals they reverse too, so fetch each event's real
+  // transactions to compute the badge — same query key as the detail panel,
+  // so opening an event afterwards hits the cache instead of refetching.
+  const detailQueries = useQueries({
+    queries: filtered.map(v => ({
+      queryKey: ["veranstaltungen", v.id],
+      queryFn: () => fetchVeranstaltung(v.id),
+      enabled: (v._count?.transactions ?? 0) > 0,
+      staleTime: 20_000,
+    })),
+  });
+  const buchungenCountById = new Map<number, number>();
+  filtered.forEach((v, i) => {
+    const detail = detailQueries[i].data;
+    if (!detail) return;
+    const all = detail.transactions ?? [];
+    const stornoIds = new Set(
+      all.filter(tx => tx.type === "RUECKBUCHUNG" && tx.relatedTransactionId != null)
+         .map(tx => tx.relatedTransactionId!)
+    );
+    const count = all.filter(tx => tx.type !== "RUECKBUCHUNG" && !stornoIds.has(tx.id)).length;
+    buchungenCountById.set(v.id, count);
+  });
 
   function selectEvent(v: Veranstaltung) {
     setSelectedId(v.id);
@@ -170,14 +195,17 @@ export default function Veranstaltungen({ isMobile = false, initialSelectedId }:
                     <span style={{ fontSize: 12, color: "var(--c-text-2)" }}>{fmtDate(v.date)}</span>
                     {v._count && (
                       <div style={{ display: "flex", gap: 6 }}>
-                        {v._count.transactions > 0 && (
-                          <span style={{
-                            fontSize: 11, padding: "1px 6px", borderRadius: 8,
-                            background: "#f0fdf4", color: "#16a34a", fontWeight: 600,
-                          }}>
-                            {v._count.transactions} Buchung{v._count.transactions !== 1 ? "en" : ""}
-                          </span>
-                        )}
+                        {(() => {
+                          const count = buchungenCountById.get(v.id) ?? v._count.transactions;
+                          return count > 0 && (
+                            <span style={{
+                              fontSize: 11, padding: "1px 6px", borderRadius: 8,
+                              background: "#f0fdf4", color: "#16a34a", fontWeight: 600,
+                            }}>
+                              {count} Buchung{count !== 1 ? "en" : ""}
+                            </span>
+                          );
+                        })()}
                         {v._count.attachments > 0 && (
                           <span style={{
                             fontSize: 11, padding: "1px 6px", borderRadius: 8,

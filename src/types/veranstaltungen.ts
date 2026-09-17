@@ -39,6 +39,7 @@ export type VeranstaltungTransaction = {
   type: "EINZAHLUNG" | "AUSZAHLUNG" | "RUECKBUCHUNG";
   amount: number;
   tag?: "ONLINE" | "BAR" | null;
+  relatedTransactionId?: number | null;
   category: { id: number; name: string };
   member?: { id: number; firstname: string; lastname: string } | null;
 };

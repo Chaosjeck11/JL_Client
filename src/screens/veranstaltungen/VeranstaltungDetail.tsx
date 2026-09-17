@@ -8,7 +8,6 @@ import {
   downloadVeranstaltungAttachment,
   fetchAllAttachments,
   fetchVeranstaltungAttachmentBlob,
-  fetchVeranstaltungFinancials,
   fetchVeranstaltungForm,
   updateFormColumns,
   updateFormRow,
@@ -187,11 +186,22 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
     setColError("");
   }, [veranstaltung.id]);
 
-  // Financials
-  const { data: financials } = useQuery({
-    queryKey: ["veranstaltung-financials", veranstaltung.id],
-    queryFn: () => fetchVeranstaltungFinancials(veranstaltung.id),
-  });
+  // Transactions excluding RUECKBUCHUNG entries and the originals they reverse
+  // (backend list/count/financials still include those).
+  const allTransactions = veranstaltung.transactions ?? [];
+  const stornoIds = new Set(
+    allTransactions
+      .filter(tx => tx.type === "RUECKBUCHUNG" && tx.relatedTransactionId != null)
+      .map(tx => tx.relatedTransactionId!)
+  );
+  const transactions = allTransactions.filter(
+    tx => tx.type !== "RUECKBUCHUNG" && !stornoIds.has(tx.id)
+  );
+
+  // Financials computed client-side from the filtered transactions above.
+  const einnahmen = transactions.filter(tx => tx.type === "EINZAHLUNG").reduce((s, tx) => s + tx.amount, 0);
+  const ausgaben = transactions.filter(tx => tx.type === "AUSZAHLUNG").reduce((s, tx) => s + tx.amount, 0);
+  const financials = { einnahmen, ausgaben, saldo: einnahmen - ausgaben };
 
   // Form
   const { data: form, isLoading: formLoading } = useQuery({
@@ -432,7 +442,6 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
     }
   }
 
-  const transactions = veranstaltung.transactions ?? [];
   const columns = form?.columns ?? [];
   const rows = (form?.rows ?? []).slice().sort((a, b) => a.rowIndex - b.rowIndex);
 
