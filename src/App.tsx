@@ -9,18 +9,19 @@ import Veranstaltungen from "./screens/Veranstaltungen";
 import Kalender from "./screens/Kalender";
 import Strafen from "./screens/Strafen";
 import Bierliste from "./screens/Bierliste";
+import ServerSettings from "./screens/ServerSettings";
 import ProfileModal from "./screens/ProfileModal";
 import { getToken, logout } from "./auth/auth";
 import { checkForUpdate, UpdateInfo } from "./update/checkUpdate";
 import { UpdateModal } from "./update/UpdateModal";
 import { getCurrentUser } from "./auth/currentUser";
-import { canSeeFinance, canSeeAllStrafen } from "./auth/permissions";
+import { canSeeFinance, canSeeAllStrafen, canWriteSettings } from "./auth/permissions";
 import { fetchMember } from "./api/members";
 import { getApiUrl } from "./api/client";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { version as APP_VERSION } from "../package.json";
 
-type Tab = "members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender" | "bierliste";
+type Tab = "members" | "finance" | "beitraege" | "strafen" | "meine_strafen" | "alle_strafen" | "files" | "veranstaltungen" | "kalender" | "bierliste" | "settings";
 
 const FINANCE_GROUP: Tab[] = ["finance", "beitraege", "strafen", "meine_strafen", "alle_strafen"];
 const EVENTS_GROUP: Tab[] = ["veranstaltungen", "kalender"];
@@ -296,6 +297,18 @@ const canFinance = loggedIn ? canSeeFinance() : false;
             <span>Dunkel</span>
           </button>
         </div>
+        {canWriteSettings() && (
+          <button
+            onClick={() => { setActiveTab("settings"); setShowSettings(false); }}
+            style={{
+              width: "100%", textAlign: "left", padding: "8px 0", marginTop: 4,
+              border: "none", borderTop: "1px solid var(--c-border)", background: "transparent",
+              fontSize: 13, fontWeight: 600, color: "var(--c-text-2)", cursor: "pointer",
+            }}
+          >
+            Server-Einstellungen
+          </button>
+        )}
         <div style={{ borderTop: "1px solid var(--c-border)", marginTop: 10, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <span style={{ fontSize: 11, color: "var(--c-text-3)", fontWeight: 500 }}>v{APP_VERSION}</span>
           <button
@@ -338,6 +351,7 @@ const canFinance = loggedIn ? canSeeFinance() : false;
 
   const mobileTitle = isFinanceGroup ? "Finanzen"
     : isEventsGroup ? "Events"
+    : activeTab === "settings" ? "Server-Einstellungen"
     : TABS.find(t => t.id === activeTab)?.label ?? "JL";
 
   const subtabBtnStyle = (isActive: boolean): React.CSSProperties => ({
@@ -492,6 +506,7 @@ const canFinance = loggedIn ? canSeeFinance() : false;
         />
       )}
       {activeTab === "bierliste" && <Bierliste isMobile={isMobile} />}
+      {activeTab === "settings" && canWriteSettings() && <ServerSettings />}
 
       {pendingUpdate && (
         <UpdateModal info={pendingUpdate} onClose={() => setPendingUpdate(null)} />

@@ -1,3 +1,5 @@
+import type { MemberAttributeValue } from "./memberAttributes";
+
 export type MemberAttachment = {
   id: number;
   memberId: number;
@@ -11,6 +13,8 @@ export type MemberAttachment = {
 export type Role = {
   id: number;
   name: string;
+  description?: string | null;
+  accessLevel: number;
 };
 
 export type MemberBeitrag = {
@@ -38,10 +42,10 @@ export type Member = {
   roleId?: number;
   role?: Role;
   inactiveSince?: string | null;
-  u18: boolean;
-  bereitsMitglied: boolean;
-  schuelerStudentAzubi: boolean;
-  berufstaetig: boolean;
+  beitragsklasseId?: number | null;
+  beitragsklasse?: { id: number; name: string; betragJL: number; betragKG: number } | null;
+  attributeValues?: MemberAttributeValue[];
+  excludeFromBeitrag: boolean;
   joinedAt: string;
   mitgliedsbeitraege?: MemberBeitrag[];
 };

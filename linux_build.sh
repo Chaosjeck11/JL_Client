@@ -125,9 +125,12 @@ WAYLAND_DISPLAY="" \
 WEBKIT_DISABLE_DMABUF_RENDERER=1 \
 pnpm tauri build
 
-find "$BUNDLE_DIR/appimage" -name "*.AppImage" -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
-find "$BUNDLE_DIR/deb"      -name "*.deb"      -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
-find "$BUNDLE_DIR/rpm"      -name "*.rpm"      -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
+# target/release/bundle accumulates artifacts from every past local build —
+# filter by $VERSION so only this run's files get copied, not every AppImage
+# ever built on this machine.
+find "$BUNDLE_DIR/appimage" -name "*$VERSION*.AppImage" -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
+find "$BUNDLE_DIR/deb"      -name "*$VERSION*.deb"      -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
+find "$BUNDLE_DIR/rpm"      -name "*$VERSION*.rpm"      -exec cp {} "$OUT_DIR/linux/" \; 2>/dev/null || true
 
 # ── Linux Install-Script ──────────────────────────────────────────────────────
 APPIMAGE_NAME=$(find "$OUT_DIR/linux" -name "*.AppImage" -printf "%f\n" | head -1)
@@ -147,41 +150,55 @@ fi
 
 echo "=== JL-Manager Installation ==="
 
-# AppImage nach /usr/local/bin mit versioniertem Namen kopieren
-sudo cp "\$APPIMAGE" /usr/local/bin/$APPIMAGE_NAME
-sudo chmod +x /usr/local/bin/$APPIMAGE_NAME
-echo "  OK: AppImage nach /usr/local/bin/$APPIMAGE_NAME kopiert"
+# Alles unter \$HOME installieren — kein sudo, kein root-owned Pfad. Das
+# Autoupdate (launch_appimage in lib.rs) schreibt auf denselben festen Pfad,
+# damit App-Icon/Terminal-Start und In-App-Update immer dieselbe Datei treffen.
+BIN_DIR="\$HOME/.local/bin"
+mkdir -p "\$BIN_DIR"
+
+cp "\$APPIMAGE" "\$BIN_DIR/jl-manager.AppImage"
+chmod +x "\$BIN_DIR/jl-manager.AppImage"
+echo "  OK: AppImage nach \$BIN_DIR/jl-manager.AppImage kopiert"
 
 # Wrapper-Script erstellen (löst WebKit GPU-Compositing-Bugs auf allen Maschinen)
-sudo tee /usr/local/bin/jl-manager > /dev/null << 'WRAPPER'
+cat > "\$BIN_DIR/jl-manager" << WRAPPER
 #!/bin/bash
-WEBKIT_DISABLE_COMPOSITING_MODE=1 exec /usr/local/bin/$APPIMAGE_NAME "\$@"
+WEBKIT_DISABLE_COMPOSITING_MODE=1 exec "\$BIN_DIR/jl-manager.AppImage" "\\\$@"
 WRAPPER
-sudo chmod +x /usr/local/bin/jl-manager
-echo "  OK: Wrapper /usr/local/bin/jl-manager erstellt"
+chmod +x "\$BIN_DIR/jl-manager"
+echo "  OK: Wrapper \$BIN_DIR/jl-manager erstellt"
 
 # Icon kopieren
+ICON_DIR="\$HOME/.local/share/icons"
+mkdir -p "\$ICON_DIR"
 if [ -f "\$SCRIPT_DIR/jl-manager.png" ]; then
-  sudo cp "\$SCRIPT_DIR/jl-manager.png" /usr/share/icons/jl-manager.png
+  cp "\$SCRIPT_DIR/jl-manager.png" "\$ICON_DIR/jl-manager.png"
   echo "  OK: Icon installiert"
 else
   echo "  WARN: Icon nicht gefunden, übersprungen"
 fi
 
-# Desktop-Eintrag
-sudo tee /usr/share/applications/jl-manager.desktop > /dev/null << DESKTOP
+# Desktop-Eintrag (pro Benutzer, kein sudo nötig)
+DESKTOP_DIR="\$HOME/.local/share/applications"
+mkdir -p "\$DESKTOP_DIR"
+cat > "\$DESKTOP_DIR/jl-manager.desktop" << DESKTOP
 [Desktop Entry]
 Name=JL-Manager
-Exec=/usr/local/bin/jl-manager
-Icon=/usr/share/icons/jl-manager.png
+Exec=\$BIN_DIR/jl-manager
+Icon=\$ICON_DIR/jl-manager.png
 Type=Application
 Categories=Utility;
 StartupNotify=true
 DESKTOP
 echo "  OK: Desktop-Eintrag erstellt"
 
-sudo update-desktop-database 2>/dev/null || true
+update-desktop-database "\$DESKTOP_DIR" 2>/dev/null || true
 echo "  OK: Menü aktualisiert"
+
+case ":\$PATH:" in
+  *":\$BIN_DIR:"*) ;;
+  *) echo "  HINWEIS: \$BIN_DIR ist nicht in \\\$PATH — Start über Menü/Icon funktioniert trotzdem." ;;
+esac
 
 echo ""
 echo "=== Fertig. JL-Manager ist installiert. ==="
@@ -213,6 +230,20 @@ cat > "$SCRIPT_DIR/Builds/latest.json" << EOF
 EOF
 
 echo "  OK: latest.json erstellt"
+
+# ── Cleanup ───────────────────────────────────────────────────────────────────
+echo ""
+echo "=== CLEANUP ==="
+KEEP=3
+mapfile -t ALL_VERSIONS < <(find "$SCRIPT_DIR/Builds" -maxdepth 1 -mindepth 1 -type d -printf "%f\n" | sort -V)
+if [ "${#ALL_VERSIONS[@]}" -gt "$KEEP" ]; then
+  for OLD_VERSION in "${ALL_VERSIONS[@]:0:$((${#ALL_VERSIONS[@]} - KEEP))}"; do
+    echo "  Lösche alten Build: $OLD_VERSION"
+    rm -rf "$SCRIPT_DIR/Builds/$OLD_VERSION"
+  done
+else
+  echo "  Nichts zu löschen (${#ALL_VERSIONS[@]} Versionen vorhanden, $KEEP werden behalten)."
+fi
 
 # ── Ergebnis ──────────────────────────────────────────────────────────────────
 echo ""

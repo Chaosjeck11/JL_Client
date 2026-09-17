@@ -57,10 +57,17 @@ export async function downloadUpdate(
   const { invoke } = await import('@tauri-apps/api/core');
   const { listen } = await import('@tauri-apps/api/event');
 
+  let lastLoggedMb = 0;
   const unlisten = await listen<{ received: number; total: number }>('download-progress', (event) => {
     const { received, total } = event.payload;
     if (total > 0) {
       onProgress(Math.min(99, Math.floor((received / total) * 100)));
+    } else {
+      const mb = received / 1024 / 1024;
+      if (mb - lastLoggedMb >= 0.5) {
+        lastLoggedMb = mb;
+        onLog(`${mb.toFixed(1)} MB heruntergeladen (Gesamtgröße unbekannt)…`);
+      }
     }
   });
 

@@ -17,13 +17,15 @@ fn launch_appimage(path: String) -> Result<(), String> {
         .status()
         .map_err(|e| e.to_string())?;
 
-    // Write wrapper script to /tmp
+    // App always lives under ~/.local/bin (install.sh puts it there too, no
+    // sudo, no root-owned path — so this is always writable, no detection
+    // needed).
     let home = env::var("HOME").unwrap_or_default();
     let install_path = format!("{}/.local/bin/jl-manager.AppImage", home);
 
     let script = format!(
-        "#!/bin/bash\nsleep 1\nmv '{}' '{}'\nbash -c \"'{}' &\"\n",
-        path, install_path, install_path
+        "#!/bin/bash\nsleep 1\nmkdir -p '{}/.local/bin'\nmv '{}' '{}'\nbash -c \"'{}' &\"\n",
+        home, path, install_path, install_path
     );
     let script_path = "/tmp/jl-update.sh";
     fs::write(script_path, &script)

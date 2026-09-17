@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Member, MemberAttachment, Role } from "../types/member";
+import type { MemberAttributeDefinition } from "../types/memberAttributes";
 import type { BusinessYear } from "../types/finance";
 import { updateMember, fetchMemberAttachments, uploadMemberAttachment, downloadMemberAttachment, deleteMemberAttachment, fetchMemberAttachmentBlob } from "../api/members";
 import { fetchBusinessYears } from "../api/finance";
@@ -11,6 +12,7 @@ import { getApiUrl } from "../api/client";
 type Props = {
   member: Member;
   roles: Role[];
+  attrDefs: MemberAttributeDefinition[];
   onUpdated: (member: Member) => void;
 };
 
@@ -113,13 +115,16 @@ type FormState = {
   roleId: number;
   active: boolean;
   inactiveSince: string;
-  u18: boolean;
-  bereitsMitglied: boolean;
-  schuelerStudentAzubi: boolean;
-  berufstaetig: boolean;
+  excludeFromBeitrag: boolean;
+  attributes: Record<number, string>;
 };
 
-function memberToForm(m: Member): FormState {
+function memberToForm(m: Member, defs: MemberAttributeDefinition[]): FormState {
+  const attributes: Record<number, string> = {};
+  for (const d of defs) {
+    const existing = m.attributeValues?.find(v => v.definitionId === d.id);
+    attributes[d.id] = existing?.value ?? (d.type === "BOOLEAN" ? "false" : "");
+  }
   return {
     firstname: m.firstname,
     lastname: m.lastname,
@@ -131,14 +136,10 @@ function memberToForm(m: Member): FormState {
     roleId: m.roleId ?? m.role?.id ?? 1,
     active: m.active,
     inactiveSince: toDateInput(m.inactiveSince),
-    u18: m.u18 ?? false,
-    bereitsMitglied: m.bereitsMitglied ?? false,
-    schuelerStudentAzubi: m.schuelerStudentAzubi ?? false,
-    berufstaetig: m.berufstaetig ?? false,
+    excludeFromBeitrag: m.excludeFromBeitrag ?? false,
+    attributes,
   };
 }
-
-const BEITRAGSRELEVANT: (keyof FormState)[] = ["u18", "bereitsMitglied", "schuelerStudentAzubi", "joinedAt"];
 
 type YearSelectStep = {
   years: BusinessYear[];
@@ -151,10 +152,10 @@ function fmtSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function MemberDetail({ member, roles, onUpdated }: Props) {
+export default function MemberDetail({ member, roles, attrDefs, onUpdated }: Props) {
   const queryClient = useQueryClient();
   const [edit, setEdit] = useState(false);
-  const [form, setForm] = useState<FormState>(() => memberToForm(member));
+  const [form, setForm] = useState<FormState>(() => memberToForm(member, attrDefs));
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -227,8 +228,12 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
     setForm(f => ({ ...f, [key]: value }));
   }
 
+  function setAttr(defId: number, value: string) {
+    setForm(f => ({ ...f, attributes: { ...f.attributes, [defId]: value } }));
+  }
+
   function cancelEdit() {
-    setForm(memberToForm(member));
+    setForm(memberToForm(member, attrDefs));
     setNewPassword("");
     setConfirmPassword("");
     setError("");
@@ -237,8 +242,10 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
   }
 
   function beitragsrelevantChanged(): boolean {
-    const orig = memberToForm(member);
-    return BEITRAGSRELEVANT.some(k => form[k] !== orig[k]);
+    const orig = memberToForm(member, attrDefs);
+    if (form.joinedAt !== orig.joinedAt) return true;
+    if (form.excludeFromBeitrag !== orig.excludeFromBeitrag) return true;
+    return attrDefs.some(d => form.attributes[d.id] !== orig.attributes[d.id]);
   }
 
   async function save() {
@@ -282,10 +289,8 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         roleId: form.roleId,
         active: form.active,
         inactiveSince: form.active ? null : (form.inactiveSince || null),
-        u18: form.u18,
-        bereitsMitglied: form.bereitsMitglied,
-        schuelerStudentAzubi: form.schuelerStudentAzubi,
-        berufstaetig: form.berufstaetig,
+        excludeFromBeitrag: form.excludeFromBeitrag,
+        attributes: form.attributes,
       };
       if (retroactiveYearIds !== undefined) {
         body.retroactiveYearIds = retroactiveYearIds;
@@ -370,11 +375,15 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
         )}
 
         <SectionHeader label="Beitragskategorie" />
+        <InfoRow label="Beitragsklasse">{member.beitragsklasse?.name ?? "–"}</InfoRow>
         <div style={{ paddingTop: 2 }}>
-          <Chip label="Unter 18"               active={member.u18 ?? false} />
-          <Chip label="Bereits Mitglied (KG)"  active={member.bereitsMitglied ?? false} />
-          <Chip label="Schüler/Student/Azubi"  active={member.schuelerStudentAzubi ?? false} />
-          <Chip label="Berufstätig"            active={member.berufstaetig ?? false} />
+          {attrDefs.map(d => {
+            const value = member.attributeValues?.find(v => v.definitionId === d.id)?.value ?? "";
+            const active = d.type === "BOOLEAN" ? value === "true" : !!value;
+            const label = d.type === "BOOLEAN" || !value ? d.label : `${d.label}: ${value}`;
+            return <Chip key={d.id} label={label} active={active} />;
+          })}
+          {member.excludeFromBeitrag && <Chip label="Von Beitrag ausgenommen" active />}
         </div>
 
         {member.mitgliedsbeitraege && member.mitgliedsbeitraege.length > 0 && (
@@ -558,17 +567,29 @@ export default function MemberDetail({ member, roles, onUpdated }: Props) {
 
       <SectionHeader label="Beitragskategorie" />
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <FormField label="Unter 18">
-          <input type="checkbox" checked={form.u18} onChange={e => set("u18", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-        <FormField label="Bereits Mitglied (KG)">
-          <input type="checkbox" checked={form.bereitsMitglied} onChange={e => set("bereitsMitglied", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-        <FormField label="Schüler/Student/Azubi">
-          <input type="checkbox" checked={form.schuelerStudentAzubi} onChange={e => set("schuelerStudentAzubi", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-        <FormField label="Berufstätig">
-          <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} style={{ cursor: "pointer" }} />
+        {attrDefs.map(d => (
+          <FormField key={d.id} label={d.label}>
+            {d.type === "BOOLEAN" ? (
+              <input
+                type="checkbox"
+                checked={form.attributes[d.id] === "true"}
+                onChange={e => setAttr(d.id, e.target.checked ? "true" : "false")}
+                style={{ cursor: "pointer" }}
+              />
+            ) : d.type === "NUMBER" ? (
+              <input type="number" value={form.attributes[d.id] ?? ""} onChange={e => setAttr(d.id, e.target.value)} style={{ ...inputStyle, flex: "unset", width: 120 }} />
+            ) : d.type === "SELECT" ? (
+              <select value={form.attributes[d.id] ?? ""} onChange={e => setAttr(d.id, e.target.value)} style={inputStyle}>
+                <option value="">–</option>
+                {(d.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : (
+              <input value={form.attributes[d.id] ?? ""} onChange={e => setAttr(d.id, e.target.value)} style={inputStyle} />
+            )}
+          </FormField>
+        ))}
+        <FormField label="Von Beitrag ausgenommen">
+          <input type="checkbox" checked={form.excludeFromBeitrag} onChange={e => set("excludeFromBeitrag", e.target.checked)} style={{ cursor: "pointer" }} />
         </FormField>
       </div>
 

@@ -72,6 +72,7 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - `['veranstaltung-financials', id]`
   - `['veranstaltung-form-template']`
   - `['veranstaltung-kategorien']`
+  - `['veranstaltung-schichten', veranstaltungId]`
   - `['strafen']`
   - `['strafen-eintraege', 'meine', memberId, yearId]` / `['strafen-eintraege', 'alle', filters]`
   - `['bier-drinks']` — `fetchBierDrinks(includeInactive)`
@@ -81,6 +82,9 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - `['bier-balances']` — `fetchAllBalances()` (admin only)
   - `['bier-cashbox']` — `fetchCashbox()` (admin only)
   - `['bier-stats']` — `fetchBierStats()` (admin only)
+  - `['settings']` — `fetchSettings()` (L5 only)
+  - `['member-attributes']` — `fetchMemberAttributes()`
+  - `['beitragsklassen']` — `fetchBeitragsklassen()`
 - Exceptions (still use `useEffect`): blob URL lifecycle with cancellation tokens, event listeners, UI-state reactions (not data fetching).
 
 **Auth flow:**
@@ -104,6 +108,11 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 | `canWriteFinance()` | L4 | write transactions, business years, categories |
 | `canPayBeitraege()` | L4 | mark Mitgliedsbeiträge as bezahlt |
 | `canManageFinance()` | L4 | alias for `canWriteFinance()` (backward compat) |
+| `canWriteSettings()` | L5 | read/write server settings (`GET`/`PATCH /settings`) |
+| `canWriteRoles()` | L5 | create/edit/delete roles (`/roles`); read is L0 |
+| `canWriteMemberAttributes()` | L5 | create/edit/delete member-attribute definitions (`/member-attributes`); read is L0 |
+
+Beitragsklassen (`/finance/beitragsklassen`) have no dedicated permission function — read reuses `canSeeFinance()` (L3+), write reuses `canWriteFinance()` (L4+), matching the backend matrix exactly.
 
 **Roles:** L0 Mitglied · L1 Strafenwart · L2 Orgateam · L3 Vorstand · L4 Kassenwart · L5 Admin
 
@@ -111,20 +120,25 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - All requests go through `src/api/client.ts` → `apiFetch()`, which reads the token from `localStorage` and attaches `Authorization: Bearer`.
 - Backend base URL is **user-configurable**: `getApiUrl()` (exported from `src/api/client.ts`) reads `localStorage('api_base_url')`, falling back to `https://your-backend-domain.de`. The URL is saved to `localStorage` on login via the Server-Adresse field in `Login.tsx`. All API modules (`members.ts`, `finance.ts`, `files.ts`) and screens that build URLs directly (`App.tsx`, `Members.tsx`, `ProfileModal.tsx`, `MemberDetail.tsx`) import and call `getApiUrl()` — never hardcode the base URL.
 - `apiFetch()` error handling: on non-2xx response, reads the body as text, attaches it as `body` (string) and `status` (number) to the thrown error via the exported `ApiError` interface (`src/api/client.ts`). Callers can cast the caught error to `ApiError` to access both fields.
-- `src/api/members.ts` — `/members` endpoints (list, single, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`.
-- `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, mitgliedsbeitraege, transaction attachments (upload/download/delete/preview).
+- `src/api/members.ts` — `/members` endpoints (list, single, PATCH, POST, avatar upload/delete, member attachment CRUD). Avatar and attachment uploads use raw `fetch` with `FormData` (bypasses `apiFetch`). Member attachment functions: `fetchMemberAttachments`, `uploadMemberAttachment`, `downloadMemberAttachment`, `deleteMemberAttachment`, `fetchMemberAttachmentBlob`. `fetchRoles()` still hits `/members/roles` (kept as a stable frontend contract per backend docs — same data as `/roles`). `createMember()` takes `attributes?: Record<number, string>` (definitionId → value) and `excludeFromBeitrag?` instead of the old fixed booleans.
+- `src/api/roles.ts` — `createRole`, `updateRole`, `deleteRole` against `/roles` (L5 only). Read reuses `fetchRoles()` from `members.ts` and the existing `['roles']` query key — one cache, one source of truth.
+- `src/api/memberAttributes.ts` — `fetchMemberAttributes()` (`GET /member-attributes`, L0), `createMemberAttribute`, `updateMemberAttribute`, `deleteMemberAttribute` (L5 only) against `/member-attributes`.
+- `src/api/finance.ts` — `/finance/*` endpoints: categories, business years, transactions, running balance, mitgliedsbeitraege, transaction attachments (upload/download/delete/preview), and Beitragsklassen (`fetchBeitragsklassen`, `createBeitragsklasse`, `updateBeitragsklasse`, `deleteBeitragsklasse`, `addBeitragsklasseRegel`, `deleteBeitragsklasseRegel` against `/finance/beitragsklassen[...]`).
 - `src/api/files.ts` — `/files` endpoints: `fetchFiles(path?)`, `fetchFolders()`, `uploadFile` (raw fetch/FormData), `downloadFile` (Blob → objectURL), `previewFile` (Blob → objectURL, inline), `updateFile`, `deleteFile`.
-- `src/api/veranstaltungen.ts` — `/veranstaltungen` + `/veranstaltung-form-template` + `/veranstaltung-kategorien` endpoints: full CRUD, financials, form rows (add/update/delete), attachment upload/download/delete/blob-preview, template get/update, kategorie CRUD. Attachment uploads use raw `fetch`/`FormData`; downloads return Blob → objectURL.
+- `src/api/veranstaltungen.ts` — `/veranstaltungen` + `/veranstaltung-form-template` + `/veranstaltung-kategorien` endpoints: full CRUD, financials, form rows (add/update/delete), attachment upload/download/delete/blob-preview, template get/update, kategorie CRUD, Schichten CRUD (`fetchSchichten`, `createSchicht`, `updateSchicht`, `deleteSchicht`) + Anmeldung (`signUpSchicht(veranstaltungId, schichtId, memberId?)`, `signOffSchicht(veranstaltungId, schichtId, memberId)`). Attachment uploads use raw `fetch`/`FormData`; downloads return Blob → objectURL.
 - `src/api/strafen.ts` — `/strafen` + `/strafen/eintraege` endpoints: catalog CRUD (`fetchStrafen`, `createStrafe`, `updateStrafe`, `deleteStrafe`) and entry CRUD (`fetchEintraege`, `createEintrag`, `updateEintrag`, `deleteEintrag`). All via `apiFetch`. `fetchEintraege` accepts optional filter object `{ memberId?, strafeId?, businessYearId?, bezahlt? }`.
 - `src/api/bierliste.ts` — all `/bierliste/*` endpoints via `apiFetch`. Functions: `fetchBierDrinks(includeInactive?)`, `createBierDrink`, `updateBierDrink`, `deleteBierDrink`, `uploadBierDrinkImage` (raw fetch/FormData), `fetchBierFridge`, `updateBierFridge`, `fetchMyConsumption`, `postConsumption`, `fetchMyBalance`, `fetchAllBalances`, `payMember`, `adjustMemberAmounts`, `fetchCashbox`, `postCashboxTransaction`, `fetchBierStats`. Image serve URL: `${getApiUrl()}/bierliste/drinks/:id/image` (no auth header — `<img src>` direct).
+- `src/api/settings.ts` — `fetchSettings()` (`GET /settings`, L0+) and `updateSettings(body)` (`PATCH /settings`, L5 only) via `apiFetch`. Flat object: `bierlisteAdminLevel`, `strafenwartLevel`, `strafenVorstandLevel`, `strafenKassenwartLevel`, `adminLevel` — AccessLevel thresholds only, no Beitrag amounts (see `Beitragsklasse`). Body fields all optional on PATCH, no nested merge needed.
 
 **Types:**
-- `src/types/member.ts` — `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
-- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`, `Mitgliedsbeitrag`.
+- `src/types/member.ts` — `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`. `Role` now carries `accessLevel: number` and `description?`. `Member` no longer has the fixed `u18`/`bereitsMitglied`/`schuelerStudentAzubi`/`berufstaetig` booleans — replaced by `beitragsklasseId?`, `beitragsklasse?: { id, name, betragJL, betragKG }` (denormalized, read-only from the frontend's perspective), `attributeValues?: MemberAttributeValue[]`, and `excludeFromBeitrag: boolean`. The JWT payload shape is defined locally in `currentUser.ts` as `JwtPayload`.
+- `src/types/memberAttributes.ts` — `AttributeType` (`BOOLEAN | TEXT | NUMBER | SELECT`), `MemberAttributeDefinition` (`id`, `key`, `label`, `type`, `options?: string[]`, `sortOrder`), `MemberAttributeValue` (`id`, `memberId`, `definitionId`, `value: string`, optional nested `definition`).
+- `src/types/finance.ts` — `TransactionType`, `PaymentTag`, `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionAttachment`, `Mitgliedsbeitrag`, `Beitragsklasse` (`id`, `name`, `betragJL`, `betragKG`, `isDefault`, `prioritaet`, `regeln?`), `BeitragsklasseRegel` (`id`, `beitragsklasseId`, `merkmalId`, `wert`, optional nested `merkmal`).
 - `src/types/files.ts` — `AppFile`.
-- `src/types/veranstaltungen.ts` — `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `VeranstaltungKategorie`, `AllAttachments`.
+- `src/types/veranstaltungen.ts` — `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `VeranstaltungKategorie`, `AllAttachments`, `VeranstaltungSchicht`, `VeranstaltungSchichtMitglied`.
 - `src/types/strafen.ts` — `Strafe`, `StrafeEintrag`.
 - `src/types/bierliste.ts` — `BierDrink`, `BierFridge`, `BierConsumption`, `BierMemberBalance`, `BierCashboxTransaction`, `BierCashbox`, `BierUserStat`. Key shape: `BierUserStat.byDrink[]` is `{ drink: { id, name, pricePerUnit }, amount, cost }` (NOT `drinkId`/`drinkName` — backend returns the nested `drink` object).
+- `src/types/settings.ts` — `Settings` (`id`, `bierlisteAdminLevel`, `strafenwartLevel`, `strafenVorstandLevel`, `strafenKassenwartLevel`, `adminLevel`, `updatedAt`), `UpdateSettingsBody` (all fields optional except `id`/`updatedAt`). No longer holds Beitrag amounts — those live in `Beitragsklasse` (`src/types/finance.ts`) since a club can define arbitrarily many fee classes, not just two fixed amounts.
 
 **Responsive design:**
 - Mobile breakpoint: **768px**. Hook: `src/hooks/useIsMobile.ts` → `useIsMobile()` returns boolean, updates on resize.
@@ -148,16 +162,17 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 
 **Screens (`src/screens/`):**
 - `Login` — redesigned card UI (dark gradient background, centered white card). Credential form + **"Server-Adresse"** field pre-filled from `localStorage('api_base_url')` (default `https://your-backend-domain.de`). On submit saves the URL to localStorage before calling `auth.login()`, then notifies parent via `onSuccess`. **Connectivity indicator**: on mount and 800ms after URL changes, a `fetch` with `mode: "no-cors"` + 3s `AbortController` timeout probes the server; badge shows 🟡 Prüfe… / 🟢 Erreichbar / 🔴 Nicht erreichbar next to the label; "Tailscale aktiv?" hint shown below input when unreachable. **Password visibility toggle**: 👁️/🙈 button inside the password field toggles `type="password"` ↔ `type="text"` (`tabIndex={-1}`, does not steal form focus). **Error detail panel**: on login failure, error box shows HTTP status code in message + collapsible "Details ▼" button that reveals the raw API response body (JSON pretty-printed if parseable, otherwise plain text).
-- `ProfileModal` — overlay modal opened by the avatar button (top nav, all logged-in users). Edits own profile fields. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 5` — non-admin saves will be rejected by the API. **Avatar upload/delete**: avatar circle is clickable → opens file picker; camera overlay on hover; "Löschen" button shown when avatar exists. Upload calls `uploadAvatar` (raw `fetch`/`FormData`). `onAvatarChanged` prop notifies `App.tsx` to update the nav avatar immediately without closing the modal.
-- `Members` — split-pane layout: member list (left) + detail/create panel (right). Prop `isMobile?: boolean`. **L0/L1**: rows show name only (no email, no status badge, not clickable — `canSeeMemberDetails()` false). **L2+**: full list, clickable rows open detail. **Mobile**: card-style list rows (avatar + name + [email+status if L2+]); tapping opens detail full-width; "← Zurück" returns to list. **Desktop**: table with Name / [E-Mail / Adresse / Status if L2+] columns. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (L3+, `canCreateMembers()`).
-- `MemberDetail` — shown for L2+ (`canSeeMemberDetails()`). Edit controls (fields, Passwort ändern, retroactive beitrag flow) shown only for L3+ (`canEditMembers()`). Attachment section shown for L2+; upload/delete buttons for L5 only (`canWriteMemberAttachments()`). If any beitragsrelevante field (`u18`, `bereitsMitglied`, `schuelerStudentAzubi`) changed, saving triggers a two-step flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update retroactively; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs.
-- `MemberCreate` — create form; `roleId` is hardcoded to `1` for now. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string to `POST /members`.
+- `ProfileModal` — overlay modal opened by the avatar button (top nav, all logged-in users). Edits own profile fields, plus dynamic attribute inputs from `useQuery(['member-attributes'])` (same per-type rendering as `MemberDetail`/`MemberCreate`); local `attrEdits: Record<definitionId, value>` overlay merged onto `member.attributeValues` (`attrValue()` helper, no `useEffect`+`setState`), only sent in the PATCH body if non-empty. Includes a **"Passwort ändern"** section: two password inputs (new + confirm), `password` sent in PATCH body only when filled and matching (min 6 chars). Backend `PATCH /members/:id` requires `accessLevel >= 3` — L0/L1/L2 users cannot save their own profile via this screen today (no self-edit bypass on the general PATCH route, unlike avatar/roleId which have explicit self-exceptions). **Avatar upload/delete**: avatar circle is clickable → opens file picker; camera overlay on hover; "Löschen" button shown when avatar exists. Upload calls `uploadAvatar` (raw `fetch`/`FormData`). `onAvatarChanged` prop notifies `App.tsx` to update the nav avatar immediately without closing the modal.
+- `Members` — split-pane layout: member list (left) + detail/create panel (right). Prop `isMobile?: boolean`. Fetches `['roles']` (`fetchRoles`) and `['member-attributes']` (`fetchMemberAttributes`) once here and passes both down as `roles`/`attrDefs` props to `MemberDetail`/`MemberCreate` — single source of truth, no per-screen refetch. **L0/L1**: rows show name only (no email, no status badge, not clickable — `canSeeMemberDetails()` false). **L2+**: full list, clickable rows open detail. **Mobile**: card-style list rows (avatar + name + [email+status if L2+]); tapping opens detail full-width; "← Zurück" returns to list. **Desktop**: table with Name / [E-Mail / Adresse / Status if L2+] columns. Toolbar: **"Export"** button (all users) opens `MemberExportModal`; **"+ Neues Mitglied"** (L3+, `canCreateMembers()`).
+- `MemberDetail` — shown for L2+ (`canSeeMemberDetails()`). Edit controls (fields, Passwort ändern, retroactive beitrag flow) shown only for L3+ (`canEditMembers()`). Attachment section shown for L2+; upload/delete buttons for L5 only (`canWriteMemberAttachments()`). Prop `attrDefs: MemberAttributeDefinition[]` (passed from `Members.tsx`, `useQuery(['member-attributes'])`) drives a dynamic "Beitragskategorie" section: one `Chip`/input per definition (`BOOLEAN` → checkbox, `NUMBER` → number input, `SELECT` → dropdown from `options`, `TEXT` → text input), replacing the old fixed `u18`/`bereitsMitglied`/`schuelerStudentAzubi`/`berufstaetig` checkboxes. View mode also shows the read-only `member.beitragsklasse?.name`. A change to `joinedAt`, `excludeFromBeitrag`, or **any** attribute value is treated as beitragsrelevant (`beitragsrelevantChanged()`) and triggers the retroactive-year flow: business years are fetched and shown as checkboxes (all pre-selected); the user picks which years to update; the PATCH is sent with `retroactiveYearIds: number[]` containing only the selected IDs and `attributes: Record<definitionId, value>`.
+- `MemberCreate` — create form; `roleId` defaults to the first entry of the `roles` prop. Prop `attrDefs: MemberAttributeDefinition[]` renders the same dynamic per-type attribute inputs as `MemberDetail` (section hidden entirely if no definitions exist), sent as `attributes: Record<definitionId, value>` on `POST /members`. Includes a `joinedAt` date picker (defaults to today) that is passed as an ISO string.
 - `Finance` — split-pane layout: Kassenbuch table (left) + detail/form panel (right). Prop `isMobile?: boolean`. **Mobile**: list panel OR detail panel shown at a time; "← Zurück" returns to list; transaction table shows only 3 columns (Datum, Beschreibung, Betrag) — no horizontal scroll; desktop shows all 7 columns (Datum, Beschreibung, Kategorie, Zahlung, Typ, Betrag, Kontostand). Stats cards: Einnahmen, Kontostand, **Geld in Kasse**, **Geld in Konto** always visible; desktop also shows Übertrag, Ausgaben, Gewinn.
   - Left: year dropdown (descending), summary badges, running-balance table with a „Zahlung" column (tag: Online/Bar, desktop only) that is filterable via dropdown, summary footer row.
   - Right panel switches between: `BusinessYearForm`, `TransactionCreate`, `TransactionDetail`, or placeholder text.
   - Toolbar buttons: "Kategorien" (L4+, `canWriteFinance()`), "Rückbuchungen", **"Transfers"**, **"Einzahlen"** / **"Auszahlen"** (L4+, only when Kassenstransfer category exists), **"Report"** (all finance users, L3+), **"Import"** (L4+), "+ Neue Buchung" (L4+).
   - **Kassenstransfer / Kasse–Konto split**: category named "kassenstransfer" (case-insensitive match) identifies transfer transactions. `transferIds` set built from entries matching that category. Transfer rows highlighted indigo (`#eef2ff` bg, `#818cf8` left border). Excluded from `statsEntries` (Einnahmen/Ausgaben) to avoid double-counting. `kasseBalance` = net of all BAR-tagged non-RUECKBUCHUNG entries; `kontoBalance = finalBalance - kasseBalance`. `KasseKontoModal` creates two paired transactions (EINZAHLUNG + AUSZAHLUNG, opposite tags) with zero net effect on running balance: Einzahlen = EINZAHLUNG ONLINE + AUSZAHLUNG BAR; Auszahlen = EINZAHLUNG BAR + AUSZAHLUNG ONLINE. Category must be created manually via the Kategorien admin panel — no backend changes required.
   - "Kategorien verwalten" toggle (L4+ only) opens `CategoryManager` inline below the header.
+  - "Beitragsklassen" toggle (visible to all Finance users, L3+, since read is L3+) opens `BeitragsklassenManager` inline below the header; write controls (edit/delete/create/Regeln) inside it are gated by `canWriteFinance()` (L4+).
   - "+ Jahr" button (L4+ only) next to the year dropdown opens `BusinessYearForm` in the right panel.
 - `TransactionCreate` — create form for a new transaction (used by `Finance`). `tag` (`ONLINE` | `BAR`) is required; defaults to `ONLINE`. **Strafe integration**: when selected category name contains "strafe" (case-insensitive) and `!isMitgliedsbeitrag`, a member selector appears; once a member is selected, a `StrafeEintrag` selector loads their open (unbezahlt) penalties via `fetchEintraege({ memberId, bezahlt: false })`; selecting an entry auto-fills the amount; after transaction creation, optionally marks the entry as bezahlt via `updateEintrag(id, { bezahlt: true })`. Checkbox auto-checks when `amount >= strafe.betrag`, shows Teilzahlung hint otherwise.
 - `TransactionDetail` — detail/edit view for a selected transaction; supports editing date, description, category, tag and deleting. Existing transactions without a tag default to `ONLINE` in the edit form. Includes **"Anhänge"** section (always visible in detail view): single click on filename opens `AttachmentViewer` side panel (click again to close); active row highlighted blue; download button (↓) per row; admins can upload multiple files and delete attachments. Upload uses raw `fetch` with `FormData` (not `apiFetch`). Download fetches as Blob + object URL (auth header can't be sent via `<a href>`).
@@ -166,11 +181,12 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
 - `AttachmentViewer` — generic side-panel file viewer (fixed right-edge panel, 600px wide, full viewport height). Props: `filename`, `url` (blob URL), `mimeType`, `onDownload`, `onClose`. Renders PDF via iframe, images via img, fallback with download button for other types. Used by `TransactionDetail`, `MemberDetail`, and `VeranstaltungDetail`.
 
 **Members sub-screens (`src/screens/members/`):**
-- `MemberExportModal` — overlay modal for exporting the member list. Fields are selectable in three groups (Stammdaten, Mitgliedschaft, Beitragsinfos) with group-level checkboxes and Alle/Keine shortcuts. Beitragskategorie is a computed field ("Reduziert (35 €)" if u18 || bereitsMitglied || schuelerStudentAzubi, else "Voll (100 €)"). Status filter: Alle/Aktiv/Inaktiv with live member count. Format: CSV (semicolon-delimited, UTF-8 BOM) or PDF (portrait/landscape depending on column count, via jsPDF + AutoTable). Libraries loaded via dynamic import. Accessible to all logged-in users.
+- `MemberExportModal` — overlay modal for exporting the member list. Fields are selectable in three groups (Stammdaten, Mitgliedschaft, Beitragsinfos) with group-level checkboxes and Alle/Keine shortcuts. "Beitragsklasse" field reads `member.beitragsklasse?.name` directly (no computed reduced/full logic anymore — that now lives server-side in `BeitragsklasseService.determineForMember`). Does **not** export individual dynamic attribute values as columns — out of scope for now (attributes are club-defined and open-ended; add per-attribute export columns if requested). Status filter: Alle/Aktiv/Inaktiv with live member count. Format: CSV (semicolon-delimited, UTF-8 BOM) or PDF (portrait/landscape depending on column count, via jsPDF + AutoTable). Libraries loaded via dynamic import. Accessible to all logged-in users.
 
 **Finance sub-screens (`src/screens/finance/`):**
 - `TransactionForm` — richer create form with segmented-control type selector and conditional `relatedTransactionId` field for `RUECKBUCHUNG`; not yet wired into `Finance.tsx` (replaces `TransactionCreate` when integrated).
 - `CategoryManager` — admin panel: lists categories with per-row delete, inline create form at the bottom; calls `onCategoriesChanged` after mutations so the parent keeps its category list in sync.
+- `BeitragsklassenManager` — replaces the old fixed "ermäßigt/voll" logic. Table of `Beitragsklasse` rows (name, betragJL, betragKG, isDefault, prioritaet); inline edit/create/delete gated by `canWriteFinance()` (L4+, read-only for L3). Per-row "Regeln ▼" toggle expands `RegelRow`, which lists that class's `BeitragsklasseRegel`s (`{merkmal.label} = "{wert}"`) with a delete button, plus an add-rule form (merkmal `<select>` sourced from `useQuery(['member-attributes'])`, free-text `wert` input) — write-gated the same as the parent. Delete of a class blocked server-side (409) if `isDefault` or if members are currently assigned; surfaced via `apiErrMsg()`.
 - `BusinessYearForm` — simple form to create a new business year; default year is current year + 1; shows hint that carry-over is calculated automatically.
 - `ReportModal` — overlay modal for generating finance reports. Filters: Geschäftsjahr(e) (multi-select), Kategorien (multi-select, empty = all), Rückbuchungen toggle, Tag (ONLINE/BAR/kein Tag, empty = all). Option **"Anhänge einschließen"**: fetches attachments for all filtered transactions in parallel; for PDF: jsPDF renders the main tables + a per-year attachment overview table, then `pdf-lib` merges actual attachment files — PDF attachments are copied page-by-page, JPEG/PNG embedded full-page, other image formats converted via canvas to JPEG first, unsupported formats get a placeholder page; each attachment is preceded by a separator page (transaction date/description + filename); for CSV: adds a "Anhänge" column with pipe-separated filenames. Format: CSV (semicolon-delimited, UTF-8 BOM, Excel-kompatibel) or PDF (landscape, via jsPDF + AutoTable with summary footer). Accessible to all logged-in users. Libraries loaded via dynamic import.
 - `ImportModal` — overlay modal for bulk-importing transactions from `.xlsx` or `.csv`. CSV delimiter is semicolon. Columns: `Datum;Beschreibung;Kategorie;Tag;Typ;Betrag` (same template as CSV export, `Kontostand` column is ignored if present). Datum format: `DD.MM.YYYY`. Geschäftsjahr is auto-detected from date (month ≥ 2 → year Y, month = 1 → year Y−1). `RUECKBUCHUNG` rows are rejected with an error. Shows a preview table with per-row validation before importing. "Vorlage (.csv)" button downloads an example file. Admin only.
@@ -233,10 +249,17 @@ This is a React 19 + TypeScript SPA using Vite (rolldown-vite). No router librar
   - **Metadata** (name, date, description): inline edit toggle (L2+, `canWriteEvents()`); "Bearbeiten" / "Speichern" / "Abbrechen" buttons. Delete button with confirmation (L2+).
   - **Finanzen**: 3 stat cards (Einnahmen, Ausgaben, Saldo) fetched via `useQuery(['veranstaltung-financials', id])`.
   - **Buchungen**: read-only table of linked transactions (date, description, category, amount) from the event detail response.
+  - **Schichten**: renders `SchichtenSection` (`src/screens/veranstaltungen/SchichtenSection.tsx`) — see below.
   - **Formular**: table rendered from the event's `form.columns` snapshot. L2+ can edit cells inline (input type matches `column.type`: text/number/date/checkbox), save per-row via PATCH, add rows, delete rows. L0/L1 sees read-only values.
   - **Anhänge**: list with filename, size, download (↓), delete (×, L2+). Clicking row opens `AttachmentViewer` side panel (click again to close); blob URL lifecycle managed with `useRef` + cancellation token. L2+ upload: multi-file label input.
+- `SchichtenSection` — shift planning for one Veranstaltung, own `['veranstaltung-schichten', veranstaltungId]` query key (`fetchSchichten`). Independent resource, not part of the generic `VeranstaltungForm` system (needs real member relations for signup/capacity, not free-form cells). Each shift card shows name, start–end time (`datetime-local` inputs on create/edit, converted to/from ISO), `angemeldet: n[/kapazitaet]` count with "(voll)" flag, and member chips (each with a `×` to sign off — shown when the chip is the viewer's own membership or `canWriteEvents()`, L2+). "Selbst eintragen" button (all logged-in users, hidden once already signed up, disabled + relabeled "Schicht voll" when `kapazitaet` reached) calls `signUpSchicht(veranstaltungId, schichtId)` with no `memberId` (backend defaults to `req.user.sub`). L2+ additionally gets "+ Mitglied eintragen" (member `<select>` sourced from `useQuery(['members'])`, filtered to members not already in the shift) and full shift CRUD (create/edit/delete, `ShiftForm` shared between create and edit). Capacity-full and duplicate-signup 409s surface via `apiErrMsg()`.
 - `FormTemplateManager` — L5-only template column editor. Fetches singleton via `useQuery(['veranstaltung-form-template'])`. Displays editable table of columns (label, type); add column form at bottom; save via `PATCH /veranstaltung-form-template`. Note: changes only affect new Veranstaltungen.
 - `VeranstaltungKategorienManager` — L2+ category CRUD panel (`canWriteEvents()`). Fetches via `useQuery(['veranstaltung-kategorien'])`. List with color dot, name, description, usage count; inline edit row; create form with color picker (presets + custom color input). Delete blocked client-side if `_count.veranstaltungen > 0`. Exports `KategoriePill` (colored pill chip used in list + detail views).
+
+**Server-Einstellungen (`src/screens/ServerSettings.tsx`):** No dedicated tab in `TABS`/mobile bottom nav — reachable only via the gear ⚙ settings dropdown ("Server-Einstellungen" entry, L5 only, `canWriteSettings()`), which sets `activeTab = "settings"`. Internal tab bar with three tabs (local `tab` state, not App-level routing):
+- **Level** (`LevelForm`, inline in `ServerSettings.tsx`) — loads `useQuery(['settings'])`; local `edits: Partial<Settings>` state holds unsaved changes merged onto server data (no `useEffect` + `setState` — computed inline per render); "Speichern" sends the 5 AccessLevel fields via `updateSettings()`, then `queryClient.setQueryData(['settings'], updated)` and clears `edits`. Fields: `bierlisteAdminLevel`, `strafenwartLevel`, `strafenVorstandLevel`, `strafenKassenwartLevel`, `adminLevel` — plain number inputs. Beitrag amounts are **not** here — see Finanzen → Beitragsklassen.
+- **Rollen** (`src/screens/settings/RolesManager.tsx`) — CRUD table (name, accessLevel, description) via `createRole`/`updateRole`/`deleteRole`; reads via the shared `['roles']` query key (`fetchRoles` from `members.ts`). Delete errors (409 if members still assigned) surfaced via `apiErrMsg()`.
+- **Mitglieder-Merkmale** (`src/screens/settings/MemberAttributesManager.tsx`) — CRUD table (key, label, type, options) via `createMemberAttribute`/`updateMemberAttribute`/`deleteMemberAttribute`, `['member-attributes']` query key. `SELECT` type shows a comma-separated options input (`optionsList()`/`toDraft()` helpers convert to/from `string[]`); client validates at least one option before submitting. Delete errors (409 if referenced by a `BeitragsklasseRegel`) surfaced via `apiErrMsg()`.
 
 **Update module (`src/update/checkUpdate.ts`):**
 - `checkAndUpdate()` — called from `App.tsx` via `useEffect([loggedIn])` (fires on login and on app start with existing token).
@@ -258,11 +281,14 @@ Default: `https://your-backend-domain.de`. Configurable at runtime via the Login
 |---|---|
 | Auth | `POST /auth/login` |
 | Members | `/members` |
+| Roles | `/roles` (`GET /members/roles` also still works — same data) |
+| Member-Attributes | `/member-attributes` |
 | Business Years | `/finance/business-years` |
 | Categories | `/finance/categories` |
 | Transactions | `/finance/transactions` |
 | Running balance | `GET /finance/transactions/balance/:businessYearId` |
 | Mitgliedsbeiträge | `/finance/mitgliedsbeitraege` |
+| Beitragsklassen | `/finance/beitragsklassen` |
 | Transaction Attachments | `/finance/transactions/:id/attachments` |
 | Member Attachments | `/members/:id/attachments` |
 | Member Avatars | `POST/GET/DELETE /members/:id/avatar` |
@@ -270,16 +296,23 @@ Default: `https://your-backend-domain.de`. Configurable at runtime via the Login
 | Veranstaltungen | `/veranstaltungen` |
 | Veranstaltung Form Template | `/veranstaltung-form-template` |
 | Veranstaltung Kategorien | `/veranstaltung-kategorien` |
+| Veranstaltung Schichten | `/veranstaltungen/:id/schichten` |
 | Strafen (catalog) | `/strafen` |
 | Strafen (entries) | `/strafen/eintraege` |
+| Settings | `/settings` |
 
 ### Key constraints Claude Code must respect
 - Use `canSeeFinance()` (L3+) to gate Finance/Beiträge UI; `canWriteFinance()` (L4+) to gate write actions
 - Use `canWriteEvents()` (L2+) for event/kategorie CRUD; `canWriteFormTemplate()` (L5) for template PATCH
+- Schichten (shifts) reuse `canWriteEvents()` (L2+) for shift CRUD and for signing other members up/off. Self signup/signoff is allowed at any level with no permission function needed — `signUpSchicht`/`signOffSchicht` just omit `memberId` (backend defaults to `req.user.sub`) for the "own" case
 - Use `canEditMembers()` (L3+) for member edit; `canSeeMemberDetails()` (L2+) for full record
 - `canWriteStrafen()` / `canSeeAllStrafen()` / `canWriteStrafeEintraege()` are L1 or L3+ (non-linear — NOT L2)
 - `canMarkStrafeGezahlt()` is L1 or L4+ (NOT L2/L3)
 - Never use `canManageFinance()` for new code — it is an alias for `canWriteFinance()` (L4+) kept for backward compat only
+- Use `canWriteSettings()` (L5) to gate `/settings` read/write UI — backend hardcodes L5 for `PATCH /settings` regardless of the configurable `adminLevel` field
+- Use `canWriteRoles()` / `canWriteMemberAttributes()` (both L5) for `/roles` and `/member-attributes` write UI; read is L0 for both
+- Beitragsklassen (`/finance/beitragsklassen`) have no dedicated permission function — reuse `canSeeFinance()` (L3+ read) / `canWriteFinance()` (L4+ write)
+- `Member` has **no** `u18`/`bereitsMitglied`/`schuelerStudentAzubi`/`berufstaetig` fields anymore — those are now `MemberAttributeValue` rows, club-defined via `/member-attributes`, set through `PATCH /members/:id` body field `attributes: { [definitionId]: value }`. `Member.beitragsklasseId`/`beitragsklasse` are server-computed and denormalized — never send them directly; they're derived live from `attributeValues` + `BeitragsklasseRegel`s on every member create/update
 - `type` and `amount` on Transactions are **immutable** after creation
 - `tag` (`ONLINE` | `BAR`) is required on every Transaction; the frontend enforces this on create and defaults to `ONLINE` in the edit form
 - `RUECKBUCHUNG` requires `relatedTransactionId`; the related tx must not itself be a `RUECKBUCHUNG`
@@ -288,10 +321,11 @@ Default: `https://your-backend-domain.de`. Configurable at runtime via the Login
 - Deleting a Category fails if transactions are assigned
 
 ### TypeScript types live in
-- `src/types/member.ts` → `Member`, `MemberAttachment`, `MemberBeitrag`, `Role`
-- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`, `TransactionAttachment`, `Mitgliedsbeitrag`
+- `src/types/member.ts` → `Member`, `MemberAttachment`, `MemberBeitrag`, `Role` (now with `accessLevel`, `description?`)
+- `src/types/memberAttributes.ts` → `AttributeType`, `MemberAttributeDefinition`, `MemberAttributeValue`
+- `src/types/finance.ts` → `Category`, `BusinessYear`, `Transaction`, `RunningBalanceEntry`, `TransactionType`, `PaymentTag`, `TransactionAttachment`, `Mitgliedsbeitrag`, `Beitragsklasse`, `BeitragsklasseRegel`
 - `src/types/files.ts` → `AppFile`
-- `src/types/veranstaltungen.ts` → `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `AllAttachments`
+- `src/types/veranstaltungen.ts` → `FormColumn`, `VeranstaltungFormRow`, `VeranstaltungForm`, `VeranstaltungAttachment`, `VeranstaltungTransaction`, `Veranstaltung`, `VeranstaltungFinancials`, `VeranstaltungFormTemplate`, `AllAttachments`, `VeranstaltungSchicht`, `VeranstaltungSchichtMitglied`
 
 ### API client pattern
 All requests go through `src/api/client.ts → apiFetch()`.
@@ -313,6 +347,12 @@ And in `src/api/members.ts`:
 - `deleteMemberAttachment` — `DELETE /members/:id/attachments/:aid` via `apiFetch`
 - `fetchMemberAttachmentBlob` — returns `{ url: string; mimeType: string }` blob URL (used by `MemberDetail` for `AttachmentViewer` preview)
 
+`src/api/roles.ts` (all via `apiFetch`, L5 only): `createRole` / `updateRole` / `deleteRole` against `/roles`. Read stays on `fetchRoles()` in `members.ts` (`GET /members/roles`).
+
+`src/api/memberAttributes.ts` (all via `apiFetch`): `fetchMemberAttributes()` (L0) / `createMemberAttribute` / `updateMemberAttribute` / `deleteMemberAttribute` (L5) against `/member-attributes`.
+
+And in `src/api/finance.ts`, Beitragsklassen (all via `apiFetch`): `fetchBeitragsklassen()` (L3) / `createBeitragsklasse` / `updateBeitragsklasse` / `deleteBeitragsklasse` (L4) against `/finance/beitragsklassen`; `addBeitragsklasseRegel(beitragsklasseId, data)` / `deleteBeitragsklasseRegel(beitragsklasseId, regelId)` (L4) against `/finance/beitragsklassen/:id/regeln[...]`.
+
 And in `src/api/veranstaltungen.ts`:
 - `fetchVeranstaltungen` / `fetchVeranstaltung(id)` — list + single event (with transactions, attachments, form)
 - `createVeranstaltung` / `updateVeranstaltung` / `deleteVeranstaltung` — CRUD via `apiFetch`
@@ -325,6 +365,9 @@ And in `src/api/veranstaltungen.ts`:
 - `addFormRow` / `updateFormRow` / `deleteFormRow` — form row CRUD via `apiFetch`
 - `fetchFormTemplate` / `updateFormTemplate` — singleton template GET/PATCH via `apiFetch`
 - `fetchVeranstaltungKategorien` / `createVeranstaltungKategorie` / `updateVeranstaltungKategorie` / `deleteVeranstaltungKategorie` — kategorie CRUD via `apiFetch`
+- `fetchSchichten(veranstaltungId)` — list shifts incl. signed-up members, via `apiFetch`
+- `createSchicht` / `updateSchicht` / `deleteSchicht` — shift CRUD via `apiFetch` (L2+)
+- `signUpSchicht(veranstaltungId, schichtId, memberId?)` — self-signup when `memberId` omitted (backend defaults to `req.user.sub`), any member when passed explicitly (L2+ only server-side); `signOffSchicht(veranstaltungId, schichtId, memberId)` — memberId required (explicit, no self-default)
 
 And in `src/api/strafen.ts`:
 - `fetchStrafen` / `createStrafe` / `updateStrafe` / `deleteStrafe` — catalog CRUD via `apiFetch`

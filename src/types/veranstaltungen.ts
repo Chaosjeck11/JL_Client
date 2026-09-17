@@ -60,6 +60,25 @@ export type Veranstaltung = {
   form?: VeranstaltungForm;
 };
 
+export type VeranstaltungSchichtMitglied = {
+  id: number;
+  firstname: string;
+  lastname: string;
+};
+
+export type VeranstaltungSchicht = {
+  id: number;
+  veranstaltungId: number;
+  name: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  kapazitaet?: number | null;
+  beschreibung?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  mitglieder: VeranstaltungSchichtMitglied[];
+};
+
 export type VeranstaltungFinancials = {
   einnahmen: number;
   ausgaben: number;

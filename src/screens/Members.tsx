@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMembers, fetchRoles } from "../api/members";
+import { fetchMemberAttributes } from "../api/memberAttributes";
 import type { Member } from "../types/member";
 import MemberDetail from "./MemberDetail";
 import MemberCreate from "./MemberCreate";
@@ -45,6 +46,10 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
   const { data: roles = [] } = useQuery({
     queryKey: ["roles"],
     queryFn: fetchRoles,
+  });
+  const { data: attrDefs = [] } = useQuery({
+    queryKey: ["member-attributes"],
+    queryFn: fetchMemberAttributes,
   });
 
   const displayedMembers = members
@@ -354,6 +359,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
           <div style={{ padding: 20 }}>
             <MemberCreate
               roles={roles}
+              attrDefs={attrDefs}
               onCreated={(member) => {
                 queryClient.invalidateQueries({ queryKey: ["members"] });
                 setSelected(member);
@@ -368,6 +374,7 @@ export default function Members({ onLogout: _onLogout, isMobile = false }: Membe
               key={selected.id}
               member={selected}
               roles={roles}
+              attrDefs={attrDefs}
               onUpdated={(updated) => {
                 queryClient.invalidateQueries({ queryKey: ["members"] });
                 setSelected(updated);

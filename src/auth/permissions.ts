@@ -80,3 +80,21 @@ export function canPayBeitraege(): boolean {
 export function canManageFinance(): boolean {
   return canWriteFinance();
 }
+
+// L5 only — read/write server settings (matches backend PATCH /settings gate)
+export function canWriteSettings(): boolean {
+  const user = getCurrentUser();
+  return !!user && user.accessLevel >= 5;
+}
+
+// L5 only — create/edit/delete roles (read is L0, open to everyone)
+export function canWriteRoles(): boolean {
+  const user = getCurrentUser();
+  return !!user && user.accessLevel >= 5;
+}
+
+// L5 only — create/edit/delete member-attribute definitions (read is L0)
+export function canWriteMemberAttributes(): boolean {
+  const user = getCurrentUser();
+  return !!user && user.accessLevel >= 5;
+}

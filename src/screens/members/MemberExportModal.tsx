@@ -10,7 +10,7 @@ interface Props {
 type FieldKey =
   | "firstname" | "lastname" | "email" | "address" | "phone"
   | "birthday" | "joinedAt" | "role" | "active"
-  | "beitragskategorie" | "u18" | "bereitsMitglied" | "schuelerStudentAzubi" | "berufstaetig";
+  | "beitragsklasse";
 
 type ReportFormat = "csv" | "pdf";
 type StatusFilter = "all" | "active" | "inactive";
@@ -25,11 +25,7 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   joinedAt: "Beitrittsdatum",
   role: "Rolle",
   active: "Aktivitätsstatus",
-  beitragskategorie: "Beitragskategorie",
-  u18: "Unter 18",
-  bereitsMitglied: "Bereits Mitglied (KG)",
-  schuelerStudentAzubi: "Schüler/Student/Azubi",
-  berufstaetig: "Berufstätig",
+  beitragsklasse: "Beitragsklasse",
 };
 
 const FIELD_GROUPS: Array<{ label: string; fields: FieldKey[] }> = [
@@ -43,7 +39,7 @@ const FIELD_GROUPS: Array<{ label: string; fields: FieldKey[] }> = [
   },
   {
     label: "Beitragsinfos",
-    fields: ["beitragskategorie", "u18", "bereitsMitglied", "schuelerStudentAzubi", "berufstaetig"],
+    fields: ["beitragsklasse"],
   },
 ];
 
@@ -61,11 +57,6 @@ function fmtDate(d: string | null | undefined): string {
   return `${day}.${m}.${y}`;
 }
 
-function beitragskategorie(m: Member): string {
-  if (m.u18 || m.bereitsMitglied || m.schuelerStudentAzubi) return "Reduziert (35 €)";
-  return "Voll (100 €)";
-}
-
 function getFieldValue(m: Member, field: FieldKey): string {
   switch (field) {
     case "firstname": return m.firstname;
@@ -77,11 +68,7 @@ function getFieldValue(m: Member, field: FieldKey): string {
     case "joinedAt": return fmtDate(m.joinedAt);
     case "role": return m.role?.name ?? "–";
     case "active": return m.active ? "Aktiv" : "Inaktiv";
-    case "beitragskategorie": return beitragskategorie(m);
-    case "u18": return m.u18 ? "Ja" : "Nein";
-    case "bereitsMitglied": return m.bereitsMitglied ? "Ja" : "Nein";
-    case "schuelerStudentAzubi": return m.schuelerStudentAzubi ? "Ja" : "Nein";
-    case "berufstaetig": return m.berufstaetig ? "Ja" : "Nein";
+    case "beitragsklasse": return m.beitragsklasse?.name ?? "–";
   }
 }
 

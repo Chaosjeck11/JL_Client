@@ -1,6 +1,7 @@
 import { apiFetch, getApiUrl, prepareFileForUpload } from "./client";
 import type {
   BusinessYear,
+  Beitragsklasse,
   Category,
   Mitgliedsbeitrag,
   RunningBalanceEntry,
@@ -26,6 +27,42 @@ export function createCategory(data: {
 
 export function deleteCategory(id: number): Promise<void> {
   return apiFetch(`/finance/categories/${id}`, { method: "DELETE" });
+}
+
+export function fetchBeitragsklassen(): Promise<Beitragsklasse[]> {
+  return apiFetch("/finance/beitragsklassen");
+}
+
+export function createBeitragsklasse(data: {
+  name: string;
+  betragJL: number;
+  betragKG: number;
+  isDefault?: boolean;
+  prioritaet?: number;
+}): Promise<Beitragsklasse> {
+  return apiFetch("/finance/beitragsklassen", { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateBeitragsklasse(
+  id: number,
+  data: Partial<{ name: string; betragJL: number; betragKG: number; isDefault: boolean; prioritaet: number }>,
+): Promise<Beitragsklasse> {
+  return apiFetch(`/finance/beitragsklassen/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function deleteBeitragsklasse(id: number): Promise<void> {
+  return apiFetch(`/finance/beitragsklassen/${id}`, { method: "DELETE" });
+}
+
+export function addBeitragsklasseRegel(
+  beitragsklasseId: number,
+  data: { merkmalId: number; wert: string },
+): Promise<Beitragsklasse> {
+  return apiFetch(`/finance/beitragsklassen/${beitragsklasseId}/regeln`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export function deleteBeitragsklasseRegel(beitragsklasseId: number, regelId: number): Promise<void> {
+  return apiFetch(`/finance/beitragsklassen/${beitragsklasseId}/regeln/${regelId}`, { method: "DELETE" });
 }
 
 export function fetchBusinessYears(): Promise<BusinessYear[]> {

@@ -9,6 +9,7 @@ import type {
   VeranstaltungFormRow,
   VeranstaltungFormTemplate,
   VeranstaltungKategorie,
+  VeranstaltungSchicht,
 } from "../types/veranstaltungen";
 
 export function fetchVeranstaltungen(): Promise<Veranstaltung[]> {
@@ -179,4 +180,38 @@ export function updateVeranstaltungKategorie(
 
 export function deleteVeranstaltungKategorie(id: number): Promise<void> {
   return apiFetch(`/veranstaltung-kategorien/${id}`, { method: "DELETE" });
+}
+
+export function fetchSchichten(veranstaltungId: number): Promise<VeranstaltungSchicht[]> {
+  return apiFetch(`/veranstaltungen/${veranstaltungId}/schichten`);
+}
+
+export function createSchicht(
+  veranstaltungId: number,
+  data: { name: string; startTime?: string; endTime?: string; kapazitaet?: number; beschreibung?: string },
+): Promise<VeranstaltungSchicht> {
+  return apiFetch(`/veranstaltungen/${veranstaltungId}/schichten`, { method: "POST", body: JSON.stringify(data) });
+}
+
+export function updateSchicht(
+  veranstaltungId: number,
+  schichtId: number,
+  data: Partial<{ name: string; startTime: string | null; endTime: string | null; kapazitaet: number | null; beschreibung: string | null }>,
+): Promise<VeranstaltungSchicht> {
+  return apiFetch(`/veranstaltungen/${veranstaltungId}/schichten/${schichtId}`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export function deleteSchicht(veranstaltungId: number, schichtId: number): Promise<void> {
+  return apiFetch(`/veranstaltungen/${veranstaltungId}/schichten/${schichtId}`, { method: "DELETE" });
+}
+
+export function signUpSchicht(veranstaltungId: number, schichtId: number, memberId?: number): Promise<void> {
+  return apiFetch(`/veranstaltungen/${veranstaltungId}/schichten/${schichtId}/mitglieder`, {
+    method: "POST",
+    body: JSON.stringify(memberId !== undefined ? { memberId } : {}),
+  });
+}
+
+export function signOffSchicht(veranstaltungId: number, schichtId: number, memberId: number): Promise<void> {
+  return apiFetch(`/veranstaltungen/${veranstaltungId}/schichten/${schichtId}/mitglieder/${memberId}`, { method: "DELETE" });
 }

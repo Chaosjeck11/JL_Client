@@ -11,6 +11,7 @@ import { fetchMembers } from "../api/members";
 import { fetchVeranstaltungen } from "../api/veranstaltungen";
 import { canWriteFinance } from "../auth/permissions";
 import type { BusinessYear, PaymentTag, RunningBalanceEntry, Transaction } from "../types/finance";
+import BeitragsklassenManager from "./finance/BeitragsklassenManager";
 import BusinessYearForm from "./finance/BusinessYearForm";
 import CategoryManager from "./finance/CategoryManager";
 import ImportModal from "./finance/ImportModal";
@@ -191,6 +192,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const [creating, setCreating] = useState(false);
   const [creatingYear, setCreatingYear] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showBeitragsklassen, setShowBeitragsklassen] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
@@ -412,6 +414,17 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
               </button>
             )}
             <button
+              onClick={() => setShowBeitragsklassen(v => !v)}
+              style={{
+                padding: "5px 12px", borderRadius: 6, border: "1px solid var(--c-border)",
+                background: showBeitragsklassen ? "var(--c-text)" : "var(--c-bg)",
+                color: showBeitragsklassen ? "var(--c-bg)" : "var(--c-text-2)",
+                fontSize: 13, cursor: "pointer",
+              }}
+            >
+              Beitragsklassen {showBeitragsklassen ? "▲" : "▼"}
+            </button>
+            <button
               onClick={() => setShowStornos(v => !v)}
               style={{
                 padding: "5px 12px", borderRadius: 6,
@@ -480,6 +493,9 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
         {showCategoryManager && (
           <CategoryManager onCategoriesChanged={() => {}} />
         )}
+
+        {/* Beitragsklassen manager */}
+        {showBeitragsklassen && <BeitragsklassenManager />}
 
         {/* Stats cards */}
         {yearDetail && (

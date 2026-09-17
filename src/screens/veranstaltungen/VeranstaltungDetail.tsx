@@ -24,6 +24,7 @@ import type {
 } from "../../types/veranstaltungen";
 import { canWriteEvents } from "../../auth/permissions";
 import AttachmentViewer from "../../components/AttachmentViewer";
+import SchichtenSection from "./SchichtenSection";
 
 function fmtDate(d: string): string {
   if (!d) return "–";
@@ -583,6 +584,10 @@ export default function VeranstaltungDetail({ veranstaltung, onDeleted, onUpdate
           </tbody>
         </table>
       )}
+
+      {/* Schichten */}
+      <SectionHeader>Schichten</SectionHeader>
+      <SchichtenSection veranstaltungId={veranstaltung.id} />
 
       {/* Formular */}
       <SectionHeader>Formular</SectionHeader>

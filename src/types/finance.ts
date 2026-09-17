@@ -50,6 +50,26 @@ export type TransactionAttachment = {
   uploadedAt: string;
 };
 
+export type BeitragsklasseRegel = {
+  id: number;
+  beitragsklasseId: number;
+  merkmalId: number;
+  wert: string;
+  merkmal?: { id: number; key: string; label: string };
+};
+
+export type Beitragsklasse = {
+  id: number;
+  name: string;
+  betragJL: number;
+  betragKG: number;
+  isDefault: boolean;
+  prioritaet: number;
+  regeln?: BeitragsklasseRegel[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type Mitgliedsbeitrag = {
   id: number;
   memberId: number;

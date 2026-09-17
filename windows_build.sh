@@ -4,17 +4,10 @@ set -a; source .env; set +a
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TAURI_CONF="$SCRIPT_DIR/JL-Manager/src-tauri/tauri.conf.json"
-KEYSTORE="$SCRIPT_DIR/jl-manager.keystore"
 
 : "${SERVER_USER:?SERVER_USER nicht gesetzt}"
 : "${SERVER_HOST:?SERVER_HOST nicht gesetzt}"
 : "${SERVER_PATH:?SERVER_PATH nicht gesetzt}"
-
-# ── Keystore-Passwörter ───────────────────────────────────────────────────────
-: "${KEYSTORE_PASSWORD:?KEYSTORE_PASSWORD nicht gesetzt}"
-: "${KEY_PASSWORD:?KEY_PASSWORD nicht gesetzt}"
-export KEYSTORE_PASSWORD
-export KEY_PASSWORD
 
 # ── Release-Typ ───────────────────────────────────────────────────────────────
 CURRENT_VERSION=$(grep '"version"' "$TAURI_CONF" | head -1 | sed 's/.*"version": *"\([^"]*\)".*/\1/')
@@ -52,7 +45,6 @@ check() {
   fi
 }
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "==> Sync src..."
@@ -65,31 +57,6 @@ check cargo
 check rustup
 check cargo-xwin
 check makensis
-
-for VAR in JAVA_HOME ANDROID_HOME NDK_HOME; do
-  if [ -z "${!VAR}" ]; then
-    echo "  FEHLT: \$$VAR nicht gesetzt"
-    PREFLIGHT_OK=false
-  else
-    echo "  OK:    $VAR=${!VAR}"
-  fi
-done
-
-if [ ! -f "$KEYSTORE" ]; then
-  echo "  FEHLT: $KEYSTORE nicht gefunden"
-  PREFLIGHT_OK=false
-else
-  echo "  OK:    Keystore gefunden"
-fi
-
-for TARGET in aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android; do
-  if rustup target list --installed | grep -q "$TARGET"; then
-    echo "  OK:    rust target $TARGET"
-  else
-    echo "  FEHLT: rust target $TARGET  →  rustup target add $TARGET"
-    PREFLIGHT_OK=false
-  fi
-done
 
 if rustup target list --installed | grep -q "x86_64-pc-windows-msvc"; then
   echo "  OK:    rust target x86_64-pc-windows-msvc"
@@ -109,44 +76,43 @@ echo ""
 echo "=== JL-Manager v$VERSION ==="
 
 OUT_DIR="$SCRIPT_DIR/Builds/$VERSION"
-rm -rf "$OUT_DIR/linux" "$OUT_DIR/android" "$OUT_DIR/windows"
-mkdir -p "$OUT_DIR/linux" "$OUT_DIR/android" "$OUT_DIR/windows"
+rm -rf "$OUT_DIR/windows"
+mkdir -p "$OUT_DIR/windows"
 
 cd "$SCRIPT_DIR/JL-Manager"
 
-BUNDLE_DIR="src-tauri/target/release/bundle"
-
-
-# ── Android ───────────────────────────────────────────────────────────────────
+# ── Windows ───────────────────────────────────────────────────────────────────
 echo ""
-echo "=== BUILD ANDROID ==="
+echo "=== BUILD WINDOWS ==="
+WIN_BUNDLE_DIR="src-tauri/target/x86_64-pc-windows-msvc/release/bundle"
 
-if [ ! -d "src-tauri/gen/android" ]; then
-  echo "Einmalig: tauri android init..."
-  pnpm tauri android init
-fi
-
-if pnpm tauri android build --apk; then
-  find src-tauri/gen/android/app/build/outputs/apk    -name "*release*.apk" -exec cp {} "$OUT_DIR/android/" \; 2>/dev/null || true
-  find src-tauri/gen/android/app/build/outputs/bundle -name "*release*.aab" -exec cp {} "$OUT_DIR/android/" \; 2>/dev/null || true
+if NO_STRIP=true pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc; then
+  # target/ accumulates artifacts from every past local build — filter by
+  # $VERSION so only this run's files get copied.
+  find "$WIN_BUNDLE_DIR/nsis" -name "*$VERSION*.exe" -exec cp {} "$OUT_DIR/windows/" \; 2>/dev/null || true
+  find "$WIN_BUNDLE_DIR/msi"  -name "*$VERSION*.msi" -exec cp {} "$OUT_DIR/windows/" \; 2>/dev/null || true
 else
-  echo "WARNUNG: Android-Build fehlgeschlagen. Übersprungen."
+  echo "WARNUNG: Windows-Build fehlgeschlagen. Übersprungen."
 fi
 
 # ── latest.json ───────────────────────────────────────────────────────────────
-LINUX_FILE=$(find "$OUT_DIR/linux"   -name "*.AppImage" -printf "%f\n" | head -1)
-WIN_FILE=$(find   "$OUT_DIR/windows" -name "*.exe"       -printf "%f\n" | head -1)
-APK_FILE=$(find   "$OUT_DIR/android" -name "*.apk"       -printf "%f\n" | head -1)
+WIN_FILE=$(find "$OUT_DIR/windows" -name "*.exe" -printf "%f\n" | head -1)
 
 mkdir -p "$SCRIPT_DIR/Builds"
-cat > "$SCRIPT_DIR/Builds/latest.json" << EOF
+if [ -f "$SCRIPT_DIR/Builds/latest.json" ]; then
+  # bestehende linux/android-Einträge erhalten, nur windows + version aktualisieren
+  sed -i "s/\"version\": *\"[^\"]*\"/\"version\": \"$VERSION\"/" "$SCRIPT_DIR/Builds/latest.json"
+  sed -i "s/\"windows\": *\"[^\"]*\"/\"windows\": \"${WIN_FILE:-}\"/" "$SCRIPT_DIR/Builds/latest.json"
+else
+  cat > "$SCRIPT_DIR/Builds/latest.json" << EOF
 {
   "version": "$VERSION",
-  "linux":   "${LINUX_FILE:-}",
+  "linux":   "",
   "windows": "${WIN_FILE:-}",
-  "android": "${APK_FILE:-}"
+  "android": ""
 }
 EOF
+fi
 
 echo "  OK: latest.json erstellt"
 
@@ -179,7 +145,7 @@ read -r DEPLOY_ANSWER
 if [ "$DEPLOY_ANSWER" = "j" ] || [ "$DEPLOY_ANSWER" = "J" ]; then
   echo "=== DEPLOY v$VERSION → $SERVER_HOST ==="
 
-  ssh "$SERVER_USER@$SERVER_HOST" "mkdir -p $SERVER_PATH/$VERSION/linux $SERVER_PATH/$VERSION/windows $SERVER_PATH/$VERSION/android"
+  ssh "$SERVER_USER@$SERVER_HOST" "mkdir -p $SERVER_PATH/$VERSION/windows"
   scp -r "$OUT_DIR/"* "$SERVER_USER@$SERVER_HOST:$SERVER_PATH/$VERSION/"
   scp "$SCRIPT_DIR/Builds/latest.json" "$SERVER_USER@$SERVER_HOST:$SERVER_PATH/latest.json"
 

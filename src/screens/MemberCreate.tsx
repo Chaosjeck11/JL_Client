@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { createMember } from "../api/members";
 import type { Member, Role } from "../types/member";
+import type { MemberAttributeDefinition } from "../types/memberAttributes";
 
 type Props = {
   roles: Role[];
+  attrDefs: MemberAttributeDefinition[];
   onCreated: (member: Member) => void;
   onCancel: () => void;
 };
+
+function defaultAttributes(defs: MemberAttributeDefinition[]): Record<number, string> {
+  const attrs: Record<number, string> = {};
+  for (const d of defs) attrs[d.id] = d.type === "BOOLEAN" ? "false" : "";
+  return attrs;
+}
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -45,7 +53,7 @@ const btnSecondary: React.CSSProperties = {
   borderRadius: 7, padding: "8px 18px", fontSize: 13, cursor: "pointer",
 };
 
-export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
+export default function MemberCreate({ roles, attrDefs, onCreated, onCancel }: Props) {
   const [form, setForm] = useState({
     firstname: "",
     lastname: "",
@@ -55,10 +63,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
     birthday: "",
     joinedAt: new Date().toISOString().slice(0, 10),
     roleId: roles.length > 0 ? roles[0].id : 1,
-    u18: false,
-    bereitsMitglied: false,
-    schuelerStudentAzubi: false,
-    berufstaetig: false,
+    attributes: defaultAttributes(attrDefs),
   });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -67,6 +72,10 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm(f => ({ ...f, [key]: value }));
+  }
+
+  function setAttr(defId: number, value: string) {
+    setForm(f => ({ ...f, attributes: { ...f.attributes, [defId]: value } }));
   }
 
   async function submit() {
@@ -86,10 +95,7 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
         phone: form.phone || null,
         birthday: form.birthday || null,
         joinedAt: form.joinedAt || null,
-        u18: form.u18,
-        bereitsMitglied: form.bereitsMitglied,
-        schuelerStudentAzubi: form.schuelerStudentAzubi,
-        berufstaetig: form.berufstaetig,
+        attributes: form.attributes,
       });
       onCreated(member);
     } catch {
@@ -150,21 +156,34 @@ export default function MemberCreate({ roles, onCreated, onCancel }: Props) {
         </FormField>
       </div>
 
-      <SectionHeader label="Beitragskategorie" />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <FormField label="Unter 18">
-          <input type="checkbox" checked={form.u18} onChange={e => set("u18", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-        <FormField label="Bereits Mitglied (KG)">
-          <input type="checkbox" checked={form.bereitsMitglied} onChange={e => set("bereitsMitglied", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-        <FormField label="Schüler/Student/Azubi">
-          <input type="checkbox" checked={form.schuelerStudentAzubi} onChange={e => set("schuelerStudentAzubi", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-        <FormField label="Berufstätig">
-          <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} style={{ cursor: "pointer" }} />
-        </FormField>
-      </div>
+      {attrDefs.length > 0 && (
+        <>
+          <SectionHeader label="Beitragskategorie" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {attrDefs.map(d => (
+              <FormField key={d.id} label={d.label}>
+                {d.type === "BOOLEAN" ? (
+                  <input
+                    type="checkbox"
+                    checked={form.attributes[d.id] === "true"}
+                    onChange={e => setAttr(d.id, e.target.checked ? "true" : "false")}
+                    style={{ cursor: "pointer" }}
+                  />
+                ) : d.type === "NUMBER" ? (
+                  <input type="number" value={form.attributes[d.id] ?? ""} onChange={e => setAttr(d.id, e.target.value)} style={{ ...inputStyle, flex: "unset", width: 120 }} />
+                ) : d.type === "SELECT" ? (
+                  <select value={form.attributes[d.id] ?? ""} onChange={e => setAttr(d.id, e.target.value)} style={inputStyle}>
+                    <option value="">–</option>
+                    {(d.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                ) : (
+                  <input value={form.attributes[d.id] ?? ""} onChange={e => setAttr(d.id, e.target.value)} style={inputStyle} />
+                )}
+              </FormField>
+            ))}
+          </div>
+        </>
+      )}
 
       <div style={{ marginTop: 20, display: "flex", gap: 8 }}>
         <button onClick={submit} disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }}>

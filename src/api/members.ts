@@ -99,10 +99,8 @@ export async function createMember(data: {
   phone?: string | null;
   birthday?: string | null;
   joinedAt?: string | null;
-  u18?: boolean;
-  bereitsMitglied?: boolean;
-  schuelerStudentAzubi?: boolean;
-  berufstaetig?: boolean;
+  attributes?: Record<number, string>;
+  excludeFromBeitrag?: boolean;
 }): Promise<Member> {
   return apiFetch("/members", {
     method: "POST",

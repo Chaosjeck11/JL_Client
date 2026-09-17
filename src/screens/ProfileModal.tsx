@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { Member } from "../types/member";
 import { updateMember, uploadAvatar, deleteAvatar } from "../api/members";
+import { fetchMemberAttributes } from "../api/memberAttributes";
 import { getApiUrl } from "../api/client";
 
 type Props = {
@@ -20,6 +22,7 @@ function FormField({ label, children }: { label: string; children: React.ReactNo
 }
 
 export default function ProfileModal({ member, onClose, onUpdated, onAvatarChanged }: Props) {
+  const { data: attrDefs = [] } = useQuery({ queryKey: ["member-attributes"], queryFn: fetchMemberAttributes });
   const [localAvatarPath, setLocalAvatarPath] = useState(member.avatarPath ?? null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarHover, setAvatarHover] = useState(false);
@@ -31,17 +34,23 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
     address: member.address ?? "",
     phone: member.phone ?? "",
     birthday: member.birthday ? member.birthday.substring(0, 10) : "",
-    u18: member.u18 ?? false,
-    bereitsMitglied: member.bereitsMitglied ?? false,
-    schuelerStudentAzubi: member.schuelerStudentAzubi ?? false,
-    berufstaetig: member.berufstaetig ?? false,
   });
+  const [attrEdits, setAttrEdits] = useState<Record<number, string>>({});
   const [pwForm, setPwForm] = useState({ newPassword: "", confirmPassword: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm(f => ({ ...f, [key]: value }));
+  }
+
+  function attrValue(defId: number, type: string): string {
+    if (defId in attrEdits) return attrEdits[defId];
+    return member.attributeValues?.find(v => v.definitionId === defId)?.value ?? (type === "BOOLEAN" ? "false" : "");
+  }
+
+  function setAttr(defId: number, value: string) {
+    setAttrEdits(a => ({ ...a, [defId]: value }));
   }
 
   async function save() {
@@ -64,11 +73,10 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
         address: form.address || null,
         phone: form.phone || null,
         birthday: form.birthday || null,
-        u18: form.u18,
-        bereitsMitglied: form.bereitsMitglied,
-        schuelerStudentAzubi: form.schuelerStudentAzubi,
-        berufstaetig: form.berufstaetig,
       };
+      if (Object.keys(attrEdits).length > 0) {
+        body.attributes = attrEdits;
+      }
       if (pwForm.newPassword) body.password = pwForm.newPassword;
       const updated = await updateMember(member.id, body);
       onUpdated(updated);
@@ -200,18 +208,22 @@ export default function ProfileModal({ member, onClose, onUpdated, onAvatarChang
           <FormField label="Geburtstag">
             <input type="date" value={form.birthday} onChange={e => set("birthday", e.target.value)} />
           </FormField>
-          <FormField label="Unter 18">
-            <input type="checkbox" checked={form.u18} onChange={e => set("u18", e.target.checked)} />
-          </FormField>
-          <FormField label="Bereits Mitglied (KG)">
-            <input type="checkbox" checked={form.bereitsMitglied} onChange={e => set("bereitsMitglied", e.target.checked)} />
-          </FormField>
-          <FormField label="Schüler/Student/Azubi">
-            <input type="checkbox" checked={form.schuelerStudentAzubi} onChange={e => set("schuelerStudentAzubi", e.target.checked)} />
-          </FormField>
-          <FormField label="Berufstätig">
-            <input type="checkbox" checked={form.berufstaetig} onChange={e => set("berufstaetig", e.target.checked)} />
-          </FormField>
+          {attrDefs.map(d => (
+            <FormField key={d.id} label={d.label}>
+              {d.type === "BOOLEAN" ? (
+                <input type="checkbox" checked={attrValue(d.id, d.type) === "true"} onChange={e => setAttr(d.id, e.target.checked ? "true" : "false")} />
+              ) : d.type === "NUMBER" ? (
+                <input type="number" value={attrValue(d.id, d.type)} onChange={e => setAttr(d.id, e.target.value)} style={{ flex: "unset", width: 120 }} />
+              ) : d.type === "SELECT" ? (
+                <select value={attrValue(d.id, d.type)} onChange={e => setAttr(d.id, e.target.value)}>
+                  <option value="">–</option>
+                  {(d.options ?? []).map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input value={attrValue(d.id, d.type)} onChange={e => setAttr(d.id, e.target.value)} style={{ flex: 1 }} />
+              )}
+            </FormField>
+          ))}
         </div>
 
         <div style={{
