@@ -115,8 +115,11 @@ struct InstallApkPayload {
     path: String,
 }
 
+// Must be async: sync commands run on the Android main thread, and
+// run_mobile_plugin queues the Kotlin call onto that same thread and then
+// blocks waiting for it → deadlock, installer never opens.
 #[tauri::command]
-fn install_apk<R: tauri::Runtime>(
+async fn install_apk<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     path: String,
 ) -> Result<(), String> {

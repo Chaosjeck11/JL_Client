@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createTransaction,
   fetchBusinessYear,
@@ -229,6 +229,13 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
     queryFn: fetchMembers,
   });
 
+  // Display-only: append linked member name (data unchanged, also covers old entries)
+  const memberNames = new Map(members.map(m => [m.id, `${m.firstname} ${m.lastname}`]));
+  function displayDesc(t: Transaction) {
+    const name = t.memberId != null ? memberNames.get(t.memberId) : undefined;
+    return name && !t.description.includes(name) ? `${t.description} – ${name}` : t.description;
+  }
+
   const { data: veranstaltungen = [] } = useQuery({
     queryKey: ["veranstaltungen"],
     queryFn: fetchVeranstaltungen,
@@ -240,6 +247,21 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
     queryKey: ["running-balance", effectiveYearId],
     queryFn: () => fetchRunningBalance(effectiveYearId!),
     enabled: effectiveYearId !== null,
+  });
+
+  // Kasse carries over between years → need entries of all prior years too.
+  // Same query key as the selected year's list → shared cache.
+  const selectedYear = businessYears.find(y => y.id === effectiveYearId);
+  const priorYearEntries = useQueries({
+    queries: businessYears
+      .filter(y => selectedYear && y.year < selectedYear.year)
+      .map(y => ({
+        queryKey: ["running-balance", y.id],
+        queryFn: () => fetchRunningBalance(y.id),
+        // Closed years rarely change; skip polling to stay under the backend
+        // rate limit (ThrottlerModule: 20 req/min per IP).
+        refetchInterval: false as const,
+      })),
   });
 
   const { data: yearDetail = null } = useQuery({
@@ -306,7 +328,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
     if (filterDateTo && txDate > filterDateTo) return false;
     if (filterKeywords) {
       const kws = filterKeywords.toLowerCase().split(/\s+/).filter(Boolean);
-      if (!kws.every(k => t.description.toLowerCase().includes(k))) return false;
+      if (!kws.every(k => displayDesc(t).toLowerCase().includes(k))) return false;
     }
     if (filterCatIds.length > 0 && !filterCatIds.includes(t.categoryId)) return false;
     if (filterTags.length > 0 && !filterTags.includes(t.tag ?? null)) return false;
@@ -323,10 +345,21 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
   const totalExpenses = statsEntries.filter(e => e.transaction.type !== "EINZAHLUNG").reduce((s, e) => s + e.transaction.amount, 0);
   const finalBalance  = entries.length > 0 ? entries[entries.length - 1].runningBalance : (yearDetail?.carryOver ?? 0);
 
-  // Kasse = net of BAR-tagged non-storno transactions; Konto = remainder
-  const kasseBalance = entries
-    .filter(e => e.transaction.type !== "RUECKBUCHUNG" && !stornoIds.has(e.transaction.id) && e.transaction.tag === "BAR")
-    .reduce((s, e) => s + (e.transaction.type === "EINZAHLUNG" ? e.transaction.amount : -e.transaction.amount), 0);
+  // Kasse = cumulative net of all BAR-tagged transactions up to the selected year;
+  // Konto = remainder. Must mirror backend running balance exactly:
+  // Rückbuchung counts with its own amount (may be partial), sign opposite to the
+  // original. Transfers (EINZAHLUNG ONLINE + AUSZAHLUNG BAR) move money between both.
+  // ponytail: initial carryOver of the very first year has no tag → counted as Konto.
+  const allEntries = [...priorYearEntries.flatMap(q => q.data ?? []), ...entries];
+  const txTypeById = new Map(allEntries.map(e => [e.transaction.id, e.transaction.type]));
+  const kasseBalance = allEntries
+    .filter(e => e.transaction.tag === "BAR")
+    .reduce((s, { transaction: t }) => {
+      if (t.type === "EINZAHLUNG") return s + t.amount;
+      if (t.type === "AUSZAHLUNG") return s - t.amount;
+      const orig = t.relatedTransactionId != null ? txTypeById.get(t.relatedTransactionId) : undefined;
+      return orig === "AUSZAHLUNG" ? s + t.amount : orig === "EINZAHLUNG" ? s - t.amount : s;
+    }, 0);
   const kontoBalance = finalBalance - kasseBalance;
 
   const hasDateFilter = !!(filterDateFrom || filterDateTo);
@@ -704,7 +737,7 @@ export default function Finance({ isMobile = false }: { isMobile?: boolean }) {
                     }}
                   >
                     <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text-2)", whiteSpace: "nowrap" }}>{fmtDate(t.date)}</td>
-                    <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text)" }}>{t.description}</td>
+                    <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text)" }}>{displayDesc(t)}</td>
                     {!isMobile && <td style={{ padding: "9px 14px", fontSize: 13, color: "var(--c-text-2)" }}>{t.category.name}</td>}
                     {!isMobile && <td style={{ padding: "9px 14px" }}><TagPill tag={t.tag} /></td>}
                     {!isMobile && <td style={{ padding: "9px 14px" }}><TypePill type={t.type} /></td>}

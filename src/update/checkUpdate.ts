@@ -55,6 +55,58 @@ export async function downloadUpdate(
   onLog(`Dateiname: ${filename}`);
 
   const { invoke } = await import('@tauri-apps/api/core');
+
+  if (platform === 'android') {
+    // Android: download via WebView fetch, not the Rust `download_file` command.
+    // reqwest's rustls-platform-verifier is never initialised on Android (no JNI
+    // init, no Kotlin component) → TLS handshake panics inside the async command,
+    // the invoke promise never settles and progress sits at 0% forever.
+    // fetch uses the Android network stack and honours network_security_config.
+    const res = await fetch(downloadUrl, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok || !res.body) throw new Error(`Server antwortete mit HTTP ${res.status}`);
+
+    const total = Number(res.headers.get('Content-Length')) || 0;
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    let lastLoggedMb = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total > 0) {
+        onProgress(Math.min(99, Math.floor((received / total) * 100)));
+      } else if (received / 1024 / 1024 - lastLoggedMb >= 0.5) {
+        lastLoggedMb = received / 1024 / 1024;
+        onLog(`${lastLoggedMb.toFixed(1)} MB heruntergeladen (Gesamtgröße unbekannt)…`);
+      }
+    }
+    const data = new Uint8Array(received);
+    let offset = 0;
+    for (const c of chunks) {
+      data.set(c, offset);
+      offset += c.length;
+    }
+    onProgress(100);
+
+    // App cache dir: always writable, no storage permission, covered by
+    // FileProvider <cache-path> so the installer can read it.
+    const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { cacheDir, join } = await import('@tauri-apps/api/path');
+    onLog('Speichere APK…');
+    await writeFile(filename, data, { baseDir: BaseDirectory.Cache });
+    const apkPath = await join(await cacheDir(), filename);
+
+    onLog('Starte APK-Installation…');
+    onLog(`APK-Pfad: ${apkPath}`);
+    await invoke('plugin:install|install_apk', { path: apkPath });
+    onLog('Installation gestartet. Bitte Installationsaufforderung bestätigen.');
+    return;
+  }
+
   const { listen } = await import('@tauri-apps/api/event');
 
   let lastLoggedMb = 0;
@@ -87,28 +139,6 @@ export async function downloadUpdate(
 
   if (platform === 'linux') {
     await invoke('launch_appimage', { path: filePath });
-  } else if (platform === 'android') {
-    onLog('Starte APK-Installation…');
-    onLog(`APK-Pfad: ${filePath}`);
-    const installLog: string[] = [
-      `${new Date().toISOString()} APK-Pfad: ${filePath}`,
-      `${new Date().toISOString()} invoke plugin:install|install_apk …`,
-    ];
-    const { writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    try {
-      await invoke('plugin:install|install_apk', { path: filePath });
-      installLog.push(`${new Date().toISOString()} invoke OK`);
-      onLog('Installation gestartet. Bitte Installationsaufforderung bestätigen.');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      installLog.push(`${new Date().toISOString()} invoke FEHLER: ${msg}`);
-      onLog(`Fehler: ${msg}`);
-      throw e;
-    } finally {
-      const logText = new TextEncoder().encode(installLog.join('\n') + '\n');
-      await writeFile('jl-install.log', logText, { baseDir: BaseDirectory.Download }).catch(() => {});
-      onLog('Log gespeichert: Downloads/jl-install.log');
-    }
   } else {
     const { openPath } = await import('@tauri-apps/plugin-opener');
     await openPath(filePath);
